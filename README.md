@@ -230,9 +230,9 @@ Contributions welcome! Please ensure:
 
 ## License
 
-[Specify your license]
+MIT License - see [LICENSE](LICENSE) file for details
 
 ## Author
 
-[Specify author information]
+Portable Shell Contributors
 
