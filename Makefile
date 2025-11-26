@@ -6,6 +6,7 @@ LDFLAGS =
 SRC_DIR = src
 INC_DIR = include
 EXAMPLE_DIR = examples
+TEST_DIR = tests
 BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/obj
 
@@ -19,7 +20,10 @@ LIB = $(BUILD_DIR)/libportableshell.a
 # Examples
 EXAMPLES = $(BUILD_DIR)/linux_example $(BUILD_DIR)/telnet_server
 
-.PHONY: all clean examples
+# Tests
+TESTS = $(BUILD_DIR)/test_shell
+
+.PHONY: all clean examples test
 
 all: $(LIB) examples
 
@@ -40,6 +44,15 @@ $(BUILD_DIR)/linux_example: $(EXAMPLE_DIR)/linux_example.c $(LIB)
 	@echo "Built: $@"
 
 $(BUILD_DIR)/telnet_server: $(EXAMPLE_DIR)/telnet_server.c $(LIB)
+	$(CC) $(CFLAGS) $< -L$(BUILD_DIR) -lportableshell $(LDFLAGS) -o $@
+	@echo "Built: $@"
+
+# Build tests
+test: $(TESTS)
+	@echo "Running tests..."
+	@$(BUILD_DIR)/test_shell
+
+$(BUILD_DIR)/test_shell: $(TEST_DIR)/test_shell.c $(LIB)
 	$(CC) $(CFLAGS) $< -L$(BUILD_DIR) -lportableshell $(LDFLAGS) -o $@
 	@echo "Built: $@"
 
