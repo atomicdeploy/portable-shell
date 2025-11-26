@@ -3,7 +3,22 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <stdbool.h>
+
+/* Arduino compatibility */
+#ifdef ARDUINO
+    /* Arduino has its own boolean type */
+    #ifndef bool
+        #define bool boolean
+    #endif
+    #ifndef true
+        #define true HIGH
+    #endif
+    #ifndef false
+        #define false LOW
+    #endif
+#else
+    #include <stdbool.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
