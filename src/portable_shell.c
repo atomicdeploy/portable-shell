@@ -182,6 +182,7 @@ typedef struct {
 struct ps_session {
     ps_config io;
     unsigned theme; /* 0 violet, 1 red, 2 original Lumen */
+    unsigned table_style;
     ps_command commands[PS_COMMANDS];
     ps_raw_command_fn raw_commands[PS_COMMANDS];
     char prompt_text[64];
@@ -284,6 +285,10 @@ static void ink(ps_session *s, unsigned kind) {
     static const char *const fallback[] = {"\033[38;5;246m", "\033[38;5;213m", "\033[38;5;223m",
                                            "\033[38;5;203m", "\033[38;5;255m", "\033[38;5;157m",
                                            "\033[38;5;183m", "\033[38;5;97m"};
+    if (kind == 7 && s->theme != 2 && (s->table_style & PS_TABLE_RED_BORDER)) {
+        color(s, (s->io.flags & PS_TRUECOLOR) ? "\033[38;2;255;95;115m" : "\033[38;5;203m");
+        return;
+    }
     color(s, s->theme == 2                  ? original[kind % 8]
              : (s->io.flags & PS_TRUECOLOR) ? (s->theme == 1 ? red[kind % 8] : violet[kind % 8])
                                             : fallback[kind % 8]);
@@ -606,6 +611,38 @@ static const ps_command builtins[] = {
 PS_API unsigned ps_sizeof_session(void) {
     return sizeof(ps_session);
 }
+PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsigned count,
+                                  unsigned *widths) {
+    unsigned i, used, left, changed, step;
+    if (!columns || !widths || !count || count > 8 || width > 240)
+        return 0;
+    used = 3 * count + 1;
+    for (i = 0; i < count; ++i) {
+        if (!columns[i].minimum || columns[i].minimum > 240 || columns[i].weight > 16 ||
+            (columns[i].maximum && columns[i].maximum < columns[i].minimum))
+            return 0;
+        widths[i] = columns[i].minimum;
+        used += widths[i];
+    }
+    if (used > width)
+        return 0;
+    left = width - used;
+    do {
+        changed = 0;
+        for (i = 0; i < count && left; ++i)
+            for (step = 0; step < columns[i].weight && left; ++step)
+                if (!columns[i].maximum || widths[i] < columns[i].maximum) {
+                    ++widths[i];
+                    --left;
+                    ++changed;
+                }
+    } while (left && changed);
+    return width - left;
+}
+PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
+    s->table_style = flags & PS_TABLE_DEFAULT;
+    s->dirty = 1;
+}
 PS_API unsigned ps_alignof_session(void) {
     struct A {
         char c;
@@ -620,6 +657,7 @@ PS_API ps_session *ps_init(void *memory, unsigned bytes, const ps_config *c) {
         return 0;
     zero(s, sizeof *s);
     s->io = *c;
+    s->table_style = PS_TABLE_DEFAULT;
 #ifdef PS_ASCII_ONLY
     s->io.flags &= ~(PS_COLOR | PS_UNICODE);
 #endif
@@ -674,13 +712,58 @@ static unsigned tab_count(ps_session *s) {
         return s->job.total ? 1 : 0;
     return 9;
 }
-static void border(ps_session *s, const char *left, const char *right) {
-    unsigned i;
+typedef struct {
+    const ps_column *columns;
+    unsigned count, widths[3];
+} Grid;
+static Grid grid_for(ps_session *s) {
+    static const ps_column tasks[] = {{"ID", 4, 4, 0}, {"State", 8, 8, 0}, {"Task", 12, 0, 1}};
+    static const ps_column pairs[] = {{"Key", 10, 24, 1}, {"Value", 14, 0, 3}};
+    static const ps_column jobs[] = {
+        {"Job", 10, 24, 1}, {"Progress", 12, 0, 3}, {"State", 8, 8, 0}};
+    static const ps_column stats[] = {{"Metric", 10, 24, 1}, {"Value", 14, 0, 3}};
+    Grid g;
+    g.columns = s->tab == 0 ? tasks : s->tab == 1 ? pairs : s->tab == 2 ? jobs : stats;
+    g.count = (s->tab == 0 || s->tab == 2) ? 3 : 2;
+    ps_layout_columns(s->io.columns - 2, g.columns, g.count, g.widths);
+    return g;
+}
+static void grid_vertical(ps_session *s) {
     ink(s, 7);
-    out(s, left);
-    for (i = 0; i < s->io.columns - 4; ++i)
-        out(s, (s->io.flags & PS_UNICODE) ? "─" : "-");
-    out(s, right);
+    out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
+}
+static void grid_divide(ps_session *s) {
+    out(s, " ");
+    if (s->table_style & PS_TABLE_GRID)
+        grid_vertical(s);
+    else
+        out(s, " ");
+    out(s, " ");
+}
+static void grid_text(ps_session *s, const char *text, unsigned width_) {
+    unsigned suffix = (s->io.flags & PS_UNICODE) ? 1 : 3;
+    if (cells(text, length(text), s->io.flags) > width_ && width_ >= suffix) {
+        field(s, text, width_ - suffix);
+        out(s, (s->io.flags & PS_UNICODE) ? "…" : "...");
+    } else
+        field(s, text, width_);
+}
+static void grid_border(ps_session *s, const Grid *g, unsigned kind, int joined) {
+    unsigned i, j;
+    const char *left = kind == 0 ? "╭" : kind == 2 ? "╰" : "├";
+    const char *right = kind == 0 ? "╮" : kind == 2 ? "╯" : "┤";
+    const char *middle = kind == 0 ? "┬" : (kind == 2 || kind == 3) ? "┴" : "┼";
+    ink(s, 7);
+    out(s, (s->io.flags & PS_UNICODE) ? left : "+");
+    for (i = 0; i < g->count; ++i) {
+        for (j = 0; j < g->widths[i] + 2; ++j)
+            out(s, (s->io.flags & PS_UNICODE) ? "─" : "-");
+        if (i + 1 < g->count)
+            out(s, (s->io.flags & PS_UNICODE)
+                       ? ((joined && (s->table_style & PS_TABLE_GRID)) ? middle : "─")
+                       : ((joined && (s->table_style & PS_TABLE_GRID)) ? "+" : "-"));
+    }
+    out(s, (s->io.flags & PS_UNICODE) ? right : "+");
     reset(s);
 }
 static void table_open(ps_session *s, unsigned tab) {
@@ -705,29 +788,31 @@ static void table_close(ps_session *s) {
     ansi(s, "\033[0m\033[?25h\033[?1049l");
     prompt(s);
 }
-static void task_row(ps_session *s, unsigned index, unsigned inner) {
+static void task_row(ps_session *s, unsigned index, const Grid *g) {
     Task *t = &s->tasks[index];
-    char b[12];
+    char b[20];
     ink(s, 1);
-    out(s, t->selected ? ((s->io.flags & PS_UNICODE) ? "◆ " : "* ") : "  ");
+    str(b, t->selected ? ((s->io.flags & PS_UNICODE) ? "◆ " : "* ") : "  ", sizeof b);
+    dec(b + length(b), t->id);
+    field(s, b, g->widths[0]);
+    grid_divide(s);
     ink(s, t->done ? 5 : 6);
-    out(s, (s->io.flags & PS_UNICODE) ? (t->done ? " ✓  " : " ○  ") : (t->done ? "[x] " : "[ ] "));
-    ink(s, 0);
-    dec(b, t->id);
-    field(s, b, 5);
+    field(s,
+          (s->io.flags & PS_UNICODE) ? (t->done ? "✓ Done" : "○ Open")
+                                     : (t->done ? "[x] Done" : "[ ] Open"),
+          g->widths[1]);
+    grid_divide(s);
     ink(s, t->done ? 0 : 4);
-    field(s, t->title, inner - 11);
+    grid_text(s, t->title, g->widths[2]);
 }
-static void pair_row(ps_session *s, const char *key, const char *value, unsigned inner) {
-    unsigned keyw = min(22, inner / 3);
+static void pair_row(ps_session *s, const char *key, const char *value, const Grid *g) {
     ink(s, 1);
-    field(s, key, keyw);
-    ink(s, 0);
-    out(s, "  ");
+    grid_text(s, key, g->widths[0]);
+    grid_divide(s);
     ink(s, 2);
-    field(s, value, inner - keyw - 2);
+    grid_text(s, value, g->widths[1]);
 }
-static void stat_row(ps_session *s, unsigned i, unsigned inner) {
+static void stat_row(ps_session *s, unsigned i, const Grid *g) {
     char b[32];
     const char *key = "", *value = b;
     b[0] = 0;
@@ -769,7 +854,7 @@ static void stat_row(ps_session *s, unsigned i, unsigned inner) {
         dec(b, s->now / 1000);
         break;
     }
-    pair_row(s, key, value, inner);
+    pair_row(s, key, value, g);
 }
 static void progress_bar(ps_session *s, unsigned width_) {
     unsigned i, pct = s->job.total ? (unsigned)((s->job.done * 100u) / s->job.total) : 0;
@@ -783,7 +868,7 @@ static void progress_bar(ps_session *s, unsigned width_) {
 }
 static void render(ps_session *s) {
     unsigned w = s->io.columns, h = s->io.rows, i, count, slots, ids[PS_ROWS], inner;
-    char b[32];
+    Grid grid;
     static const char *const tabs[] = {"Tasks", "Variables", "Jobs", "Session"};
     if (!s->board || !(s->io.flags & PS_INTERACTIVE))
         return;
@@ -804,8 +889,9 @@ static void render(ps_session *s) {
         return;
     }
     inner = w - 6;
+    grid = grid_for(s);
     count = tab_count(s);
-    slots = h - 11;
+    slots = h - 13;
     if (s->selected >= count)
         s->selected = count ? count - 1 : 0;
     if (s->scroll > s->selected)
@@ -815,18 +901,26 @@ static void render(ps_session *s) {
     at(s, 1, 1);
     ansi(s, "\033[2K");
     out(s, "  ");
-    ink(s, 1);
+    if (s->table_style & PS_TABLE_TITLE_BAR) {
+        surface(s, 1);
+        out(s, " ");
+    } else
+        ink(s, 1);
     out(s, (s->io.flags & PS_UNICODE) ? "◆ " : "+ ");
     out(s, "PortableShell");
+    if (s->table_style & PS_TABLE_TITLE_BAR)
+        out(s, " ");
     reset(s);
     ink(s, 0);
     out(s, (s->io.flags & PS_UNICODE) ? "  ·  " : "  /  ");
     ink(s, 4);
     ps_write(s, tabs[s->tab]);
     ink(s, 0);
-    out(s, "   ");
-    ps_number(s, count);
-    out(s, count == 1 ? " entry" : " entries");
+    if (w >= 60) {
+        out(s, "   ");
+        ps_number(s, count);
+        out(s, count == 1 ? " entry" : " entries");
+    }
     if (s->tab == 0 && w >= 76) {
         unsigned done = 0;
         for (i = 0; i < s->task_count; ++i)
@@ -860,27 +954,28 @@ static void render(ps_session *s) {
         out(s, " ");
     }
     at(s, 4, 2);
-    border(s, (s->io.flags & PS_UNICODE) ? "╭" : "+", (s->io.flags & PS_UNICODE) ? "╮" : "+");
+    grid_border(s, &grid, 0, 1);
     at(s, 5, 2);
     ink(s, 7);
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
     out(s, " ");
-    ink(s, 6);
-    field(s,
-          s->tab == 0   ? "   State   Task"
-          : s->tab == 1 ? "Key                     Value"
-          : s->tab == 2 ? "Job / Progress"
-                        : "Runtime / Session",
-          inner);
+    for (i = 0; i < grid.count; ++i) {
+        ink(s, 6);
+        field(s, grid.columns[i].title, grid.widths[i]);
+        if (i + 1 < grid.count)
+            grid_divide(s);
+    }
     ink(s, 7);
     out(s, " ");
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
     reset(s);
+    at(s, 6, 2);
+    grid_border(s, &grid, 1, 1);
     if (s->tab == 0)
         visible(s, ids);
     for (i = 0; i < slots; ++i) {
         unsigned idx = s->scroll + i;
-        at(s, 6 + i, 2);
+        at(s, 7 + i, 2);
         ink(s, 7);
         out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
         out(s, " ");
@@ -892,27 +987,66 @@ static void render(ps_session *s) {
                     ansi(s, "\033[7m");
             }
             if (s->tab == 0)
-                task_row(s, ids[idx], inner);
+                task_row(s, ids[idx], &grid);
             else if (s->tab == 1)
-                pair_row(s, s->vars[idx].key, s->vars[idx].value, inner);
+                pair_row(s, s->vars[idx].key, s->vars[idx].value, &grid);
             else if (s->tab == 3)
-                stat_row(s, idx, inner);
+                stat_row(s, idx, &grid);
             else {
                 ink(s, 4);
-                field(s, s->job.name, min(24, inner / 2));
-                progress_bar(s, inner - min(24, inner / 2) - 6);
-                spaces(s, 2);
+                unsigned pct = s->job.total ? s->job.done * 100 / s->job.total : 0;
+                grid_text(s, s->job.name, grid.widths[0]);
+                grid_divide(s);
+                progress_bar(s, grid.widths[1] - 5);
+                spaces(s, pct >= 100 ? 0 : pct >= 10 ? 1 : 2);
+                grid_divide(s);
+                ink(s, s->job.cancelled ? 3 : s->job.done < s->job.total ? 2 : 5);
+                field(s,
+                      s->job.cancelled             ? "Stopped"
+                      : s->job.done < s->job.total ? "Running"
+                                                   : "Done",
+                      grid.widths[2]);
             }
             reset(s);
-        } else
-            spaces(s, inner);
+        } else {
+            unsigned j;
+            for (j = 0; j < grid.count; ++j) {
+                spaces(s, grid.widths[j]);
+                if (j + 1 < grid.count)
+                    grid_divide(s);
+            }
+        }
         ink(s, 7);
         out(s, " ");
         out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
         reset(s);
     }
+    at(s, h - 6, 2);
+    grid_border(s, &grid, 3, 1);
     at(s, h - 5, 2);
-    border(s, (s->io.flags & PS_UNICODE) ? "╰" : "+", (s->io.flags & PS_UNICODE) ? "╯" : "+");
+    grid_vertical(s);
+    spaces(s, w - 4);
+    grid_vertical(s);
+    at(s, h - 5, 4);
+    ink(s, 0);
+    out(s, "Row ");
+    ps_number(s, count ? s->selected + 1 : 0);
+    out(s, "/");
+    ps_number(s, count);
+    if (s->filter[0] && s->tab == 0)
+        out(s, " filtered");
+    if (s->tab == 0) {
+        unsigned selected = 0;
+        for (i = 0; i < s->task_count; ++i)
+            selected += s->tasks[i].selected != 0;
+        at(s, h - 5, w - 18);
+        ink(s, 1);
+        ps_number(s, selected);
+        out(s, " selected");
+    }
+    reset(s);
+    at(s, h - 4, 2);
+    grid_border(s, &grid, 2, 0);
     at(s, h - 3, 1);
     ansi(s, "\033[2K");
     out(s, "  ");
@@ -940,7 +1074,8 @@ static void render(ps_session *s) {
     ink(s, 0);
     field(s,
           s->editing    ? "Enter save   Esc cancel"
-          : s->tab == 0 ? "n new  Enter edit  d done  Space select  / filter"
+          : s->tab == 0 ? (w < 60 ? "n new  Enter edit  d done  / filter"
+                                  : "n new   Enter edit   d done   Space select   / filter")
           : s->tab == 1 ? "Enter edit value   Del remove"
           : s->tab == 2 ? "c cancel job"
                         : "Live session counters",
@@ -950,11 +1085,23 @@ static void render(ps_session *s) {
     ansi(s, "\033[2K");
     surface(s, 0);
     out(s, "  ");
-    field(s,
-          (s->io.flags & PS_UNICODE) ? "Tab / ← → tabs   ↑ ↓ navigate   Esc shell"
-                                     : "Tab tabs   Up/Down navigate   Esc shell",
-          w - 3);
+    field(
+        s,
+        (s->io.flags & PS_UNICODE)
+            ? (w < 60 ? "↑↓ move   Tab tabs   Esc shell" : "↑/↓ move   ←/→ tabs   Esc shell")
+            : (w < 60 ? "Up/Dn move  Tab tabs  Esc shell" : "Up/Down move   Tab tabs   Esc shell"),
+        w - 3);
     reset(s);
+    if (w >= 76) {
+        at(s, h, w - 23);
+        surface(s, 0);
+        ps_number(s, w);
+        out(s, (s->io.flags & PS_UNICODE) ? "×" : "x");
+        ps_number(s, h);
+        out(s, "  ");
+        out(s, (s->io.flags & PS_TELNET) ? "Telnet" : "byte stream");
+        reset(s);
+    }
     if (s->editing) {
         const char *label = s->editing == 1   ? "New task"
                             : s->editing == 2 ? "Edit task"
@@ -964,7 +1111,7 @@ static void render(ps_session *s) {
     } else {
         at(s, 3, 1);
     }
-    (void)b;
+    (void)inner;
 }
 static const char *suggest(ps_session *s) {
     unsigned i;
@@ -1143,9 +1290,11 @@ static void table_key(ps_session *s, unsigned key) {
     else if (key == PS_KEY_END)
         s->selected = n ? n - 1 : 0;
     else if (key == PS_KEY_PAGEDOWN)
-        s->selected = min(s->selected + 8, n ? n - 1 : 0);
+        s->selected = min(s->selected + (s->io.rows > 13 ? s->io.rows - 13 : 1), n ? n - 1 : 0);
     else if (key == PS_KEY_PAGEUP)
-        s->selected = s->selected > 8 ? s->selected - 8 : 0;
+        s->selected = s->selected > (s->io.rows > 13 ? s->io.rows - 13 : 1)
+                          ? s->selected - (s->io.rows > 13 ? s->io.rows - 13 : 1)
+                          : 0;
     else if (s->tab == 0) {
         if (key == 'n')
             enter_edit(s, 1, "");
@@ -1576,7 +1725,7 @@ static void job_report(ps_session *s) {
     ps_number(s, s->job.done);
     out(s, "/");
     ps_number(s, s->job.total);
-    out(s, s->job.active ? " running" : s->job.cancelled ? " cancelled" : " complete");
+    out(s, s->job.cancelled ? " cancelled" : s->job.done < s->job.total ? " running" : " complete");
     out(s, "  fnv1a=");
     hex(s, s->job.hash);
     ps_newline(s);

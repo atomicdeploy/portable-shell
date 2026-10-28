@@ -11,10 +11,12 @@ No Python, JavaScript, ncurses, readline, or third-party runtime is required.
 
 ## Run the supplied Windows build
 
-The latest compatibility build is `bin/PortableShell-0.3.0.exe`. It adds the
-optional `--pu850` prompt/command profile; see [PU850 compatibility](PU850-COMPATIBILITY.md)
+The latest build is `bin/PortableShell-0.4.0.exe`, with red framed tables, shared
+column layout, a title bar and contextual footers adapted from RayanPBX.
+See [RayanPBX design](RAYANPBX-DESIGN.md) for source provenance and configuration.
+The optional `--pu850` prompt/command profile remains available; see [PU850 compatibility](PU850-COMPATIBILITY.md)
 for the donor audit and future firmware integration. The unversioned 0.2.0 binary
-is retained to preserve an existing running user session. Normal 0.3.0 builds
+is retained to preserve an existing running user session. Normal 0.4.0 builds
 still default to the violet PortableShell workbench.
 
 Open `bin/PortableShell.exe`. Use **F2** for the workspace, **F1** for the command registry,

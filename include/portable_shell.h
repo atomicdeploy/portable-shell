@@ -23,7 +23,7 @@ extern "C" {
 #endif
 #define PS_ARGS 32
 #define PS_VALUE 128
-#define PS_VERSION "0.3.0"
+#define PS_VERSION "0.4.0"
 #if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 18
 #error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 18"
 #endif
@@ -31,6 +31,16 @@ typedef unsigned char ps_byte;
 typedef unsigned int ps_u32;
 typedef char ps_requires_32_bit_unsigned[(sizeof(ps_u32) == 4) ? 1 : -1];
 typedef struct ps_session ps_session;
+typedef struct {
+    const char *title;
+    unsigned minimum, maximum, weight; /* maximum=0 means flexible; weight 0..16 */
+} ps_column;
+enum { PS_TABLE_GRID = 1, PS_TABLE_RED_BORDER = 2, PS_TABLE_TITLE_BAR = 4, PS_TABLE_DEFAULT = 7 };
+/* Fits 1..8 columns into a framed width (max 240), including padding/separators.
+   Returns occupied width, or 0 if minima do not fit / definitions are invalid. */
+PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsigned count,
+                                  unsigned *widths);
+PS_API void ps_set_table_style(ps_session *, unsigned flags);
 typedef void (*ps_write_fn)(void *context, const ps_byte *bytes, unsigned count);
 typedef int (*ps_command_fn)(ps_session *, int argc, const char *const *argv, void *context);
 /* Raw tail starts immediately after the first space/tab; quotes and all remaining

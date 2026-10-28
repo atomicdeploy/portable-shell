@@ -82,6 +82,21 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
     static const ps_command cmd = {"custom", "", "Test", custom, 0, 0};
     t.failed = t.checks = 0;
     CHECK(portable_runtime_checks(), "freestanding arithmetic helpers match native arithmetic");
+    {
+        const ps_column cols[] = {
+            {"ID", 4, 4, 0}, {"Name", 12, 0, 2}, {"State", 8, 12, 1}, {"Value", 10, 0, 1}};
+        unsigned widths[4], total, w;
+        CHECK(ps_layout_columns(40, cols, 4, widths) == 0,
+              "column minimum rejects undersized frame");
+        for (w = 47; w <= 238; ++w) {
+            total = ps_layout_columns(w, cols, 4, widths);
+            if (total != w || widths[0] != 4 || widths[1] < 12 || widths[2] < 8 || widths[2] > 12 ||
+                widths[3] < 10 || widths[0] + widths[1] + widths[2] + widths[3] + 13 != w)
+                break;
+        }
+        CHECK(w == 239, "four columns fit every supported width with shared padding");
+        CHECK(ps_layout_columns(96, cols, 9, widths) == 0, "column count bounded");
+    }
     CHECK(ps_parse("echo 'a b' \"c\\\"d\" '' a\\ b # ignore", &a) == 0, "quoted parse");
     CHECK(a.argc == 5 && eq(a.argv[1], "a b") && eq(a.argv[2], "c\"d") && eq(a.argv[3], "") &&
               eq(a.argv[4], "a b"),
@@ -262,6 +277,36 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         CHECK(ps_execute(s, "save") == 2 && has(t.output, "Device backend not attached.") &&
                   !has(t.output, "\033"),
               "unbound hardware fails explicitly and batch has no escapes");
+    }
+    {
+        cfg.flags = PS_INTERACTIVE | PS_COLOR | PS_UNICODE;
+        s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
+        ps_execute(s, "task add First");
+        ps_execute(s, "task add Second");
+        ps_execute(s, "task add Third");
+        ps_execute(s, "task add Fourth");
+        ps_resize(s, 42, 14);
+        ps_execute(s, "board");
+        ps_tick(s, 100);
+        clear();
+        ps_key(s, PS_KEY_PAGEDOWN);
+        ps_tick(s, 200);
+        CHECK(has(t.output, "Row 2/4"), "page navigation follows narrow viewport capacity");
+        clear();
+        ps_key(s, PS_KEY_END);
+        ps_tick(s, 300);
+        CHECK(has(t.output, "Fourth") && has(t.output, "Row 4/4"),
+              "last row stays visible with footer");
+        clear();
+        ps_key(s, PS_KEY_PAGEDOWN);
+        ps_tick(s, 400);
+        CHECK(has(t.output, "Row 4/4"), "page navigation bounded at last row");
+        ps_progress(s, "Caller job", 25, 100);
+        ps_key(s, '3');
+        clear();
+        ps_tick(s, 500);
+        CHECK(has(t.output, "Running") && !has(t.output, "Done"),
+              "caller progress remains active until total reached");
     }
     report(ctx, (const ps_byte *)(t.failed ? "Checks failed\n" : "All checks passed\n"),
            t.failed ? 14 : 18);

@@ -1,5 +1,32 @@
 # PortableShell verification
 
+## 0.4.0 — RayanPBX layout adaptation, 2026-10-28
+
+66 checks pass in color, fixed ASCII and compact builds. New checks cover shared
+four-column widths, undersized-frame rejection, viewport-aware paging, footer
+selection bounds and caller-owned progress state. Real PTY editing/navigation and
+readback passed. All four pages, editing, red/Lumen/ASCII themes were inspected at
+96×24 and 42×14 using actual-output Agave replays in `previews/rayan/`.
+
+The native executable is **45,056 bytes**. Core sessions use 30,056 bytes on
+x86_64, 28,464 bytes on Cortex-M4, and 6,240 bytes in the compact ESP8266 build;
+profile state, transport queues and stack are additional. Heap allocation remains
+zero. ARM combined text/read-only metadata: 26,097 bytes; compact Xtensa combined
+text/read-only metadata including our compiler helpers: 28,044 bytes. Both combined
+objects and the native core have zero unresolved symbols. Largest reported native
+core stack frame remains 1,952 bytes, not a runtime stack high-water measurement.
+
+Final-host loopback sample: working set 4,317,184 bytes; private committed memory
+1,372,160 bytes. `profile-0.4.0.json` records the sample; this temporary profiling
+server was stopped afterward. The visual-preview user process remains open with
+its state preserved. New 0.4.0 binaries and libraries have versioned filenames.
+The final executable includes the caller-progress correction described in
+`RAYANPBX-DESIGN.md`; its SHA-256 is
+`69E0E6682AE7CFC90527F633801C9743F577FC7F7ED0DDD6655B2A59BDE03DD4`.
+
+No RayanPBX files or services were changed. No native PBX/Go runtime, board execution,
+or exhaustive terminal acceptance is implied by this design adaptation.
+
 ## 0.3.0 — PU850 compatibility preparation, 2026-10-28
 
 See `PU850-COMPATIBILITY.md` for pinned donor provenance and the replacement boundary.

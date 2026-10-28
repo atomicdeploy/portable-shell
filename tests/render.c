@@ -2,8 +2,12 @@
    This is a test utility, not the shell's terminal renderer. GDB exports SVG. */
 #include "portable_shell.h"
 #include "portable_shell_pu850.h"
+#ifndef W
 #define W 96
+#endif
+#ifndef H
 #define H 24
+#endif
 typedef struct {
     char text[5];
     unsigned fg, bg;
@@ -200,10 +204,13 @@ static void hex(unsigned n) {
    at arbitrary line heights. Mirror that cell behavior in the replay utility. */
 static int box(Cell *v, unsigned x, unsigned y) {
     unsigned c;
-    if ((unsigned char)v->text[0] != 0xe2 || (unsigned char)v->text[1] != 0x94)
+    if ((unsigned char)v->text[0] != 0xe2 ||
+        ((unsigned char)v->text[1] != 0x94 && (unsigned char)v->text[1] != 0x95))
         return 0;
     c = (unsigned char)v->text[2];
-    if (c != 0x80 && c != 0x81 && c != 0x82 && c != 0xad && c != 0xae && c != 0xaf && c != 0xb0)
+    if ((unsigned char)v->text[1] == 0x95 ? (c < 0xad || c > 0xb0)
+                                          : (c != 0x80 && c != 0x81 && c != 0x82 && c != 0x9c &&
+                                             c != 0xa4 && c != 0xac && c != 0xb4 && c != 0xbc))
         return 0;
     add("<path fill=\"none\" stroke=\"#");
     hex(v->fg);
@@ -213,6 +220,18 @@ static int box(Cell *v, unsigned x, unsigned y) {
         add(" ");
         number(y + 13);
         add(" h 12");
+    } else if (c == 0x9c || c == 0xa4 || c == 0xac || c == 0xb4 || c == 0xbc) {
+        number(x + (c == 0x9c ? 6 : 0));
+        add(" ");
+        number(y + 13);
+        add(" h ");
+        number(c == 0x9c || c == 0xa4 ? 6 : 12);
+        add(" M ");
+        number(x + 6);
+        add(" ");
+        number(y + (c == 0xac ? 13 : 0));
+        add(" v ");
+        number(c == 0xac || c == 0xb4 ? 13 : 26);
     } else if (c == 0x82) {
         number(x + 6);
         add(" ");
@@ -246,8 +265,19 @@ static unsigned svg(char *p) {
     unsigned r, c;
     dst = p;
     size = 0;
-    add("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1216\" height=\"688\" viewBox=\"0 0 "
-        "1216 688\"><rect width=\"1216\" height=\"688\" rx=\"18\" fill=\"#");
+    add("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"");
+    number(W * 12 + 64);
+    add("\" height=\"");
+    number(H * 26 + 64);
+    add("\" viewBox=\"0 0 ");
+    number(W * 12 + 64);
+    add(" ");
+    number(H * 26 + 64);
+    add("\"><rect width=\"");
+    number(W * 12 + 64);
+    add("\" height=\"");
+    number(H * 26 + 64);
+    add("\" rx=\"18\" fill=\"#");
     hex(screen[0][0].bg);
     add("\"/><g font-family=\"Agave\" font-size=\"24\">");
     for (r = 0; r < H; ++r)
