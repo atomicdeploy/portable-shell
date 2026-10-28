@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(PortableShell VERSION 0.10.0 LANGUAGES C)
+project(PortableShell VERSION 0.11.0 LANGUAGES C)
 option(PORTABLE_SHELL_USE_LIBC "Use the host C library for memory/string primitives" OFF)
 option(PORTABLE_SHELL_PROVIDE_MEMORY "Supply compiler-required memory symbols in portable mode" ON)
 option(PORTABLE_SHELL_AUDIT_SYMBOLS "Audit archive external dependencies after building" ON)

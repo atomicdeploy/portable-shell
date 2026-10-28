@@ -25,6 +25,8 @@ char preview_tasks[400000], preview_variables[400000], preview_jobs[400000],
     preview_session[400000], preview_edit[400000], preview_ascii[400000], preview_red[400000],
     preview_lumen[400000];
 char preview_device_commands[400000];
+char preview_value_edit[400000];
+unsigned preview_value_edit_n;
 char preview_onedark[400000];
 unsigned preview_onedark_n;
 char preview_controls[400000], preview_control_settings[400000], preview_control_inline[400000],
@@ -379,6 +381,9 @@ int render_entry(void) {
     ps_tick(s, 500);
     feed(s, "\t");
     preview_variables_n = svg(preview_variables);
+    feed(s, "\r\025serial-console");
+    preview_value_edit_n = svg(preview_value_edit);
+    ps_key(s, 27);
     ps_execute(s, "hash 'Portable bytes, useful tools' --rounds 10000");
     feed(s, "\t");
     for (r = 0; r < 29; ++r)

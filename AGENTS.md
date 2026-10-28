@@ -16,6 +16,8 @@
   generic words such as "Arrows". Supply legible text fallbacks in ASCII mode.
 - Terminal pictures must come from emitted program output. Include a dark Agave rendition,
   verify the font actually used, and render with proper antialiasing. Label replay fixtures.
+- Existing table values must support editing in their own cells; dialogs and
+  below-table prompts must not be the only editing path.
 - Preserve running user sessions and their in-memory data when publishing a new build.
 - Import other TUIs only after the user supplies the intended projects/files and scope.
 - Source/test/render evidence does not imply hardware compatibility or human acceptance.

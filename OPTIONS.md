@@ -24,6 +24,14 @@ theme's border color. The preserved Lumen palette always uses its original gray
 border, even when the red-border flag is set. Font selection and antialiasing belong to the terminal;
 Agave is used for the supplied byte-replay pictures, not forced on live sessions.
 
+Existing task titles, variable values and device-view values edit in the selected
+cell by default. Enter starts/saves, Esc cancels, and cursor keys stay inside the
+draft. Long values scroll within the cell; resizing preserves the draft. Control
+text/levels use inline Enter editing; their F2 dialog is optional. Secret device
+values remain masked. New-task creation and filtering retain footer entry.
+Set `PS_WORKSPACE_INLINE_EDIT=0` or `PS_DEVICE_VIEW_INLINE_EDIT=0` at compile time
+to retain the respective older below-table editor layout.
+
 ## Application profiles
 
 | Profile | Features and selection | Default capacity |

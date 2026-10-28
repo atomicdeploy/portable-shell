@@ -224,6 +224,40 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
     feed(s, "text \"upp\t'quoted completion'\r");
     CHECK(has(t.output, "QUOTED COMPLETION"), "completion within an open quote");
     CHECK(ps_execute(s, "hash hello --unknown") == 2, "unknown hash option");
+    {
+        s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
+        ps_execute(s, "task add original");
+        ps_execute(s, "set sample original");
+        ps_execute(s, "board");
+        clear();
+        feed(s, "\r\025task-draft");
+#if PS_WORKSPACE_INLINE_EDIT
+        CHECK(has(t.output, "\033[7;22H") && !has(t.output, "Edit task  "),
+              "task draft and cursor are in the table cell");
+#endif
+        ps_key(s, 27);
+        clear(); ps_execute(s, "task list");
+        CHECK(has(t.output, "original") && !has(t.output, "task-draft"), "inline task cancel");
+        feed(s, "\r\025task-saved\r\t\r\025value-draft");
+        clear(); ps_execute(s, "get sample");
+        CHECK(has(t.output, "original") && !has(t.output, "value-draft"),
+              "inline value remains a draft before Enter");
+        clear(); ps_resize(s, 42, 14);
+        ps_tick(s, 200);
+#if PS_WORKSPACE_INLINE_EDIT
+        CHECK(has(t.output, "value-draft") && has(t.output, "\033[7;"),
+              "inline value remains in its cell after narrow resize");
+#endif
+        ps_key(s, PS_KEY_LEFT); ps_key(s, PS_KEY_BACKTAB); ps_key(s, PS_KEY_RIGHT);
+        ps_key(s, 13);
+        clear(); ps_execute(s, "get sample");
+        CHECK(has(t.output, "value-draft"), "inline value Enter saves after cursor navigation");
+        feed(s, "\r\025discard"); ps_key(s, 27);
+        clear(); ps_execute(s, "get sample");
+        CHECK(has(t.output, "value-draft") && !has(t.output, "discard"), "inline value Escape cancels");
+        clear(); ps_execute(s, "task list");
+        CHECK(has(t.output, "task-saved"), "inline task Enter saves");
+    }
     cfg.flags = PS_INTERACTIVE | PS_TELNET;
     s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
     clear();
