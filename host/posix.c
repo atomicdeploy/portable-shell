@@ -244,8 +244,8 @@ static void history_save(ps_session *s, const char *path) {
     close(fd);
 }
 int main(int argc, char **argv) {
-    unsigned flags = PS_COLOR | PS_UNICODE, port = 0, baud = 115200, board = 0, batch = 0,
-             force = 0;
+    unsigned flags = PS_COLOR | PS_UNICODE | PS_TRUECOLOR, port = 0, baud = 115200, board = 0,
+             batch = 0, force = 0;
     int i, command_at = 0, fd = 0, outfd = 1, raw = 0, result;
     const char *command = 0, *host = "127.0.0.1", *serial = 0, *history = 0;
     struct termios saved;
@@ -271,7 +271,8 @@ int main(int argc, char **argv) {
             command_at = i + 1;
             break;
         } else if (equal(argv[i], "--help")) {
-            say("portable_shell [--board] [--ascii] [--no-color] [--history FILE]\n      [--command TEXT | "
+            say("portable_shell [--board] [--ascii] [--no-color] [--history FILE]\n      "
+                "[--command TEXT | "
                 "-- ARGV...] [--batch | --interactive]\n      [--listen PORT [--bind IPv4]] "
                 "[--serial PATH [--baud N]]\n");
             return 0;

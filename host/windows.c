@@ -438,8 +438,8 @@ static void history_save(ps_session *s, const char *path) {
     CloseHandle(h);
 }
 int host_main(void) {
-    unsigned flags = PS_COLOR | PS_UNICODE, port = 0, baud = 115200, i, board = 0, batch = 0,
-             force = 0, command_at = 0;
+    unsigned flags = PS_COLOR | PS_UNICODE | PS_TRUECOLOR, port = 0, baud = 115200, i, board = 0,
+             batch = 0, force = 0, command_at = 0;
     const char *command = 0, *bind_addr = "127.0.0.1", *serial = 0, *history = 0;
     ps_config cfg;
     ps_session *s;
@@ -463,7 +463,8 @@ int host_main(void) {
         else if (equal(argv[i], "--board"))
             board = 1;
         else if (equal(argv[i], "--help")) {
-            say("portable_shell [--board] [--ascii] [--no-color] [--history FILE]\r\n      [--command TEXT "
+            say("portable_shell [--board] [--ascii] [--no-color] [--history FILE]\r\n      "
+                "[--command TEXT "
                 "| -- ARGV...] [--batch | --interactive]\r\n      [--listen PORT [--bind IPv4]] "
                 "[--serial PORT [--baud N]]\r\n");
             return 0;

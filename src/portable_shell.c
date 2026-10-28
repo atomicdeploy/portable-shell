@@ -181,6 +181,7 @@ typedef struct {
 } Job;
 struct ps_session {
     ps_config io;
+    unsigned theme; /* 0 violet, 1 red, 2 original Lumen */
     ps_command commands[PS_COMMANDS];
     unsigned command_count;
     Binding bindings[24];
@@ -256,11 +257,51 @@ static void color(ps_session *s, const char *p) {
 }
 static void reset(ps_session *s) {
     ansi(s, "\033[0m");
+    if (s->board) {
+        if (s->io.flags & PS_TRUECOLOR)
+            color(s, s->theme == 2   ? "\033[38;2;220;228;238m\033[48;2;12;18;29m"
+                     : s->theme == 1 ? "\033[38;2;255;226;232m\033[48;2;30;20;25m"
+                                     : "\033[38;2;241;231;255m\033[48;2;23;19;31m");
+        else
+            color(s, "\033[38;5;255;48;5;234m");
+    }
 }
 static void ink(ps_session *s, unsigned kind) {
-    static const char *const colors[] = {"\033[38;5;245m", "\033[38;5;80m",    "\033[38;5;223m",
-                                         "\033[38;5;203m", "\033[1;38;5;231m", "\033[38;5;151m"};
-    color(s, colors[kind % 6]);
+    static const char *const original[] = {"\033[38;5;245m", "\033[38;5;80m",    "\033[38;5;223m",
+                                           "\033[38;5;203m", "\033[1;38;5;231m", "\033[38;5;151m",
+                                           "\033[38;5;80m",  "\033[38;5;245m"};
+    static const char *const violet[] = {"\033[38;2;162;150;181m", "\033[38;2;232;121;249m",
+                                         "\033[38;2;255;201;157m", "\033[38;2;255;107;138m",
+                                         "\033[38;2;241;231;255m", "\033[38;2;134;239;172m",
+                                         "\033[38;2;190;153;255m", "\033[38;2;111;78;132m"};
+    static const char *const red[] = {"\033[38;2;181;151;161m", "\033[38;2;255;107;138m",
+                                      "\033[38;2;255;201;157m", "\033[38;2;255;87;113m",
+                                      "\033[38;2;255;226;232m", "\033[38;2;134;239;172m",
+                                      "\033[38;2;253;164;175m", "\033[38;2;125;68;87m"};
+    static const char *const fallback[] = {"\033[38;5;246m", "\033[38;5;213m", "\033[38;5;223m",
+                                           "\033[38;5;203m", "\033[38;5;255m", "\033[38;5;157m",
+                                           "\033[38;5;183m", "\033[38;5;97m"};
+    color(s, s->theme == 2                  ? original[kind % 8]
+             : (s->io.flags & PS_TRUECOLOR) ? (s->theme == 1 ? red[kind % 8] : violet[kind % 8])
+                                            : fallback[kind % 8]);
+}
+static void surface(ps_session *s, unsigned active) {
+    if (s->theme == 2)
+        color(s, active == 1   ? "\033[48;5;23;38;5;159;1m"
+                 : active == 2 ? "\033[48;5;236m"
+                               : "\033[48;5;23;38;5;159m");
+    else if (!(s->io.flags & PS_TRUECOLOR))
+        color(s, active == 1   ? "\033[48;5;171;38;5;16m"
+                 : active == 2 ? "\033[48;5;53m"
+                               : "\033[48;5;53;38;5;225m");
+    else if (s->theme == 1)
+        color(s, active == 1   ? "\033[48;2;251;113;133m\033[38;2;42;16;24m"
+                 : active == 2 ? "\033[48;2;72;35;47m"
+                               : "\033[48;2;55;29;39m\033[38;2;253;194;205m");
+    else
+        color(s, active == 1   ? "\033[48;2;209;111;232m\033[38;2;30;16;40m"
+                 : active == 2 ? "\033[48;2;62;37;78m"
+                               : "\033[48;2;45;31;59m\033[38;2;225;194;247m");
 }
 static void spaces(ps_session *s, unsigned n) {
     while (n--)
@@ -470,7 +511,7 @@ static const ps_command builtins[] = {
     {"args", "[ARGUMENT ...]", "Shell", builtin, 0, 0},
     {"history", "[clear]", "Shell", builtin, 0, 0},
     {"bind", "F1|F2|F3|F4 COMMAND", "Shell", builtin, 0, 0},
-    {"theme", "color|mono|ascii|unicode", "Terminal", builtin, 0, 0},
+    {"theme", "violet|red|lumen|color|ansi|mono|ascii|unicode", "Terminal", builtin, 0, 0},
     {"clear", "", "Terminal", builtin, 0, 0},
     {"status", "", "Terminal", builtin, 0, 0},
     {"exit", "", "Shell", builtin, 0, 0}};
@@ -546,7 +587,7 @@ static unsigned tab_count(ps_session *s) {
 }
 static void border(ps_session *s, const char *left, const char *right) {
     unsigned i;
-    ink(s, 0);
+    ink(s, 7);
     out(s, left);
     for (i = 0; i < s->io.columns - 4; ++i)
         out(s, (s->io.flags & PS_UNICODE) ? "─" : "-");
@@ -563,6 +604,7 @@ static void table_open(ps_session *s, unsigned tab) {
     }
     if (!s->board) {
         s->board = 1;
+        reset(s);
         ansi(s, "\033[?1049h\033[?25l\033[2J");
     }
     s->dirty = 1;
@@ -577,9 +619,11 @@ static void table_close(ps_session *s) {
 static void task_row(ps_session *s, unsigned index, unsigned inner) {
     Task *t = &s->tasks[index];
     char b[12];
-    out(s, t->selected ? "* " : "  ");
-    ink(s, t->done ? 0 : 5);
-    out(s, t->done ? "[x] " : "[ ] ");
+    ink(s, 1);
+    out(s, t->selected ? ((s->io.flags & PS_UNICODE) ? "◆ " : "* ") : "  ");
+    ink(s, t->done ? 5 : 6);
+    out(s, (s->io.flags & PS_UNICODE) ? (t->done ? " ✓  " : " ○  ") : (t->done ? "[x] " : "[ ] "));
+    ink(s, 0);
     dec(b, t->id);
     field(s, b, 5);
     ink(s, t->done ? 0 : 4);
@@ -656,12 +700,13 @@ static void render(ps_session *s) {
         return;
     s->dirty = 0;
     s->last_paint = s->now;
+    reset(s);
     ansi(s, "\033[?25l");
     if (w < 42 || h < 14) {
         at(s, 1, 1);
         ansi(s, "\033[J");
         ink(s, 1);
-        out(s, "PORTABLE_SHELL  ");
+        out(s, "PortableShell  ");
         ps_number(s, w);
         out(s, " x ");
         ps_number(s, h);
@@ -682,24 +727,35 @@ static void render(ps_session *s) {
     ansi(s, "\033[2K");
     out(s, "  ");
     ink(s, 1);
-    out(s, "\033[1m");
+    out(s, (s->io.flags & PS_UNICODE) ? "◆ " : "+ ");
     out(s, "PortableShell");
     reset(s);
     ink(s, 0);
-    out(s, "  /  ");
+    out(s, (s->io.flags & PS_UNICODE) ? "  ·  " : "  /  ");
     ink(s, 4);
     ps_write(s, tabs[s->tab]);
     ink(s, 0);
     out(s, "   ");
     ps_number(s, count);
-    out(s, " entries");
+    out(s, count == 1 ? " entry" : " entries");
+    if (s->tab == 0 && w >= 76) {
+        unsigned done = 0;
+        for (i = 0; i < s->task_count; ++i)
+            done += s->tasks[i].done != 0;
+        at(s, 1, w - 21);
+        ink(s, 5);
+        ps_number(s, done);
+        out(s, "/");
+        ps_number(s, s->task_count);
+        out(s, " complete");
+    }
     reset(s);
     at(s, 2, 1);
     ansi(s, "\033[2K");
     out(s, "  ");
     for (i = 0; i < 4; ++i) {
         if (i == s->tab) {
-            color(s, "\033[48;5;23;38;5;159;1m");
+            surface(s, 1);
             if (!(s->io.flags & PS_COLOR))
                 out(s, "[");
         } else
@@ -707,7 +763,7 @@ static void render(ps_session *s) {
         out(s, " ");
         ps_number(s, i + 1);
         out(s, " ");
-        out(s, tabs[i]);
+        out(s, w < 60 ? (i == 1 ? "Vars" : i == 3 ? "Info" : tabs[i]) : tabs[i]);
         out(s, " ");
         if (i == s->tab && !(s->io.flags & PS_COLOR))
             out(s, "]");
@@ -717,17 +773,17 @@ static void render(ps_session *s) {
     at(s, 4, 2);
     border(s, (s->io.flags & PS_UNICODE) ? "╭" : "+", (s->io.flags & PS_UNICODE) ? "╮" : "+");
     at(s, 5, 2);
-    ink(s, 0);
+    ink(s, 7);
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
     out(s, " ");
-    ink(s, 0);
+    ink(s, 6);
     field(s,
-          s->tab == 0   ? "    STATE  TASK"
-          : s->tab == 1 ? "KEY                     VALUE"
-          : s->tab == 2 ? "JOB / PROGRESS"
-                        : "RUNTIME / SESSION",
+          s->tab == 0   ? "   State   Task"
+          : s->tab == 1 ? "Key                     Value"
+          : s->tab == 2 ? "Job / Progress"
+                        : "Runtime / Session",
           inner);
-    ink(s, 0);
+    ink(s, 7);
     out(s, " ");
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
     reset(s);
@@ -736,13 +792,13 @@ static void render(ps_session *s) {
     for (i = 0; i < slots; ++i) {
         unsigned idx = s->scroll + i;
         at(s, 6 + i, 2);
-        ink(s, 0);
+        ink(s, 7);
         out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
         out(s, " ");
         if (idx < count) {
             if (idx == s->selected) {
                 if (s->io.flags & PS_COLOR)
-                    color(s, "\033[48;5;236m");
+                    surface(s, 2);
                 else
                     ansi(s, "\033[7m");
             }
@@ -761,7 +817,7 @@ static void render(ps_session *s) {
             reset(s);
         } else
             spaces(s, inner);
-        ink(s, 0);
+        ink(s, 7);
         out(s, " ");
         out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
         reset(s);
@@ -803,9 +859,12 @@ static void render(ps_session *s) {
     reset(s);
     at(s, h, 1);
     ansi(s, "\033[2K");
-    color(s, "\033[48;5;23;38;5;159m");
+    surface(s, 0);
     out(s, "  ");
-    field(s, "Tab tabs   Arrows navigate   Esc shell", w - 3);
+    field(s,
+          (s->io.flags & PS_UNICODE) ? "Tab / ← → tabs   ↑ ↓ navigate   Esc shell"
+                                     : "Tab tabs   Up/Down navigate   Esc shell",
+          w - 3);
     reset(s);
     if (s->editing) {
         const char *label = s->editing == 1   ? "New task"
@@ -830,13 +889,15 @@ static const char *suggest(ps_session *s) {
     return 0;
 }
 static void prompt(ps_session *s) {
-    unsigned start = 0, avail = s->io.columns > 18 ? s->io.columns - 18 : 8;
+    unsigned prompt_width = 20 + (s->task_count >= 10 ? 1 : 0);
+    unsigned start = 0,
+             avail = s->io.columns > prompt_width + 2 ? s->io.columns - prompt_width - 2 : 8;
     const char *hint;
     if (!(s->io.flags & PS_INTERACTIVE) || s->board || s->exit)
         return;
     ansi(s, "\r\033[2K");
     ink(s, 1);
-    out(s, "portable_shell");
+    out(s, "PortableShell");
     ink(s, 0);
     out(s, " [");
     ps_number(s, s->task_count);
@@ -856,8 +917,7 @@ static void prompt(ps_session *s) {
         reset(s);
     }
     ansi(s, "\r\033[");
-    ps_number(s, 12 + (s->task_count >= 10 ? 1 : 0) +
-                     cells(s->line + start, s->pos - start, s->io.flags));
+    ps_number(s, prompt_width + cells(s->line + start, s->pos - start, s->io.flags));
     out(s, "C");
     if (s->search) {
         ansi(s, "\r\033[2K");
@@ -1125,7 +1185,8 @@ static void completion(ps_session *s) {
         } else {
             static const char *const task[] = {"add", "done", "remove", "rename", "list"};
             static const char *const board[] = {"tasks", "variables", "jobs", "session"};
-            static const char *const theme[] = {"color", "mono", "ascii", "unicode"};
+            static const char *const theme[] = {"violet", "red",  "lumen", "color",
+                                                "ansi",   "mono", "ascii", "unicode"};
             static const char *const txt[] = {"upper", "lower", "trim", "slug"};
             static const char *const hash_options[] = {"--rounds"};
             const char *const *opts = 0;
@@ -1153,7 +1214,7 @@ static void completion(ps_session *s) {
                         count = 4;
                     } else if (equal(args.argv[0], "theme")) {
                         opts = theme;
-                        count = 4;
+                        count = 8;
                     } else if (equal(args.argv[0], "text") && args.argc == 1) {
                         opts = txt;
                         count = 4;
@@ -1700,22 +1761,33 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     }
     if (equal(cmd, "theme")) {
         if (argc != 2)
-            return fail(s, "theme color|mono|ascii|unicode");
+            return fail(s, "theme violet|red|lumen|color|ansi|mono|ascii|unicode");
 #ifdef PS_ASCII_ONLY
-        if (equal(a[1], "color") || equal(a[1], "unicode"))
+        if (equal(a[1], "color") || equal(a[1], "unicode") || equal(a[1], "violet") ||
+            equal(a[1], "red") || equal(a[1], "lumen") || equal(a[1], "ansi"))
             return fail(s, "disabled in ASCII-only build");
 #endif
-        if (equal(a[1], "color"))
+        if (equal(a[1], "violet") || equal(a[1], "red") || equal(a[1], "lumen")) {
+            s->theme = equal(a[1], "lumen") ? 2 : equal(a[1], "red") ? 1 : 0;
+            s->io.flags |= PS_COLOR | PS_TRUECOLOR;
+        } else if (equal(a[1], "color"))
+            s->io.flags |= PS_COLOR | PS_TRUECOLOR;
+        else if (equal(a[1], "ansi")) {
             s->io.flags |= PS_COLOR;
-        else if (equal(a[1], "mono")) {
-            reset(s);
+            s->io.flags &= ~PS_TRUECOLOR;
+        } else if (equal(a[1], "mono")) {
             s->io.flags &= ~PS_COLOR;
+            reset(s);
         } else if (equal(a[1], "ascii"))
             s->io.flags &= ~PS_UNICODE;
         else if (equal(a[1], "unicode"))
             s->io.flags |= PS_UNICODE;
         else
             return fail(s, "unknown theme");
+        if (s->board) {
+            reset(s);
+            ansi(s, "\033[2J");
+        }
         s->dirty = 1;
         return 0;
     }

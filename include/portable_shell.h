@@ -23,7 +23,7 @@ extern "C" {
 #endif
 #define PS_ARGS 32
 #define PS_VALUE 128
-#define PS_VERSION "0.1.0"
+#define PS_VERSION "0.2.0"
 #if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 18
 #error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 18"
 #endif
@@ -56,7 +56,7 @@ typedef struct {
     unsigned columns, rows;
     unsigned flags;
 } ps_config;
-enum { PS_INTERACTIVE = 1, PS_COLOR = 2, PS_UNICODE = 4, PS_TELNET = 8 };
+enum { PS_INTERACTIVE = 1, PS_COLOR = 2, PS_UNICODE = 4, PS_TELNET = 8, PS_TRUECOLOR = 16 };
 enum {
     PS_KEY_UP = 256,
     PS_KEY_DOWN,

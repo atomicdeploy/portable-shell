@@ -1,3 +1,7 @@
 build*/
 *.su
 history.txt
+bin/
+lib/
+profile.json
+evidence/

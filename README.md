@@ -11,18 +11,18 @@ No Python, JavaScript, ncurses, readline, or third-party runtime is required.
 
 ## Run the supplied Windows build
 
-Open `bin/portable_shell.exe`. Use **F2** for the workspace, **F1** for the command registry,
+Open `bin/PortableShell.exe`. Use **F2** for the workspace, **F1** for the command registry,
 and **Tab** at the prompt for completion. The program has no startup tutorial.
 
 ```text
-bin/portable_shell.exe --board
-bin/portable_shell.exe --ascii --no-color
-bin/portable_shell.exe --history history.txt
-bin/portable_shell.exe --command "calc 21 * 2"
-bin/portable_shell.exe -- args "a b" --name=value
-bin/portable_shell.exe --batch
-bin/portable_shell.exe --listen 2323
-bin/portable_shell.exe --serial COM9 --baud 115200
+bin/PortableShell.exe --board
+bin/PortableShell.exe --ascii --no-color
+bin/PortableShell.exe --history history.txt
+bin/PortableShell.exe --command "calc 21 * 2"
+bin/PortableShell.exe -- args "a b" --name=value
+bin/PortableShell.exe --batch
+bin/PortableShell.exe --listen 2323
+bin/PortableShell.exe --serial COM9 --baud 115200
 ```
 
 `--batch` reads commands from stdin, including a final line without a newline.
@@ -37,6 +37,18 @@ startup and replaced on normal exit. Tasks and variables are currently session-l
 No user documents, machine settings, or external processes are modified by commands.
 
 ## Workspace
+
+The default dark theme uses violet/magenta accents, warm text, mint completion
+states and peach values. Switch with `theme red`, `theme violet`, or `theme lumen`
+for the preserved original palette. `theme ansi` selects the 256-color fallback;
+`theme mono` disables color and `theme ascii` substitutes ASCII borders and hints.
+Unicode mode uses actual ↑/↓ and ←/→ key symbols. Embedders opt into RGB output
+with `PS_TRUECOLOR`; `PS_COLOR` alone uses ANSI palette colors.
+
+The [violet](previews/violet-agave.png), [red](previews/red-agave.png), and
+[Lumen](previews/lumen-agave.png) pictures replay real emitted terminal bytes with
+fixture tasks, rendered in the locally installed Agave font. The terminal emulator
+controls the font in a live session; PortableShell does not change global settings.
 
 | Tab | Live content | Actions |
 | --- | --- | --- |
@@ -183,7 +195,7 @@ ctest --test-dir build --output-on-failure
 ```
 
 Core only: add `-DPORTABLE_SHELL_BUILD_HOST=OFF -DPORTABLE_SHELL_BUILD_TESTS=OFF`.
-Fixed ASCII/monochrome: add `-DPORTABLE_SHELL_ASCII_ONLY=ON`. The supplied `bin/portable_shell-ascii.exe`
+Fixed ASCII/monochrome: add `-DPORTABLE_SHELL_ASCII_ONLY=ON`. The supplied `bin/PortableShell-ascii.exe`
 cannot enable color/Unicode at runtime. Normal builds can switch with `theme`.
 ASCII mode substitutes `?` for non-ASCII display characters but preserves stored
 UTF-8 input bytes. Monochrome uses reverse-video selection; batch output has no VT.
