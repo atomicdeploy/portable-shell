@@ -24,7 +24,10 @@ extern "C" {
 #endif
 #define PS_ARGS 32
 #define PS_VALUE 128
-#define PS_VERSION "0.10.0"
+#define PS_VERSION "0.11.0"
+#ifndef PS_WORKSPACE_INLINE_EDIT
+#define PS_WORKSPACE_INLINE_EDIT 1
+#endif
 #if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 19
 #error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 19"
 #endif

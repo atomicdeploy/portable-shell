@@ -1061,7 +1061,8 @@ static void render(ps_session *s) {
     at(s, h - 3, 1);
     ansi(s, "\033[2K");
     out(s, "  ");
-    if (s->editing && !s->control_view) {
+    if (s->editing && !s->control_view &&
+        !(PS_WORKSPACE_INLINE_EDIT && (s->editing == 2 || s->editing == 3))) {
         const char *label = s->editing == 1   ? "New task"
                             : s->editing == 2 ? "Edit task"
                             : s->editing == 3 ? "Value"
@@ -1100,6 +1101,8 @@ static void render(ps_session *s) {
     field(
         s,
         s->control_view && s->editing ? "Draft   Esc cancel"
+        : s->editing ? ((s->io.flags & PS_UNICODE) ? "←/→ cursor  Home/End  ^U clear"
+                                                   : "Left/Right cursor  Home/End  ^U clear")
         : s->control_view ? ((s->io.flags & PS_UNICODE) ? "↑/↓ rows  Tab pages  Esc shell"
                                                         : "Up/Dn rows  Tab pages  Esc shell")
         : (s->io.flags & PS_UNICODE)
@@ -1122,7 +1125,23 @@ static void render(ps_session *s) {
     }
     if (s->control_view)
         control_overlay(s, &grid);
-    else if (s->editing) {
+    else if (PS_WORKSPACE_INLINE_EDIT && (s->editing == 2 || s->editing == 3) && count) {
+        unsigned x = 4, start = 0, width = grid.widths[grid.count - 1];
+        for (i = 0; i + 1 < grid.count; ++i)
+            x += grid.widths[i] + 3;
+        while (cells(s->edit + start, s->editpos - start, s->io.flags) >= width)
+            start = next(s->edit, start);
+        at(s, 7 + s->selected - s->scroll, x);
+        if (s->io.flags & PS_COLOR)
+            surface(s, 1);
+        else
+            ansi(s, "\033[7m");
+        field(s, s->edit + start, width);
+        reset(s);
+        at(s, 7 + s->selected - s->scroll,
+           x + cells(s->edit + start, s->editpos - start, s->io.flags));
+        ansi(s, "\033[?25h");
+    } else if (s->editing) {
         const char *label = s->editing == 1   ? "New task"
                             : s->editing == 2 ? "Edit task"
                             : s->editing == 3 ? "Value"
@@ -1229,6 +1248,7 @@ static void line_set(ps_session *s, const char *p) {
 }
 static void enter_edit(ps_session *s, unsigned mode, const char *p) {
     s->editing = mode;
+    s->notice[0] = 0;
     str(s->edit, p, PS_VALUE);
     s->editpos = s->editlen = length(s->edit);
     s->dirty = 1;

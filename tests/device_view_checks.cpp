@@ -35,7 +35,12 @@ int main(){
   assert(!feed("\r"));assert(model.editing());model.render(snapshot,write);output.clear();
   assert(!feed("\x15" "lamp"));assert(model.render(snapshot,write));
   assert(output.find("\x1b[2J")==std::string::npos); // Edit only, never full repaint.
+#if PS_DEVICE_VIEW_INLINE_EDIT
+  assert(output.find("\x1b[4;29H")!=std::string::npos && output.find("lamp")!=std::string::npos);
+  assert(output.find("Edit Hostname:")==std::string::npos && output.find("\x1b[2K")==std::string::npos);
+#else
   assert(output.find("Edit Hostname: lamp")!=std::string::npos);
+#endif
   rows[1].value="0.2.8";output.clear();assert(!model.render(snapshot,write)); // Async observation cannot repaint draft.
   assert(feed("\r"));assert(action.type==T::Action::Set&&std::string(action.key)=="hostname"&&std::string(action.value)=="lamp");
   assert(!model.editing());assert(!feed("\n")); // CR LF submits once.
@@ -146,7 +151,12 @@ int main(){
   const std::string savedDraft=resized.draft();
   output.clear();resized.render(narrow,write);narrow.columns=40;
   output.clear();assert(resized.render(narrow,write));assert(savedDraft==resized.draft());
+#if PS_DEVICE_VIEW_INLINE_EDIT
+  assert(output.find("\x1b[4;19H")!=std::string::npos && output.find("savedx")!=std::string::npos);
+  assert(output.find("Edit Device label:")==std::string::npos);
+#else
   assert(output.find("Edit Device label: savedx")!=std::string::npos);
+#endif
   narrow.lines=15;output.clear();assert(resized.render(narrow,write));
   assert(output.find("Resize terminal")!=std::string::npos&&resized.editing());
   narrow.lines=24;resized.render(narrow,write);assert(savedDraft==resized.draft());
@@ -170,7 +180,16 @@ int main(){
   assert(!key("\x1b[Z")&&compact.page()==T::TerminalPage);
   assert(!key("\t")&&compact.page()==T::Device);
   assert(!key("\x1b[15~\r")&&std::string(compact.draft())=="abc"); // F5 isn't Home/Delete.
-  output.clear();compact.render(small,write);assert(output.find("\x1b[15;")!=std::string::npos);
+  output.clear();compact.render(small,write);
+#if PS_DEVICE_VIEW_INLINE_EDIT
+  assert(output.find("\x1b[4;29H")!=std::string::npos && output.find("\x1b[15;")==std::string::npos);
+  output.clear();key("\025abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+  compact.render(small,write);
+  assert(output.find("\x1b[4;77H")!=std::string::npos); // Cursor stays within the value cell.
+  assert(output.find("\x1b[2K")==std::string::npos); // Cell repaint preserves label and borders.
+#else
+  assert(output.find("\x1b[15;")!=std::string::npos);
+#endif
   key("\x1b");compact.flushEscape(action);compact.render(small,write);
   output.clear();key("\x1bOB");compact.render(small,write);assert(output.find("\x1b[2J")==std::string::npos);
 

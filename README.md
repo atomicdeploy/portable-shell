@@ -97,6 +97,12 @@ controls the font in a live session; PortableShell does not change global settin
 Tab / Shift+Tab or Left / Right changes tabs. Number keys 1–4 select a tab.
 Up / Down, Home / End and Page Up / Page Down move selection. Escape or `q` returns
 to the prompt. In an editor, Enter saves and Escape cancels. Ctrl+U clears an editor.
+Existing task titles and variable values edit directly inside their table cells.
+The active cell is highlighted and scrolls horizontally with the cursor; Enter
+commits the draft and Esc cancels it. New-task entry and filtering still use the
+footer because they do not target an existing value cell. Control text/levels and
+the small device view also edit in their cells; F2 dialogs remain optional in the
+control panel. [Actual inline value preview](previews/value-inline-agave.png).
 The workspace uses the alternate screen and restores the prompt on exit. Minimum
 workspace size is 42×14; smaller terminals receive a compact size indicator.
 
