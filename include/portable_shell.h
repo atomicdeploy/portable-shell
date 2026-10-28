@@ -24,12 +24,13 @@ extern "C" {
 #endif
 #define PS_ARGS 32
 #define PS_VALUE 128
-#define PS_VERSION "0.7.0"
+#define PS_VERSION "0.8.0"
 #if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 19
 #error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 19"
 #endif
 typedef unsigned char ps_byte;
-typedef char ps_requires_8_bit_bytes[((unsigned char)256 == 0 && (unsigned char)255 == 255) ? 1 : -1];
+typedef char
+    ps_requires_8_bit_bytes[((unsigned char)256 == 0 && (unsigned char)255 == 255) ? 1 : -1];
 typedef unsigned int ps_u32;
 typedef char ps_requires_32_bit_unsigned[(sizeof(ps_u32) == 4) ? 1 : -1];
 typedef struct ps_session ps_session;
@@ -181,6 +182,12 @@ PS_API void ps_write(ps_session *s, const char *text); /* safe printable output,
 PS_API void ps_newline(ps_session *s);
 PS_API void ps_number(ps_session *s, ps_u32 value);
 PS_API void ps_progress(ps_session *s, const char *name, unsigned done, unsigned total);
+PS_API void ps_history_clear(ps_session *s);
+typedef int (*ps_history_filter_fn)(void *context, const char *line);
+/* Additional application admission; default conservative credential filtering
+ * always applies. Changing policy clears retained entries. NULL removes hook. */
+PS_API void ps_history_filter(ps_session *s, ps_history_filter_fn filter, void *context);
+PS_API void ps_destroy_session(ps_session *s); /* close + scrub; storage remains caller-owned */
 PS_API unsigned ps_history_count(const ps_session *s);
 PS_API const char *ps_history_get(const ps_session *s, unsigned oldest_index);
 PS_API int ps_history_add(ps_session *s, const char *line);

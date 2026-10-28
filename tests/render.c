@@ -14,6 +14,7 @@ typedef struct {
 } Cell;
 static Cell screen[H][W];
 static unsigned row, col, fg = 0xf1e7ff, bg = 0x17131f, escape, used;
+static unsigned default_fg = 0xf1e7ff, default_bg = 0x17131f;
 static char sequence[64], utf[5];
 static unsigned utf_n, utf_left;
 static union {
@@ -93,14 +94,18 @@ static void csi(char end) {
     } else if (end == 'm') {
         for (i = 0; i <= n; ++i) {
             if (a[i] == 0) {
-                fg = 0xf1e7ff;
-                bg = 0x17131f;
+                fg = default_fg;
+                bg = default_bg;
             } else if (a[i] == 7) {
                 unsigned t = fg;
                 fg = bg;
                 bg = t;
             } else if (a[i] >= 90 && a[i] <= 97) {
                 fg = palette(a[i] - 90 + 8);
+            } else if (a[i] >= 30 && a[i] <= 37) {
+                fg = palette(a[i] - 30);
+            } else if (a[i] >= 40 && a[i] <= 47) {
+                bg = palette(a[i] - 40);
             } else if ((a[i] == 38 || a[i] == 48) && i + 2 <= n && a[i + 1] == 5) {
                 if (a[i] == 38)
                     fg = palette(a[i + 2]);
@@ -325,6 +330,14 @@ static unsigned svg(char *p) {
 static void feed(ps_session *s, const char *p) {
     ps_feed(s, p, len(p));
 }
+/* Shared ANSI replay surface for the optional device-view regression pictures. */
+void ps_replay_reset(void) {
+    unsigned r,c;
+    row=col=escape=used=utf_n=utf_left=0;fg=default_fg=0xabb2bf;bg=default_bg=0x282c34;
+    for(r=0;r<H;++r)for(c=0;c<W;++c)blank(r,c);
+}
+void ps_replay_feed(const unsigned char *bytes,unsigned count) { sink(0,bytes,count); }
+unsigned ps_replay_svg(char *buffer) { return svg(buffer); }
 __attribute__((noinline, noipa)) int render_complete(void) {
     return 0;
 }

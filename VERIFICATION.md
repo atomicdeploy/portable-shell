@@ -251,3 +251,29 @@ checks; this styling pass did not repeat the full network test. Physical serial,
 ARM execution, exhaustive terminal compatibility and human acceptance remain
 open. Full Bash/Fish/Zsh and ncurses parity is not claimed; see README limitations.
 Other TUI imports await the user's next-pass project paths.
+# PortableShell 0.8 component consolidation
+
+Both portable and libc native builds pass six suites, including original API,
+transport, full shell, and imported event-editor/device-view regressions. The
+ASCII build passes its three suites. ARM32 and Xtensa core symbol audits pass.
+The extracted C++11 event/view paths have zero undefined symbols on x86-64;
+ARM32 has zero undefined symbols after linking the project's guarded ARM ABI
+memory helpers. This is compile/link evidence, not execution on ARM hardware.
+
+On x86-64: event editor 5,312 bytes, Telnet 196 bytes, device view 576 bytes,
+all caller-owned and zero heap. Full portable Windows executable is 57,856 bytes;
+the libc executable is 80,896 bytes. These file sizes exclude host process/OS
+overhead and do not imply total process RAM. The optional component audit object
+has 14,380 text bytes on x86-64 and 10,586 on ARM32 before runtime helpers;
+actual linked firmware includes only paths used by its caller.
+
+Pakar's shell wrapper passed the production-session socket/clock doubles,
+authentication cleanup, USB framing, completion/TUI, TCP and UDP loopbacks in an
+isolated source worktree. The active Pakar checkout and production board were
+not changed by those tests. Full board firmware and physical acceptance remain
+separate from these focused source/transport checks.
+
+Agave replay fixtures under `previews/pakar/` were inspected after correcting the
+replay utility's standard SGR palette handling. Device values are fixtures. The
+One Dark background, red rounded border, magenta selection and hidden values
+come from actual emitted terminal bytes; rasterization uses 3x supersampling.
