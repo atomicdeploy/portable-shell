@@ -23,7 +23,7 @@ install(FILES include/portable_shell.h include/portable_shell_device.h
   include/portable_terminal.h include/portable_editor.h
   include/portable_parse.h include/portable_probe.h
   include/portable_shell_editor.hpp include/portable_device_view.hpp
-  include/portable_device_table.inc include/portable_style.h
+  include/portable_device_table.hpp include/portable_style.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 if(PORTABLE_SHELL_BUILD_LEGACY)
   add_library(portable_shell_legacy STATIC compat/legacy.c host/legacy_io.c)
