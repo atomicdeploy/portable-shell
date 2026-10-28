@@ -1,17 +1,20 @@
 # PortableShell
 
 A byte-driven C99 shell and terminal workbench. The core is written from scratch,
-freestanding, heap-free, and independent of the operating system. It includes no
-system headers and calls no C runtime, OS, terminal, networking, or UI library.
+heap-free and independent of the operating system. The default build is freestanding;
+an explicit libc backend can use the host's memory/string primitives. Compiler type
+headers do not introduce OS calls. See [portability and backends](PORTABILITY.md).
 
 The optional **C host adapters** connect its byte callbacks to a native console,
-TCP socket, or serial port. Windows uses only Kernel32 and Winsock imports, without
-CRT startup. The POSIX adapter uses the platform's system-call wrappers and startup.
+TCP socket, or serial port. The default Windows GCC host uses only Kernel32 and
+Winsock imports, without CRT startup; the optional libc host uses normal CRT startup.
+The POSIX adapter uses the platform's system-call wrappers and startup.
 No Python, JavaScript, ncurses, readline, or third-party runtime is required.
 
 ## Run the supplied Windows build
 
-The latest build is `bin/PortableShell-0.5.0.exe`. Launch with `--controls` for the
+The latest builds are `bin/PortableShell-0.6.0.exe` (portable primitives) and
+`bin/PortableShell-libc-0.6.0.exe` (host C runtime). Launch with `--controls` for the
 PCController-style tabs, grouped tables, toggles, PWM sliders, inline values and
 draft/confirmation dialogs. See [PCController controls](PCCONTROLLER-DESIGN.md)
 for provider callbacks and source provenance. Red framed tables, shared column
@@ -19,22 +22,22 @@ layout, title bars and contextual footers from the RayanPBX adaptation remain.
 See [RayanPBX design](RAYANPBX-DESIGN.md) for source provenance and configuration.
 The optional `--pu850` prompt/command profile remains available; see [PU850 compatibility](PU850-COMPATIBILITY.md)
 for the donor audit and future firmware integration. The unversioned 0.2.0 binary
-is retained to preserve an existing running user session. Normal 0.5.0 builds
+is retained to preserve an existing running user session. Normal 0.6.0 builds
 still default to the violet PortableShell workbench.
 
-Open `bin/PortableShell-0.5.0.exe`. Use **F2** for the workspace, **F1** for the command registry,
+Open `bin/PortableShell-0.6.0.exe`. Use **F2** for the workspace, **F1** for the command registry,
 and **Tab** at the prompt for completion. The program has no startup tutorial.
 
 ```text
-bin/PortableShell-0.5.0.exe --controls
-bin/PortableShell-0.5.0.exe --board
-bin/PortableShell-0.5.0.exe --ascii --no-color
-bin/PortableShell-0.5.0.exe --history history.txt
-bin/PortableShell-0.5.0.exe --command "calc 21 * 2"
-bin/PortableShell-0.5.0.exe -- args "a b" --name=value
-bin/PortableShell-0.5.0.exe --batch
-bin/PortableShell-0.5.0.exe --listen 2323
-bin/PortableShell-0.5.0.exe --serial COM9 --baud 115200
+bin/PortableShell-0.6.0.exe --controls
+bin/PortableShell-0.6.0.exe --board
+bin/PortableShell-0.6.0.exe --ascii --no-color
+bin/PortableShell-0.6.0.exe --history history.txt
+bin/PortableShell-0.6.0.exe --command "calc 21 * 2"
+bin/PortableShell-0.6.0.exe -- args "a b" --name=value
+bin/PortableShell-0.6.0.exe --batch
+bin/PortableShell-0.6.0.exe --listen 2323
+bin/PortableShell-0.6.0.exe --serial COM9 --baud 115200
 ```
 
 `--batch` reads commands from stdin, including a final line without a newline.
@@ -212,17 +215,18 @@ Small embedded buffers: add `-DPORTABLE_SHELL_COMPACT=ON` (128-byte line storage
 For ESP8266, put `xtensa-lx106-elf-gcc` on PATH and select
 `-DCMAKE_TOOLCHAIN_FILE=cmake/esp8266-gcc.cmake`. This includes our optional
 freestanding compiler helpers; it does not link libc or libgcc.
-Fixed ASCII/monochrome: add `-DPORTABLE_SHELL_ASCII_ONLY=ON`. The supplied `bin/PortableShell-ascii.exe`
+Fixed ASCII/monochrome: add `-DPORTABLE_SHELL_ASCII_ONLY=ON`. The supplied `bin/PortableShell-ascii-0.6.0.exe`
 cannot enable color/Unicode at runtime. Normal builds can switch with `theme`.
 ASCII mode substitutes `?` for non-ASCII display characters but preserves stored
 UTF-8 input bytes. Monochrome uses reverse-video selection; batch output has no VT.
 
-Direct GCC core build, with no linker libraries:
+Direct GCC portable core build, with no linker libraries:
 
 ```text
-gcc -std=c99 -Os -ffreestanding -fno-builtin -fno-stack-protector -Iinclude -c src/portable_shell.c -o portable_shell.o
-ar rcs libportable_shell.a portable_shell.o
-nm -u portable_shell.o
+gcc -std=c99 -Os -ffreestanding -fno-builtin -fno-stack-protector -Iinclude -c src/portable_shell.c src/portable_shell_pu850.c
+gcc -std=c99 -Os -ffreestanding -fno-builtin -fno-lto -fno-tree-loop-distribute-patterns -fno-stack-protector -c ports/memory_runtime.c
+ar rcs libportable_shell.a portable_shell.o portable_shell_pu850.o memory_runtime.o
+cmake -DNM=nm -DARCHIVE=libportable_shell.a -DUSE_LIBC=OFF -DPROVIDE_MEMORY=ON -P cmake/check-symbols.cmake
 ```
 
 On Windows x86_64 add `-mno-stack-arg-probe` to avoid compiler-generated CRT stack

@@ -2,6 +2,7 @@
 #include "portable_shell.h"
 #include "portable_shell_pu850.h"
 int portable_runtime_checks(void);
+int portable_memory_checks(void);
 typedef struct {
     char output[65536];
     unsigned n, failed, checks;
@@ -109,6 +110,13 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
     static const ps_command cmd = {"custom", "", "Test", custom, 0, 0};
     t.failed = t.checks = 0;
     CHECK(portable_runtime_checks(), "freestanding arithmetic helpers match native arithmetic");
+    CHECK(portable_memory_checks(),
+          "memory ABI and wrappers preserve overlap, bounds and byte semantics");
+#ifdef PS_USE_LIBC
+    CHECK(eq(ps_memory_backend(), "libc"), "hosted backend identity");
+#else
+    CHECK(eq(ps_memory_backend(), "portable"), "portable backend identity");
+#endif
     {
         const ps_column cols[] = {
             {"ID", 4, 4, 0}, {"Name", 12, 0, 2}, {"State", 8, 12, 1}, {"Value", 10, 0, 1}};

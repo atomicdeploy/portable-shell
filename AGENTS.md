@@ -1,6 +1,8 @@
 # PortableShell conventions
 
-- All shell, parser, TUI and Telnet logic stays freestanding C, with no runtime or OS calls.
+- Shell, parser, TUI and Telnet logic remains OS-independent C. Default builds use
+  freestanding primitives; the explicitly selectable libc backend may use host
+  memory/string functions. Never enable libc silently for a firmware build.
 - Only the optional C host adapters perform native terminal, serial and socket I/O.
 - Default presentation should feel vibrant and polished. Prefer violet/magenta or red accents;
   do not default to an industrial dark-blue/pale-cyan appearance.

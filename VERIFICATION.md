@@ -1,5 +1,53 @@
 # PortableShell verification
 
+## 0.6.0 — portable/native memory backends, 2026-10-28
+
+94 assertions pass for portable size, portable speed+LTO, libc size, libc speed+LTO,
+fixed ASCII and compact configurations. This includes 38,016 overlap cases plus
+copy/fill bounds, comparison, string-wrapper contracts and the existing shell/TUI,
+Telnet and arithmetic checks. Automatic archive audits pass on x86_64 GCC 16.2,
+ARM32 Clang 19 and compact Xtensa GCC 10.3. A deliberately injected undefined
+dependency is rejected. A separate hosted core with strong stack protection passes
+the hosted allowlist; our four standard memory symbols are excluded from libc mode.
+
+The standard memory runtime compiled independently at `-O3` without protective
+flags has no undefined references. The supported build additionally excludes it
+from LTO and disables builtins/pattern recognition. Archive audits cannot prove
+all final-LTO behavior; native strict tests also link without libc, and ARM/Xtensa
+combined objects have zero unresolved symbols. ARM GCC and board execution remain
+unverified. The hosted malloc/free example compiles as both C99 and C++11.
+
+A combined native Windows PTY input burst exercised a relay, PWM adjustment,
+dialog apply, tab switch and inline text. Readback returned `3000`, `Hosted bench`,
+and `memory_backend=libc`. The Windows adapter now coalesces console-event batches
+into one feed call instead of redrawing each key. This is a bounded interaction
+check, not exhaustive latency or load testing. Both final executables passed the
+native C Telnet negotiation/control/readback check; temporary test hosts were closed.
+
+| 0.6.0 measurement | Portable | Libc |
+| --- | ---: | ---: |
+| Windows executable bytes (stripped) | 56,320 | 78,336 |
+| Core session bytes (x86_64) | 30,232 | 30,232 |
+| Core heap bytes | 0 | 0 |
+| Sampled loopback-server working set | 5,066,752 | 5,181,440 |
+| Sampled private process memory | 1,376,256 | 1,392,640 |
+
+Fixed ASCII executable: 56,320 bytes. ARM32 combined text/rodata/metadata: 34,722
+bytes (`-Oz`); compact Xtensa: 36,597 bytes (`-Os`). Session storage remains 28,608
+bytes on ARM32 and 6,384 on compact Xtensa. Maximum compiler-reported native core
+frame remains 1,952 bytes; this is not nested stack high-water. Provider storage,
+PU850 profile and transport buffers remain additional. Process samples are from
+separate final-binary loopback servers after the same interaction/disconnect, not
+an embedded memory estimate or performance benchmark. Libc/CRT can allocate its
+own process memory; zero heap applies to the core, not the entire host runtime.
+
+The portable Windows executable imports Kernel32 and Winsock. The libc executable
+also imports Windows UCRT API sets for platform CRT startup and standard functions.
+No external UI/terminal library is introduced. Binary hashes and samples are in
+`profile-0.6.0.json`. Prior user binaries/sessions remain untouched. See
+`PORTABILITY.md` for configuration and integration contracts. Human acceptance and
+the original goal remain paused; this pass does not mark the broader goal complete.
+
 ## 0.5.0 — PCController controls, 2026-10-28
 
 See `PCCONTROLLER-DESIGN.md` and `pccontroller-donor.json` for pinned donor evidence

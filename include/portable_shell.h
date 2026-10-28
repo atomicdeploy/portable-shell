@@ -3,7 +3,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-/* Freestanding C99. No system headers, runtime, allocator, or global state. */
+/* OS-independent C99. Caller-owned storage, no allocator/global mutable state.
+   Default backend is freestanding; libc primitives are an explicit build option. */
 #if defined(PORTABLE_SHELL_DLL) && defined(_WIN32)
 #define PS_API __declspec(dllexport)
 #else
@@ -23,11 +24,12 @@ extern "C" {
 #endif
 #define PS_ARGS 32
 #define PS_VALUE 128
-#define PS_VERSION "0.5.0"
+#define PS_VERSION "0.6.0"
 #if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 19
 #error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 19"
 #endif
 typedef unsigned char ps_byte;
+typedef char ps_requires_8_bit_bytes[((unsigned char)256 == 0 && (unsigned char)255 == 255) ? 1 : -1];
 typedef unsigned int ps_u32;
 typedef char ps_requires_32_bit_unsigned[(sizeof(ps_u32) == 4) ? 1 : -1];
 typedef struct ps_session ps_session;
@@ -144,6 +146,7 @@ enum {
     PS_KEY_WORDRIGHT
 };
 PS_API unsigned ps_sizeof_session(void);
+PS_API const char *ps_memory_backend(void); /* "portable" or "libc"; no allocation */
 PS_API unsigned ps_alignof_session(void);
 /* Memory must be aligned (normal static storage / malloc alignment is sufficient).
    Callback consumes ALL bytes synchronously, must not reenter this session.

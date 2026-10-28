@@ -1,68 +1,6 @@
 #include "portable_shell.h"
 
-/* All primitives are deliberately implemented here: no libc symbols. */
-static unsigned length(const char *p) {
-    unsigned n = 0;
-    if (p)
-        while (p[n])
-            ++n;
-    return n;
-}
-static void zero(void *p, unsigned n) {
-    unsigned char *d = p;
-    while (n--)
-        *d++ = 0;
-}
-static void copy(void *d, const void *s, unsigned n) {
-    unsigned char *a = d;
-    const unsigned char *b = s;
-    while (n--)
-        *a++ = *b++;
-}
-static void move(void *d, const void *s, unsigned n) {
-    unsigned char *a = d;
-    const unsigned char *b = s;
-    if (a < b)
-        copy(d, s, n);
-    else
-        while (n) {
-            --n;
-            a[n] = b[n];
-        }
-}
-static int equal(const char *a, const char *b) {
-    while (*a && *a == *b) {
-        ++a;
-        ++b;
-    }
-    return *a == *b;
-}
-static int prefix(const char *a, const char *b) {
-    while (*b)
-        if (*a++ != *b++)
-            return 0;
-    return 1;
-}
-static int contains(const char *a, const char *b) {
-    if (!*b)
-        return 1;
-    while (*a) {
-        if (prefix(a, b))
-            return 1;
-        ++a;
-    }
-    return 0;
-}
-static void str(char *d, const char *s, unsigned cap) {
-    unsigned i = 0;
-    if (!cap)
-        return;
-    while (s && s[i] && i + 1 < cap) {
-        d[i] = s[i];
-        ++i;
-    }
-    d[i] = 0;
-}
+#include "portable_primitives.h"
 static unsigned min(unsigned a, unsigned b) {
     return a < b ? a : b;
 }
@@ -629,6 +567,13 @@ static const ps_command builtins[] = {
 PS_API unsigned ps_sizeof_session(void) {
     return sizeof(ps_session);
 }
+PS_API const char *ps_memory_backend(void) {
+#ifdef PS_USE_LIBC
+    return "libc";
+#else
+    return "portable";
+#endif
+}
 PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsigned count,
                                   unsigned *widths) {
     unsigned i, used, left, changed, step;
@@ -730,7 +675,7 @@ static unsigned tab_count(ps_session *s) {
         return s->var_count;
     if (s->tab == 2)
         return s->job.total ? 1 : 0;
-    return 9;
+    return 10;
 }
 typedef struct {
     const ps_column *columns;
@@ -884,6 +829,10 @@ static void stat_row(ps_session *s, unsigned i, const Grid *g) {
     case 8:
         key = "Uptime seconds";
         dec(b, s->now / 1000);
+        break;
+    case 9:
+        key = "Memory backend";
+        value = ps_memory_backend();
         break;
     }
     pair_row(s, key, value, g);
@@ -2134,7 +2083,9 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     if (equal(cmd, "status")) {
         out(s, "version=" PS_VERSION " session_bytes=");
         ps_number(s, sizeof *s);
-        out(s, " heap_bytes=0 commands=");
+        out(s, " heap_bytes=0 memory_backend=");
+        out(s, ps_memory_backend());
+        out(s, " commands=");
         ps_number(s, s->executions);
         out(s, " tasks=");
         ps_number(s, s->task_count);

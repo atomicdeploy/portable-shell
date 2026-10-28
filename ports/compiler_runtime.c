@@ -1,20 +1,4 @@
-/* Optional freestanding compiler ABI helpers for Xtensa LX106.
-   No libc or libgcc dependency. Compile with -ffreestanding -fno-builtin.
-   Include only when the target compiler emits these symbols. */
-typedef __SIZE_TYPE__ ps_rt_size;
-void *memcpy(void *dst, const void *src, ps_rt_size n) {
-    unsigned char *d = dst;
-    const unsigned char *s = src;
-    while (n--)
-        *d++ = *s++;
-    return dst;
-}
-void *memset(void *dst, int c, ps_rt_size n) {
-    unsigned char *d = dst;
-    while (n--)
-        *d++ = (unsigned char)c;
-    return dst;
-}
+/* Optional 32-bit software division ABI helpers; no memory/runtime symbols. */
 static unsigned divide(unsigned n, unsigned d, unsigned *remainder) {
     unsigned q = 0, r = 0, i = 32;
     if (!d) {

@@ -185,17 +185,27 @@ static int get_args(void) {
     }
     return 1;
 }
-static void feed(ps_session *s, const char *p) {
-    ps_feed(s, p, length(p));
-}
 static void resize(ps_session *s) {
     CONSOLE_SCREEN_BUFFER_INFO info;
     if (GetConsoleScreenBufferInfo(output, &info))
         ps_resize(s, (unsigned)(info.srWindow.Right - info.srWindow.Left + 1),
                   (unsigned)(info.srWindow.Bottom - info.srWindow.Top + 1));
 }
+/* Deliver one byte batch per console read, coalescing full-screen redraws while
+   retaining every key/repeat in order. The core remains transport-independent. */
+static void keyboard_append(ps_session *s, ps_byte *batch, unsigned *used, const ps_byte *bytes,
+                            unsigned count) {
+    if (*used + count > 512) {
+        ps_feed(s, batch, *used);
+        *used = 0;
+    }
+    while (count--)
+        batch[(*used)++] = *bytes++;
+}
 static void keyboard(ps_session *s) {
     INPUT_RECORD events[32];
+    ps_byte batch[512];
+    unsigned used = 0;
     DWORD n, i;
     static unsigned high = 0;
     if (!ReadConsoleInputW(input, events, 32, &n))
@@ -205,6 +215,10 @@ static void keyboard(ps_session *s) {
         const char *seq = 0;
         unsigned repeat;
         if (events[i].EventType == WINDOW_BUFFER_SIZE_EVENT) {
+            if (used) {
+                ps_feed(s, batch, used);
+                used = 0;
+            }
             resize(s);
             continue;
         }
@@ -260,7 +274,7 @@ static void keyboard(ps_session *s) {
         }
         for (repeat = 0; repeat < k->wRepeatCount; ++repeat) {
             if (seq)
-                feed(s, seq);
+                keyboard_append(s, batch, &used, (const ps_byte *)seq, length(seq));
             else if (k->uChar.UnicodeChar) {
                 unsigned cp = k->uChar.UnicodeChar;
                 ps_byte b[4];
@@ -275,11 +289,13 @@ static void keyboard(ps_session *s) {
                     high = 0;
                 if ((k->dwControlKeyState & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) &&
                     !(k->dwControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)))
-                    feed(s, "\033");
-                ps_feed(s, b, utf8(cp, b));
+                    keyboard_append(s, batch, &used, (const ps_byte *)"\033", 1);
+                keyboard_append(s, batch, &used, b, utf8(cp, b));
             }
         }
     }
+    if (used)
+        ps_feed(s, batch, used);
 }
 static int ip4(const char *p, ULONG *address) {
     unsigned part = 0, count = 0, value = 0;
@@ -473,7 +489,8 @@ int host_main(void) {
         else if (equal(argv[i], "--controls"))
             board = 2;
         else if (equal(argv[i], "--help")) {
-            say("PortableShell [--pu850] [--board|--controls] [--ascii] [--no-color] [--history FILE]\r\n     "
+            say("PortableShell [--pu850] [--board|--controls] [--ascii] [--no-color] [--history "
+                "FILE]\r\n     "
                 " "
                 "[--command TEXT "
                 "| -- ARGV...] [--batch | --interactive]\r\n      [--listen PORT [--bind IPv4]] "
@@ -629,6 +646,12 @@ int host_main(void) {
     result = ps_status(s);
     return channels[0].failed ? 1 : result;
 }
+#ifdef PS_HOSTED_CRT
+int main(void) {
+    return host_main();
+}
+#else
 void host_entry(void) {
     ExitProcess((UINT)host_main());
 }
+#endif
