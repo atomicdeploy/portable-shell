@@ -1,20 +1,20 @@
 # Cross-platform build-time dependency audit; no shell, Python or host execution.
 cmake_minimum_required(VERSION 3.16)
-execute_process(COMMAND "${NM}" -g --defined-only --format=posix "${ARCHIVE}"
+execute_process(COMMAND "${NM}" -g -P "${ARCHIVE}"
   RESULT_VARIABLE rc OUTPUT_VARIABLE definitions ERROR_VARIABLE errors)
 if(NOT rc EQUAL 0)
   message(FATAL_ERROR "Cannot inspect archive definitions: ${errors}")
 endif()
-execute_process(COMMAND "${NM}" -g -u --format=posix "${ARCHIVE}"
-  RESULT_VARIABLE rc OUTPUT_VARIABLE references ERROR_VARIABLE errors)
-if(NOT rc EQUAL 0)
-  message(FATAL_ERROR "Cannot inspect archive references: ${errors}")
-endif()
+set(references "${definitions}")
 string(REPLACE "\n" ";" lines "${definitions}")
 set(defined)
 foreach(line IN LISTS lines)
-  if(line MATCHES "^([^ \t]+)[ \t]+[A-Za-z][ \t]")
-    list(APPEND defined "${CMAKE_MATCH_1}")
+  if(line MATCHES "^([^ \t]+)[ \t]+([A-Za-z])([ \t\r]|$)")
+    set(definition_name "${CMAKE_MATCH_1}")
+    set(definition_type "${CMAKE_MATCH_2}")
+    if(NOT definition_type MATCHES "^[Uwv]$")
+      list(APPEND defined "${definition_name}")
+    endif()
   endif()
 endforeach()
 set(allowed)

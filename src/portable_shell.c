@@ -137,7 +137,7 @@ struct ps_session {
     char line[PS_LINE], saved[PS_LINE], kill[PS_LINE];
     unsigned len, pos;
     char history[PS_HISTORY][PS_LINE];
-    unsigned history_count, history_head, history_nav;
+    unsigned history_count, history_head, history_nav, history_limit;
     char notice[128], filter[64], edit[PS_VALUE];
     unsigned editing, editlen, editpos;
     Task tasks[PS_ROWS];
@@ -483,8 +483,27 @@ PS_API int ps_register(ps_session *s, const ps_command *c) {
         }
     if (s->command_count == PS_COMMANDS)
         return -1;
+    s->raw_commands[s->command_count] = 0;
     s->commands[s->command_count++] = *c;
     return 0;
+}
+PS_API int ps_unregister(ps_session *s, const char *name) {
+    unsigned i;
+    if (!s || !name)
+        return -1;
+    for (i = 0; i < s->command_count; ++i) {
+        if (name_match(s, name, s->commands[i].name, 0)) {
+            for (; i + 1 < s->command_count; ++i) {
+                s->commands[i] = s->commands[i + 1];
+                s->raw_commands[i] = s->raw_commands[i + 1];
+            }
+            --s->command_count;
+            s->completion = s->match_count = s->match_index = 0;
+            s->dirty = 1;
+            return 0;
+        }
+    }
+    return -1;
 }
 static int raw_argv_error(ps_session *s, int argc, const char *const *argv, void *context) {
     (void)argc;
@@ -535,13 +554,24 @@ PS_API const char *ps_history_get(const ps_session *s, unsigned index) {
 PS_API int ps_history_add(ps_session *s, const char *line) {
     if (!*line || length(line) >= PS_LINE)
         return -1;
+    if (!s->history_limit)
+        return 0;
     if (s->history_count && equal(ps_history_get(s, s->history_count - 1), line))
         return 0;
     str(s->history[s->history_head], line, PS_LINE);
     s->history_head = (s->history_head + 1) % PS_HISTORY;
-    if (s->history_count < PS_HISTORY)
+    if (s->history_count < s->history_limit)
         ++s->history_count;
     return 0;
+}
+PS_API unsigned ps_history_limit(ps_session *s, unsigned limit) {
+    if (!s)
+        return 0;
+    s->history_limit = limit > PS_HISTORY ? PS_HISTORY : limit;
+    if (s->history_count > s->history_limit)
+        s->history_count = s->history_limit;
+    s->history_nav = 0;
+    return s->history_limit;
 }
 static const ps_command builtins[] = {
     {"controls", "[open [page]|list|get ID|set ID VALUE]", "Workspace", builtin, 0, 0},
@@ -619,6 +649,7 @@ PS_API ps_session *ps_init(void *memory, unsigned bytes, const ps_config *c) {
     if (!s || !c || !c->write || bytes < sizeof *s)
         return 0;
     zero(s, sizeof *s);
+    s->history_limit = PS_HISTORY;
     s->io = *c;
     s->table_style = PS_TABLE_DEFAULT;
 #ifdef PS_ASCII_ONLY

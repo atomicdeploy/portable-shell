@@ -24,7 +24,7 @@ extern "C" {
 #endif
 #define PS_ARGS 32
 #define PS_VALUE 128
-#define PS_VERSION "0.6.0"
+#define PS_VERSION "0.7.0"
 #if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 19
 #error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 19"
 #endif
@@ -165,6 +165,7 @@ PS_API int ps_execute_argv(ps_session *s, int argc, const char *const *argv);
 PS_API int ps_parse(const char *line, ps_args *out);
 PS_API const char *ps_option(int argc, const char *const *argv, const char *name);
 PS_API int ps_register(ps_session *s, const ps_command *command);
+PS_API int ps_unregister(ps_session *s, const char *name);
 PS_API int ps_register_raw(ps_session *s, const ps_command *metadata, ps_raw_command_fn run);
 /* Text is copied, max 63 UTF-8 bytes, no control characters. NULL restores default. */
 PS_API int ps_set_prompt(ps_session *s, const char *text, unsigned style);
@@ -183,7 +184,12 @@ PS_API void ps_progress(ps_session *s, const char *name, unsigned done, unsigned
 PS_API unsigned ps_history_count(const ps_session *s);
 PS_API const char *ps_history_get(const ps_session *s, unsigned oldest_index);
 PS_API int ps_history_add(ps_session *s, const char *line);
+/* Retains newest entries. 0 disables history; values above PS_HISTORY clamp. */
+PS_API unsigned ps_history_limit(ps_session *s, unsigned limit);
 #ifdef __cplusplus
 }
+#endif
+#ifdef PS_ENABLE_LEGACY_API
+#include "portable_shell_legacy.h"
 #endif
 #endif

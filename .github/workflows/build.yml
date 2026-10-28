@@ -1,0 +1,43 @@
+name: Build and verify
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        libc: [OFF, ON]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=gcc -DCMAKE_BUILD_TYPE=Debug -DPORTABLE_SHELL_USE_LIBC=${{ matrix.libc }} -DPORTABLE_SHELL_BUILD_LEGACY=ON
+      - name: Build and audit symbols
+        run: cmake --build build
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+  profiles:
+    strategy:
+      matrix:
+        flags:
+          - '-DPORTABLE_SHELL_ASCII_ONLY=ON'
+          - '-DPORTABLE_SHELL_COMPACT=ON'
+          - '-DPORTABLE_SHELL_OPTIMIZATION=speed -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON'
+          - '-DPORTABLE_SHELL_USE_LIBC=ON -DPORTABLE_SHELL_OPTIMIZATION=speed -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build -G Ninja ${{ matrix.flags }}
+      - run: cmake --build build
+      - run: ctest --test-dir build --output-on-failure
+  arm32:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi
+      - run: cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-gcc.cmake -DPORTABLE_SHELL_BUILD_HOST=OFF -DPORTABLE_SHELL_BUILD_TESTS=OFF
+      - run: cmake --build build

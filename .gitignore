@@ -6,3 +6,28 @@ lib/
 profile.json
 profile-*.json
 evidence/
+# Build artifacts
+build/
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+# Debug files
+*.dSYM/
+*.idb
+*.pdb
+# Test output
+test_output/
+# Temporary files
+tmp/
+temp/
+*.tmp

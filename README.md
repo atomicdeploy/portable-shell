@@ -1,5 +1,12 @@
 # PortableShell
 
+Canonical repository: https://github.com/atomicdeploy/portable-shell
+
+The original repository and desktop implementation are unified. See
+[MIGRATION.md](MIGRATION.md) for the full feature/file reconciliation, optional
+original API adapter, compatibility boundaries and preserved history.
+
+
 A byte-driven C99 shell and terminal workbench. The core is written from scratch,
 heap-free and independent of the operating system. The default build is freestanding;
 an explicit libc backend can use the host's memory/string primitives. Compiler type
@@ -13,8 +20,8 @@ No Python, JavaScript, ncurses, readline, or third-party runtime is required.
 
 ## Run the supplied Windows build
 
-The latest builds are `bin/PortableShell-0.6.0.exe` (portable primitives) and
-`bin/PortableShell-libc-0.6.0.exe` (host C runtime). Launch with `--controls` for the
+The latest builds are `bin/PortableShell-0.7.0.exe` (portable primitives) and
+`bin/PortableShell-libc-0.7.0.exe` (host C runtime). Launch with `--controls` for the
 PCController-style tabs, grouped tables, toggles, PWM sliders, inline values and
 draft/confirmation dialogs. See [PCController controls](PCCONTROLLER-DESIGN.md)
 for provider callbacks and source provenance. Red framed tables, shared column
@@ -22,22 +29,22 @@ layout, title bars and contextual footers from the RayanPBX adaptation remain.
 See [RayanPBX design](RAYANPBX-DESIGN.md) for source provenance and configuration.
 The optional `--pu850` prompt/command profile remains available; see [PU850 compatibility](PU850-COMPATIBILITY.md)
 for the donor audit and future firmware integration. The unversioned 0.2.0 binary
-is retained to preserve an existing running user session. Normal 0.6.0 builds
+is retained to preserve an existing running user session. Normal 0.7.0 builds
 still default to the violet PortableShell workbench.
 
-Open `bin/PortableShell-0.6.0.exe`. Use **F2** for the workspace, **F1** for the command registry,
+Open `bin/PortableShell-0.7.0.exe`. Use **F2** for the workspace, **F1** for the command registry,
 and **Tab** at the prompt for completion. The program has no startup tutorial.
 
 ```text
-bin/PortableShell-0.6.0.exe --controls
-bin/PortableShell-0.6.0.exe --board
-bin/PortableShell-0.6.0.exe --ascii --no-color
-bin/PortableShell-0.6.0.exe --history history.txt
-bin/PortableShell-0.6.0.exe --command "calc 21 * 2"
-bin/PortableShell-0.6.0.exe -- args "a b" --name=value
-bin/PortableShell-0.6.0.exe --batch
-bin/PortableShell-0.6.0.exe --listen 2323
-bin/PortableShell-0.6.0.exe --serial COM9 --baud 115200
+bin/PortableShell-0.7.0.exe --controls
+bin/PortableShell-0.7.0.exe --board
+bin/PortableShell-0.7.0.exe --ascii --no-color
+bin/PortableShell-0.7.0.exe --history history.txt
+bin/PortableShell-0.7.0.exe --command "calc 21 * 2"
+bin/PortableShell-0.7.0.exe -- args "a b" --name=value
+bin/PortableShell-0.7.0.exe --batch
+bin/PortableShell-0.7.0.exe --listen 2323
+bin/PortableShell-0.7.0.exe --serial COM9 --baud 115200
 ```
 
 `--batch` reads commands from stdin, including a final line without a newline.
@@ -215,7 +222,7 @@ Small embedded buffers: add `-DPORTABLE_SHELL_COMPACT=ON` (128-byte line storage
 For ESP8266, put `xtensa-lx106-elf-gcc` on PATH and select
 `-DCMAKE_TOOLCHAIN_FILE=cmake/esp8266-gcc.cmake`. This includes our optional
 freestanding compiler helpers; it does not link libc or libgcc.
-Fixed ASCII/monochrome: add `-DPORTABLE_SHELL_ASCII_ONLY=ON`. The supplied `bin/PortableShell-ascii-0.6.0.exe`
+Fixed ASCII/monochrome: add `-DPORTABLE_SHELL_ASCII_ONLY=ON`. The supplied `bin/PortableShell-ascii-0.7.0.exe`
 cannot enable color/Unicode at runtime. Normal builds can switch with `theme`.
 ASCII mode substitutes `?` for non-ASCII display characters but preserves stored
 UTF-8 input bytes. Monochrome uses reverse-video selection; batch output has no VT.

@@ -1,5 +1,36 @@
 # PortableShell verification
 
+## 0.7.0 — atomicdeploy integration, 2026-10-28
+
+100 core assertions pass locally with both memory backends, ASCII, compact and
+speed/LTO configurations. The original repository's eight tests are retained
+verbatim and pass through the compatibility adapter. New tests pass for command
+registration/removal, writable null-terminated argv, negative/maximum integers,
+finite floats, quoted strings, boolean normalization, malformed-value rejection,
+idempotent registration, ambiguous duplicate rejection, multiple-session isolation,
+history limits, revision conflicts, actual inline editing and fragmented input.
+Native TCP/UDP tests exchange real bytes over loopback, reject truncated datagrams,
+recover on the next datagram and check failed-init/idempotent-close paths.
+
+Windows GCC 16.2 builds the default no-CRT host at 56,832 bytes and libc host at
+79,872 bytes. Core session storage remains 30,232 bytes with zero core heap.
+The optional compatibility adapter deliberately uses caller-hosted libc allocation
+and is not linked into the default native executable. A brief default-host Telnet
+controls run passed negotiation and value readback. Sample after that interaction:
+5,070,848 bytes working set and 1,376,256 private bytes; this is not a peak or soak
+measurement. Existing user processes were preserved.
+
+ARM32 Clang and compact Xtensa GCC builds pass the archive dependency audit.
+The nm audit now uses the portable `-P` output format and resolves internal archive
+references. Install staging includes the selected libraries and public headers.
+Cross-target builds and examples do not constitute board, serial wiring or human
+acceptance. Remote CI results are recorded on the integration PR; they are separate
+from these local results.
+
+Both original Git histories are preserved by the integration merge. See
+MIGRATION.md for file-level reconciliation, API boundaries and corrected older
+claims. No open architecture issue is implicitly closed by these tests.
+
 ## 0.6.0 — portable/native memory backends, 2026-10-28
 
 94 assertions pass for portable size, portable speed+LTO, libc size, libc speed+LTO,

@@ -65,6 +65,12 @@ static int custom(ps_session *s, int argc, const char *const *argv, void *ctx) {
     ps_write(s, "custom-result");
     return 7;
 }
+static int raw_check(ps_session *s, const char *tail, void *ctx) {
+    (void)s;
+    (void)tail;
+    (void)ctx;
+    return 9;
+}
 static int device_probe(ps_session *s, const char *name, const char *tail, void *context) {
     unsigned *calls = context;
     ++*calls;
@@ -448,6 +454,28 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
               "provider rejection preserves state");
         panel.count = 9;
         CHECK(!ps_panel_attach(s, &panel), "invalid provider page count rejected");
+    }
+    {
+        ps_command command = {"temporary", "", "Tests", custom, 0, 0};
+        /* Unregistering and reusing a slot must not inherit an old raw callback. */
+        cfg.flags = 0;
+        s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
+        CHECK(ps_history_limit(s, 2) == 2, "runtime history bound");
+        ps_history_add(s, "one");
+        ps_history_add(s, "two");
+        ps_history_add(s, "three");
+        CHECK(ps_history_count(s) == 2 && eq(ps_history_get(s, 0), "two"),
+              "history keeps newest entries");
+        ps_history_limit(s, 0);
+        ps_history_add(s, "disabled");
+        CHECK(!ps_history_count(s), "zero history bound disables storage");
+        CHECK(ps_register(s, &command) == 0 && ps_unregister(s, "temporary") == 0,
+              "command unregister removes registry entry");
+        CHECK(ps_execute(s, "temporary") != 0, "removed command cannot dispatch");
+        ps_register_raw(s, &command, raw_check);
+        ps_unregister(s, "temporary");
+        ps_register(s, &command);
+        CHECK(ps_execute(s, "temporary") == 7, "reused command slot clears raw callback");
     }
     report(ctx, (const ps_byte *)(t.failed ? "Checks failed\n" : "All checks passed\n"),
            t.failed ? 14 : 18);
