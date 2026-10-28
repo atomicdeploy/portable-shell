@@ -41,7 +41,7 @@ compact full shell alone does not make the full session AVR-compatible.
 The MCU console does not have the full shell's `theme` command. It currently
 uses a magenta prompt (`PS_EDITOR_PROMPT_STYLE`), the device view's red border
 palette, `ansi` / `plain` commands, and `PS_CONSOLE_ASCII_ONLY`.
-`PS_CONSOLE_PROMPT` and `PS_CONSOLE_TITLE` both default to `Console`.
+`PS_CONSOLE_PROMPT_LABEL` and `PS_CONSOLE_TITLE` both default to `Console`.
 
 ## Entry screen and I/O
 
