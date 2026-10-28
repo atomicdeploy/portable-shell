@@ -66,16 +66,16 @@ they need separately supplied callbacks if that older command dialect is chosen.
 
 ## Use and future migration
 
-Run `bin/PortableShell-0.3.0.exe --pu850` to try the profile locally, or add
-`--listen 2338` for a loopback Telnet listener. `--pu850 --command "EcHo  raw 'text'"`
+Run `bin/PortableShell-0.3.0.exe --device-commands` to try the profile locally, or add
+`--listen 2338` for a loopback Telnet listener. `--device-commands --command "EcHo  raw 'text'"`
 works without terminal escapes in batch output. The local host has no device backend;
 hardware commands correctly return `Device backend not attached.` rather than
 claiming a save or reboot. Use `--command` for raw commands; `-- ARGV` cannot retain
 original whitespace and is explicitly rejected for those commands.
 
-For firmware, compile `portable_shell.c` and `portable_shell_pu850.c`, initialize
+For firmware, compile `portable_shell.c` and `portable_shell_device.c`, initialize
 with `PS_NO_BUILTINS | PS_CASE_INSENSITIVE | PS_LEGACY_KEYS`, then attach the profile
-before `ps_start`. See `examples/pu850_transport.c`. Omit the profile to retain
+before `ps_start`. See `examples/device_transport.c`. Omit the profile to retain
 the modern workbench; replace individual commands or prompt settings independently.
 
 The future firmware change should replace `ShellService` with `ps_feed`, route
@@ -106,7 +106,7 @@ The native color/ASCII suite adds raw-tail, mixed-case, completion, event/cursor
 prompt validation, no-backend failure, overflow and lifecycle checks. A real
 loopback Telnet test sent fragmented negotiations and profile commands, verified
 yellow output, exact raw text, hexadecimal output and explicit backend failure.
-Real PTY keystrokes exercised the prompt and completion. `previews/pu850-agave.png`
+Real PTY keystrokes exercised the prompt and completion. `previews/device-commands-agave.png`
 is actual emitted-byte replay with explicitly labeled fixtures, rendered in Agave.
 
 ESP8266 GCC 10.3 compiles the compact core/profile/compiler-helper combination with

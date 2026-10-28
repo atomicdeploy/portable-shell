@@ -83,7 +83,7 @@ Native x86_64, Cortex-M4 ARM32 and compact ESP8266 build artifacts are supplied.
 Core/combined objects have no unresolved runtime-library symbols. Physical hardware
 and user acceptance remain separate. RayanPBX itself was not modified.
 
-Run `bin/PortableShell-0.4.0.exe --board`. Its `--pu850` profile remains available.
+Run `bin/PortableShell-0.4.0.exe --board`. Its `--device-commands` profile remains available.
 Earlier binaries and user sessions are preserved. The running visual-preview
 process is kept separately as `PortableShell-0.4.0-preview.exe`; the final executable
 also includes the caller-progress status correction found during verification.

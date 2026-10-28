@@ -1,4 +1,4 @@
-/* Adapted verbatim regression cases from PakarController b09650e3 (MIT). */
+/* Event editor regression cases; MIT source lineage is in the donor inventory. */
 #include "portable_shell_editor.hpp"
 #include <string.h>
 #include <assert.h>
@@ -128,5 +128,5 @@ int main() {
   assert(output.size()==beforeDestruction);
   const std::string erased(reinterpret_cast<const char*>(storage),sizeof(storage));
   for(const auto* marker:{"durable-marker","draft-marker","unsubmitted-secret-marker"})assert(erased.find(marker)==std::string::npos);
-  std::cout << "PU850-derived Telnet negotiation and bounded shell editing passed.\n";
+  std::cout << "Device-profile Telnet negotiation and bounded shell editing passed.\n";
 }

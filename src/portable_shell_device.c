@@ -1,4 +1,4 @@
-#include "portable_shell_pu850.h"
+#include "portable_shell_device.h"
 
 static const char *const names[] = {"echo",  "clear",  "cls",     "exit",    "upper",  "noupper",
                                     "hex",   "save",   "restore", "connect", "reboot", "busy",
@@ -18,7 +18,7 @@ static int starts(const char *text, const char *part) {
 static unsigned complete(ps_session *s, int argc, const char *const *argv, const char *prefix,
                          const char **items, unsigned capacity, void *context) {
     unsigned i, n = 0;
-    ps_pu850_slot *slot = context;
+    ps_device_slot *slot = context;
     (void)s;
     (void)argv;
     if (argc != 1 || (slot->command != 14 && slot->command != 15))
@@ -67,7 +67,7 @@ static int hexadecimal(ps_session *s, const char *p) {
     return 0;
 }
 static int run(ps_session *s, const char *tail, void *context) {
-    ps_pu850_slot *slot = context;
+    ps_device_slot *slot = context;
     switch (slot->command) {
     case 0:
         ps_write(s, tail);
@@ -95,7 +95,7 @@ static int run(ps_session *s, const char *tail, void *context) {
         return 2;
     }
 }
-int ps_pu850_attach(ps_session *s, ps_pu850_profile *p, ps_pu850_call_fn call, void *context) {
+int ps_device_attach(ps_session *s, ps_device_profile *p, ps_device_call_fn call, void *context) {
     unsigned i;
     if (!s || !p)
         return -1;
@@ -121,7 +121,7 @@ static void append(char *out, unsigned *n, const char *text) {
         out[(*n)++] = *text++;
     out[*n] = 0;
 }
-void ps_pu850_greet(ps_session *s, const char *product, const char *hostname, const char *peer) {
+void ps_device_greet(ps_session *s, const char *product, const char *hostname, const char *peer) {
     char text[256];
     unsigned n = 0;
     append(text, &n, "Welcome ");
