@@ -1,5 +1,8 @@
 /* Optional POSIX byte transport; OS calls are confined to this file.
    No third-party libraries. Core remains freestanding. */
+#if defined(__APPLE__)
+#define _DARWIN_C_SOURCE 1
+#endif
 #define _POSIX_C_SOURCE 200809L
 #include "portable_shell.h"
 #include "portable_shell_pu850.h"

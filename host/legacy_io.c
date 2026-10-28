@@ -1,6 +1,9 @@
 /* Optional native transports for the legacy callbacks. No OS calls in core.
    Socket calls have bounded timeouts. UDP pins the first peer per context:
    never share a shell's command state between unrelated datagram senders. */
+#if defined(__APPLE__)
+#define _DARWIN_C_SOURCE 1
+#endif
 #define _POSIX_C_SOURCE 200809L
 #include "ps_io.h"
 #include <string.h>
