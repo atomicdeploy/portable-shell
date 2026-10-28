@@ -11,6 +11,12 @@ No Python, JavaScript, ncurses, readline, or third-party runtime is required.
 
 ## Run the supplied Windows build
 
+The latest compatibility build is `bin/PortableShell-0.3.0.exe`. It adds the
+optional `--pu850` prompt/command profile; see [PU850 compatibility](PU850-COMPATIBILITY.md)
+for the donor audit and future firmware integration. The unversioned 0.2.0 binary
+is retained to preserve an existing running user session. Normal 0.3.0 builds
+still default to the violet PortableShell workbench.
+
 Open `bin/PortableShell.exe`. Use **F2** for the workspace, **F1** for the command registry,
 and **Tab** at the prompt for completion. The program has no startup tutorial.
 
@@ -195,6 +201,11 @@ ctest --test-dir build --output-on-failure
 ```
 
 Core only: add `-DPORTABLE_SHELL_BUILD_HOST=OFF -DPORTABLE_SHELL_BUILD_TESTS=OFF`.
+Small embedded buffers: add `-DPORTABLE_SHELL_COMPACT=ON` (128-byte line storage,
+4 history entries, 4 table rows, 24 commands). Definitions propagate to consumers.
+For ESP8266, put `xtensa-lx106-elf-gcc` on PATH and select
+`-DCMAKE_TOOLCHAIN_FILE=cmake/esp8266-gcc.cmake`. This includes our optional
+freestanding compiler helpers; it does not link libc or libgcc.
 Fixed ASCII/monochrome: add `-DPORTABLE_SHELL_ASCII_ONLY=ON`. The supplied `bin/PortableShell-ascii.exe`
 cannot enable color/Unicode at runtime. Normal builds can switch with `theme`.
 ASCII mode substitutes `?` for non-ASCII display characters but preserves stored

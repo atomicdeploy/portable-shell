@@ -1,6 +1,7 @@
 /* Small, purpose-built ANSI replay renderer for verification. No dependencies.
    This is a test utility, not the shell's terminal renderer. GDB exports SVG. */
 #include "portable_shell.h"
+#include "portable_shell_pu850.h"
 #define W 96
 #define H 24
 typedef struct {
@@ -18,6 +19,8 @@ static union {
 char preview_tasks[400000], preview_variables[400000], preview_jobs[400000],
     preview_session[400000], preview_edit[400000], preview_ascii[400000], preview_red[400000],
     preview_lumen[400000];
+char preview_pu850[400000];
+unsigned preview_pu850_n;
 unsigned preview_tasks_n, preview_variables_n, preview_jobs_n, preview_session_n, preview_edit_n,
     preview_ascii_n, preview_red_n, preview_lumen_n;
 static unsigned len(const char *p) {
@@ -63,7 +66,9 @@ static void csi(char end) {
     if (end == 'H') {
         row = a[0] ? a[0] - 1 : 0;
         col = a[1] ? a[1] - 1 : 0;
-    } else if (end == 'C')
+    } else if (end == 'G')
+        col = a[0] ? a[0] - 1 : 0;
+    else if (end == 'C')
         col += a[0] ? a[0] : 1;
     else if (end == 'J') {
         for (r = 0; r < H; ++r)
@@ -84,6 +89,8 @@ static void csi(char end) {
                 unsigned t = fg;
                 fg = bg;
                 bg = t;
+            } else if (a[i] >= 90 && a[i] <= 97) {
+                fg = palette(a[i] - 90 + 8);
             } else if ((a[i] == 38 || a[i] == 48) && i + 2 <= n && a[i + 1] == 5) {
                 if (a[i] == 38)
                     fg = palette(a[i + 2]);
@@ -334,5 +341,18 @@ int render_entry(void) {
     ps_execute(s, "theme ascii");
     feed(s, "1");
     preview_ascii_n = svg(preview_ascii);
+    {
+        ps_pu850_profile profile;
+        cfg.flags = PS_INTERACTIVE | PS_COLOR | PS_UNICODE | PS_CASE_INSENSITIVE | PS_NO_BUILTINS |
+                    PS_LEGACY_KEYS;
+        s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
+        ps_pu850_attach(s, &profile, 0, 0);
+        ps_clear(s);
+        ps_pu850_greet(s, "PU850", "fixture-host", "127.0.0.1");
+        ps_start(s);
+        feed(s, "EcHo  Quotes stay 'exact'\rhex -1\rsave\rget Sta\t");
+        ps_message(s, PS_STYLE_WARNING, "Serial event fixture");
+        preview_pu850_n = svg(preview_pu850);
+    }
     return render_complete();
 }

@@ -1,4 +1,47 @@
-# PortableShell 0.2.0 — human-review checkpoint
+# PortableShell verification
+
+## 0.3.0 — PU850 compatibility preparation, 2026-10-28
+
+See `PU850-COMPATIBILITY.md` for pinned donor provenance and the replacement boundary.
+59 assertions pass in native color, fixed ASCII and compact configurations. They
+include 4,096 native cross-check samples for the freestanding integer helpers.
+The C integration example also compiles as C++11. The POSIX adapter compiled under
+local MSYS GCC and returned `FFFFFFFF` for the profile's `HEX -1` command; this is
+not native Linux/macOS evidence. Real PTY and loopback Telnet checks passed.
+
+| 0.3.0 measurement | Bytes |
+| --- | ---: |
+| Windows native executable, disk | 43,520 |
+| Windows fixed ASCII executable, disk | 43,520 |
+| Full x86_64 core session | 30,056 |
+| Full ARM Cortex-M4 core session | 28,460 |
+| Compact ESP8266 core session | 6,236 |
+| PU850 profile state, x86_64 / 32-bit | 288 / 144 |
+| ARM32 combined core/profile text and read-only metadata | 24,404 |
+| Compact ESP8266 combined core/profile/compiler helpers | 26,323 |
+| Core heap allocation | 0 |
+| Largest individual native core stack frame | 1,952 |
+| Windows adapter static storage (.bss) | 694,368 |
+| Sampled idle PU850 loopback server working set | 5,476,352 |
+| Sampled server private committed memory | 1,351,680 |
+
+No unresolved symbols remain in the x86_64 core, ARM combined object, or Xtensa
+combined relocatable object. Xtensa GCC 10.3 emits compiler arithmetic/memcpy
+references; `ports/compiler_runtime.c` provides these from scratch without libc
+or libgcc. ARM uses NDK Clang, Cortex-M4/Thumb. The compact definitions must match
+between library and all consumers. Session/profile storage excludes stack, firmware
+state and transport queues. Stack-frame figures are not measured high-water usage.
+Process memory is a snapshot; the profiling server was stopped after measurement.
+
+`bin/PortableShell-0.3.0.exe` and `bin/PortableShell-ascii-0.3.0.exe` are the new
+binaries. The unversioned 0.2.0 executables are retained for existing user sessions.
+The new ARM archive is `lib/libportable_shell-arm32-0.3.0.a`; the ESP archive is
+`lib/libportable_shell-esp8266-compact.a`. The x86_64 archive is updated to 0.3.0.
+The PU850 screenshot is generated from 0.3.0 output; the earlier workbench previews
+below remain the 0.2.0 styling checkpoint. No physical ESP8266 or ARM execution,
+firmware migration, serial-hardware or human-acceptance claim is made.
+
+## 0.2.0 — human-review checkpoint
 
 Measured locally on 2026-10-28. This release renames the initial Lumen implementation,
 adds violet/magenta and red themes, preserves Lumen, and uses symbolic Unicode key

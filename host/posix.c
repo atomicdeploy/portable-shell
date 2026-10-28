@@ -2,6 +2,9 @@
    No third-party libraries. Core remains freestanding. */
 #define _POSIX_C_SOURCE 200809L
 #include "portable_shell.h"
+#include "portable_shell_pu850.h"
+static unsigned use_pu850;
+static ps_pu850_profile profiles[4];
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -176,6 +179,8 @@ static int server(unsigned port, const char *host, unsigned flags) {
                     channels[i].used = channels[i].failed = 0;
                     fcntl(fd, F_SETFL, O_NONBLOCK);
                     sessions[i] = ps_init(memory[i].data, sizeof memory[i].data, &cfg);
+                    if (use_pu850)
+                        ps_pu850_attach(sessions[i], &profiles[i], 0, 0);
                     ps_start(sessions[i]);
                 }
             }
@@ -265,13 +270,16 @@ int main(int argc, char **argv) {
             batch = 1;
         else if (equal(argv[i], "--interactive"))
             force = 1;
-        else if (equal(argv[i], "--board"))
+        else if (equal(argv[i], "--pu850")) {
+            use_pu850 = 1;
+            flags |= PS_CASE_INSENSITIVE | PS_NO_BUILTINS | PS_LEGACY_KEYS;
+        } else if (equal(argv[i], "--board"))
             board = 1;
         else if (equal(argv[i], "--")) {
             command_at = i + 1;
             break;
         } else if (equal(argv[i], "--help")) {
-            say("portable_shell [--board] [--ascii] [--no-color] [--history FILE]\n      "
+            say("PortableShell [--pu850] [--board] [--ascii] [--no-color] [--history FILE]\n      "
                 "[--command TEXT | "
                 "-- ARGV...] [--batch | --interactive]\n      [--listen PORT [--bind IPv4]] "
                 "[--serial PATH [--baud N]]\n");
@@ -320,6 +328,8 @@ int main(int argc, char **argv) {
     s = ps_init(memory[0].data, sizeof memory[0].data, &cfg);
     if (!s)
         return 1;
+    if (use_pu850)
+        ps_pu850_attach(s, &profiles[0], 0, 0);
     if (command || command_at) {
         result =
             command ? ps_execute(s, command)

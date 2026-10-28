@@ -23,7 +23,7 @@ extern "C" {
 #endif
 #define PS_ARGS 32
 #define PS_VALUE 128
-#define PS_VERSION "0.2.0"
+#define PS_VERSION "0.3.0"
 #if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 18
 #error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 18"
 #endif
@@ -33,6 +33,9 @@ typedef char ps_requires_32_bit_unsigned[(sizeof(ps_u32) == 4) ? 1 : -1];
 typedef struct ps_session ps_session;
 typedef void (*ps_write_fn)(void *context, const ps_byte *bytes, unsigned count);
 typedef int (*ps_command_fn)(ps_session *, int argc, const char *const *argv, void *context);
+/* Raw tail starts immediately after the first space/tab; quotes and all remaining
+   whitespace are preserved. Only command-name matching is case folded. */
+typedef int (*ps_raw_command_fn)(ps_session *, const char *tail, void *context);
 typedef unsigned (*ps_complete_fn)(ps_session *, int argc, const char *const *argv,
                                    const char *prefix, const char **items, unsigned capacity,
                                    void *context);
@@ -56,7 +59,17 @@ typedef struct {
     unsigned columns, rows;
     unsigned flags;
 } ps_config;
-enum { PS_INTERACTIVE = 1, PS_COLOR = 2, PS_UNICODE = 4, PS_TELNET = 8, PS_TRUECOLOR = 16 };
+enum {
+    PS_INTERACTIVE = 1,
+    PS_COLOR = 2,
+    PS_UNICODE = 4,
+    PS_TELNET = 8,
+    PS_TRUECOLOR = 16,
+    PS_CASE_INSENSITIVE = 32,
+    PS_NO_BUILTINS = 64,
+    PS_LEGACY_KEYS = 128
+};
+enum { PS_STYLE_DEFAULT, PS_STYLE_PROMPT, PS_STYLE_SUCCESS, PS_STYLE_WARNING, PS_STYLE_ERROR };
 enum {
     PS_KEY_UP = 256,
     PS_KEY_DOWN,
@@ -94,6 +107,15 @@ PS_API int ps_execute_argv(ps_session *s, int argc, const char *const *argv);
 PS_API int ps_parse(const char *line, ps_args *out);
 PS_API const char *ps_option(int argc, const char *const *argv, const char *name);
 PS_API int ps_register(ps_session *s, const ps_command *command);
+PS_API int ps_register_raw(ps_session *s, const ps_command *metadata, ps_raw_command_fn run);
+/* Text is copied, max 63 UTF-8 bytes, no control characters. NULL restores default. */
+PS_API int ps_set_prompt(ps_session *s, const char *text, unsigned style);
+PS_API void ps_set_uppercase_echo(ps_session *s, int enabled);
+/* Safe external event output; preserves pending input/cursor. In the board it
+   becomes the contextual notice. Call from the owning loop, not from write(). */
+PS_API void ps_message(ps_session *s, unsigned style, const char *text);
+PS_API void ps_clear(ps_session *s);
+PS_API void ps_request_exit(ps_session *s);
 PS_API int ps_bind(ps_session *s, unsigned key, ps_key_fn callback, void *context);
 PS_API void ps_key(ps_session *s, unsigned key);
 PS_API void ps_write(ps_session *s, const char *text); /* safe printable output, strips controls */

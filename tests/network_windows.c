@@ -2,6 +2,9 @@
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <windows.h>
+#ifndef TEST_PORT
+#define TEST_PORT 2323
+#endif
 static char output[65536];
 static unsigned used;
 static int has(const char *needle) {
@@ -57,7 +60,7 @@ static int check(void) {
         return 1;
     s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(2323);
+    addr.sin_port = htons(TEST_PORT);
     addr.sin_addr.s_addr = htonl(0x7f000001);
     if (connect(s, (struct sockaddr *)&addr, sizeof addr)) {
         closesocket(s);
@@ -71,6 +74,25 @@ static int check(void) {
     for (i = 0; i < sizeof negotiation; ++i)
         if (!send_all(s, (const char *)negotiation + i, 1))
             return 4;
+#ifdef TEST_PU850
+    (void)commands;
+    (void)keys;
+    (void)tail;
+    {
+        const char probe[] = "EcHo  raw 'quoted tail\r\nHEX -1\r\nSaVe\r\n";
+        used = 0;
+        send_all(s, probe, sizeof probe - 1);
+        collect(s, 180);
+        if (!has(" raw 'quoted tail") || !has("FFFFFFFF") || !has("Device backend not attached.") ||
+            !has("\033[1;93m"))
+            return 8;
+        send_all(s, "EXIT\r\n", 6);
+        collect(s, 80);
+        closesocket(s);
+        WSACleanup();
+        return 0;
+    }
+#endif
     send_all(s, commands, sizeof commands - 1);
     collect(s, 180);
     if (!has("wire test") || !has("Tasks"))

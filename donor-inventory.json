@@ -1,0 +1,39 @@
+{
+  "checked": "2026-10-28",
+  "github": "atomicdeploy/pu850-esp",
+  "head": "431104072952f694a35b3a83c19f13fbb098ca5b",
+  "files": [
+    {
+      "Path": "C:\\Users\\David\\Documents\\Codex\\2026-10-09\\for-nodemcu-esp8266-please-give-me\\work\\repos\\pu850-esp\\LocalLib\\Shell.h",
+      "Hash": "9F8E76509AD917D8E204A82D9495E376607A159547D4EEE3DE6760E6BD5D7DA6"
+    },
+    {
+      "Path": "C:\\Users\\David\\Documents\\Codex\\2026-10-09\\for-nodemcu-esp8266-please-give-me\\work\\repos\\pu850-esp\\LocalLib\\Shell.cpp",
+      "Hash": "0113ACBFF973285F5AF186A4857D94CC2DF3C99813E0DB4BA876F861E7C1083B"
+    },
+    {
+      "Path": "C:\\Users\\David\\Documents\\Codex\\2026-10-09\\for-nodemcu-esp8266-please-give-me\\work\\repos\\pu850-esp\\LocalLib\\Commands.h",
+      "Hash": "48C0DEB76D6105090FE1D58A2449427681A88775B1E63DDBB1B28ECFF6341961"
+    },
+    {
+      "Path": "C:\\Users\\David\\Documents\\Codex\\2026-10-09\\for-nodemcu-esp8266-please-give-me\\work\\repos\\pu850-esp\\LocalLib\\Commands.cpp",
+      "Hash": "5181D7CC83EFE2416A3A198FF88AAD2AEFFC8871EE2EF7A2A1FFDAD51D31B88E"
+    },
+    {
+      "Path": "C:\\Users\\David\\Documents\\Codex\\2026-10-09\\for-nodemcu-esp8266-please-give-me\\work\\repos\\pu850-esp\\LocalLib\\Telnet.cpp",
+      "Hash": "A78D88C149D19D8989C6DB3DCE0731189C2BF46C45FD64B73E9871A80F6C9BDD"
+    },
+    {
+      "Path": "C:\\Users\\David\\Documents\\Codex\\2026-10-09\\for-nodemcu-esp8266-please-give-me\\work\\repos\\pu850-esp\\LocalLib\\Telnet.h",
+      "Hash": "E85F5F1A4F2767323D9886313DDB2AABFD3ACAD7D781C2770BC8D2B2D2C6CB15"
+    },
+    {
+      "Path": "C:\\Users\\David\\Desktop\\Projects\\Shell\\Shell.c",
+      "Hash": "EFA34C48C8D88D22F951BC902556F1BAE390A79836B31F7C694C91F3AD12376E"
+    },
+    {
+      "Path": "C:\\Users\\David\\Desktop\\Projects\\Shell\\Shell.h",
+      "Hash": "B32D9A1D2B53A86802C55DF6002998F5FCA11AC3EE05CEE3AB19A4B0D8126807"
+    }
+  ]
+}

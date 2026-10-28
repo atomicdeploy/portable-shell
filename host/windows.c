@@ -4,6 +4,9 @@
 #include <winsock2.h>
 #include <windows.h>
 #include "portable_shell.h"
+#include "portable_shell_pu850.h"
+static unsigned use_pu850;
+static ps_pu850_profile profiles[4];
 #define CLIENTS 4
 #define QUEUE 131072
 typedef struct {
@@ -370,6 +373,8 @@ static int server(unsigned port, const char *bind_addr, unsigned flags) {
                     cfg.rows = 28;
                     cfg.flags = flags | PS_INTERACTIVE | PS_TELNET;
                     sessions[i] = ps_init(storage[i].data, sizeof storage[i].data, &cfg);
+                    if (use_pu850)
+                        ps_pu850_attach(sessions[i], &profiles[i], 0, 0);
                     ps_start(sessions[i]);
                 }
             }
@@ -460,10 +465,14 @@ int host_main(void) {
             batch = 1;
         else if (equal(argv[i], "--interactive"))
             force = 1;
-        else if (equal(argv[i], "--board"))
+        else if (equal(argv[i], "--pu850")) {
+            use_pu850 = 1;
+            flags |= PS_CASE_INSENSITIVE | PS_NO_BUILTINS | PS_LEGACY_KEYS;
+        } else if (equal(argv[i], "--board"))
             board = 1;
         else if (equal(argv[i], "--help")) {
-            say("portable_shell [--board] [--ascii] [--no-color] [--history FILE]\r\n      "
+            say("PortableShell [--pu850] [--board] [--ascii] [--no-color] [--history FILE]\r\n     "
+                " "
                 "[--command TEXT "
                 "| -- ARGV...] [--batch | --interactive]\r\n      [--listen PORT [--bind IPv4]] "
                 "[--serial PORT [--baud N]]\r\n");
@@ -544,6 +553,8 @@ int host_main(void) {
     s = ps_init(storage[0].data, sizeof storage[0].data, &cfg);
     if (!s)
         return 1;
+    if (use_pu850)
+        ps_pu850_attach(s, &profiles[0], 0, 0);
     if (command || command_at) {
         result = command ? ps_execute(s, command)
                          : ps_execute_argv(s, (int)(argc - command_at), argv + command_at);

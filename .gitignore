@@ -4,4 +4,5 @@ history.txt
 bin/
 lib/
 profile.json
+profile-*.json
 evidence/

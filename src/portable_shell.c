@@ -183,6 +183,9 @@ struct ps_session {
     ps_config io;
     unsigned theme; /* 0 violet, 1 red, 2 original Lumen */
     ps_command commands[PS_COMMANDS];
+    ps_raw_command_fn raw_commands[PS_COMMANDS];
+    char prompt_text[64];
+    unsigned custom_prompt, prompt_style, uppercase_echo, executing;
     unsigned command_count;
     Binding bindings[24];
     unsigned binding_count;
@@ -367,6 +370,67 @@ static void notice(ps_session *s, const char *p) {
 static void prompt(ps_session *s);
 static void render(ps_session *s);
 static int builtin(ps_session *s, int argc, const char *const *argv, void *ctx);
+static unsigned fold(unsigned c) {
+    return c >= 'A' && c <= 'Z' ? c + 32 : c;
+}
+static int name_match(ps_session *s, const char *a, const char *b, int partial) {
+    while (*b) {
+        unsigned x = (unsigned char)*a++, y = (unsigned char)*b++;
+        if (s->io.flags & PS_CASE_INSENSITIVE) {
+            x = fold(x);
+            y = fold(y);
+        }
+        if (x != y)
+            return 0;
+    }
+    return partial || !*a;
+}
+static void style(ps_session *s, unsigned value) {
+    static const char *const colors[] = {"\033[0m", "\033[1;93m", "\033[92m", "\033[93m",
+                                         "\033[91m"};
+    color(s, colors[value <= PS_STYLE_ERROR ? value : 0]);
+}
+PS_API int ps_set_prompt(ps_session *s, const char *text, unsigned value) {
+    unsigned i;
+    if (text) {
+        if (length(text) >= sizeof s->prompt_text)
+            return -1;
+        for (i = 0; text[i]; ++i)
+            if ((unsigned char)text[i] < 32 || (unsigned char)text[i] == 127)
+                return -1;
+    }
+    str(s->prompt_text, text, sizeof s->prompt_text);
+    s->custom_prompt = text != 0;
+    s->prompt_style = value;
+    if (s->started)
+        prompt(s);
+    return 0;
+}
+PS_API void ps_set_uppercase_echo(ps_session *s, int enabled) {
+    s->uppercase_echo = enabled != 0;
+}
+PS_API void ps_message(ps_session *s, unsigned value, const char *text) {
+    if (s->board) {
+        notice(s, text);
+        return;
+    }
+    if (s->started && !s->executing)
+        ansi(s, "\r\033[2K");
+    style(s, value);
+    ps_write(s, text);
+    reset(s);
+    ps_newline(s);
+    if (s->started && !s->executing)
+        prompt(s);
+}
+PS_API void ps_clear(ps_session *s) {
+    ansi(s, "\033[2J\033[H");
+    s->dirty = 1;
+}
+PS_API void ps_request_exit(ps_session *s) {
+    s->exit = 1;
+    ps_close(s);
+}
 
 PS_API int ps_parse(const char *line, ps_args *a) {
     unsigned i = 0, o = 0;
@@ -452,13 +516,37 @@ PS_API int ps_register(ps_session *s, const ps_command *c) {
     if (!c || !c->name || !*c->name || !c->run)
         return -1;
     for (i = 0; i < s->command_count; ++i)
-        if (equal(c->name, s->commands[i].name)) {
+        if (name_match(s, c->name, s->commands[i].name, 0)) {
             s->commands[i] = *c;
+            s->raw_commands[i] = 0;
             return 0;
         }
     if (s->command_count == PS_COMMANDS)
         return -1;
     s->commands[s->command_count++] = *c;
+    return 0;
+}
+static int raw_argv_error(ps_session *s, int argc, const char *const *argv, void *context) {
+    (void)argc;
+    (void)argv;
+    (void)context;
+    ps_message(s, PS_STYLE_ERROR, "Raw command requires ps_execute with its original text");
+    return 2;
+}
+PS_API int ps_register_raw(ps_session *s, const ps_command *metadata, ps_raw_command_fn run) {
+    ps_command c;
+    unsigned i;
+    if (!metadata || !run)
+        return -1;
+    c = *metadata;
+    c.run = raw_argv_error;
+    if (ps_register(s, &c))
+        return -1;
+    for (i = 0; i < s->command_count; ++i)
+        if (name_match(s, c.name, s->commands[i].name, 0)) {
+            s->raw_commands[i] = run;
+            break;
+        }
     return 0;
 }
 PS_API int ps_bind(ps_session *s, unsigned key, ps_key_fn fn, void *context) {
@@ -539,8 +627,9 @@ PS_API ps_session *ps_init(void *memory, unsigned bytes, const ps_config *c) {
     s->io.rows = c->rows ? (c->rows < 4 ? 4 : min(c->rows, 80)) : 24;
     s->next_id = 1;
     str(s->terminal, "byte stream", sizeof s->terminal);
-    for (i = 0; i < sizeof builtins / sizeof builtins[0]; ++i)
-        ps_register(s, &builtins[i]);
+    if (!(c->flags & PS_NO_BUILTINS))
+        for (i = 0; i < sizeof builtins / sizeof builtins[0]; ++i)
+            ps_register(s, &builtins[i]);
     return s;
 }
 static void telnet_cmd(ps_session *s, unsigned verb, unsigned opt) {
@@ -889,25 +978,39 @@ static const char *suggest(ps_session *s) {
     return 0;
 }
 static void prompt(ps_session *s) {
-    unsigned prompt_width = 20 + (s->task_count >= 10 ? 1 : 0);
+    char display[PS_LINE];
+    unsigned i, prompt_width = s->custom_prompt
+                                   ? min(cells(s->prompt_text, length(s->prompt_text), s->io.flags),
+                                         s->io.columns - 3)
+                                   : 20 + (s->task_count >= 10 ? 1 : 0);
     unsigned start = 0,
              avail = s->io.columns > prompt_width + 2 ? s->io.columns - prompt_width - 2 : 8;
     const char *hint;
     if (!(s->io.flags & PS_INTERACTIVE) || s->board || s->exit)
         return;
     ansi(s, "\r\033[2K");
-    ink(s, 1);
-    out(s, "PortableShell");
-    ink(s, 0);
-    out(s, " [");
-    ps_number(s, s->task_count);
-    out(s, "] ");
-    ink(s, 5);
-    out(s, "> ");
+    if (s->custom_prompt) {
+        style(s, s->prompt_style);
+        field(s, s->prompt_text, prompt_width);
+    } else {
+        ink(s, 1);
+        out(s, "PortableShell");
+        ink(s, 0);
+        out(s, " [");
+        ps_number(s, s->task_count);
+        out(s, "] ");
+        ink(s, 5);
+        out(s, "> ");
+    }
     reset(s);
     while (cells(s->line + start, s->pos - start, s->io.flags) > avail)
         start = next(s->line, start);
-    field(s, s->line + start, min(cells(s->line + start, s->len - start, s->io.flags), avail));
+    str(display, s->line, sizeof display);
+    if (s->uppercase_echo)
+        for (i = 0; display[i]; ++i)
+            if (display[i] >= 'a' && display[i] <= 'z')
+                display[i] -= 32;
+    field(s, display + start, min(cells(display + start, s->len - start, s->io.flags), avail));
     hint = suggest(s);
     if (hint && s->pos == s->len && cells(s->line + start, s->len - start, s->io.flags) < avail) {
         ink(s, 0);
@@ -917,8 +1020,8 @@ static void prompt(ps_session *s) {
         reset(s);
     }
     ansi(s, "\r\033[");
-    ps_number(s, prompt_width + cells(s->line + start, s->pos - start, s->io.flags));
-    out(s, "C");
+    ps_number(s, prompt_width + cells(s->line + start, s->pos - start, s->io.flags) + 1);
+    out(s, "G");
     if (s->search) {
         ansi(s, "\r\033[2K");
         ink(s, 1);
@@ -1180,7 +1283,7 @@ static void completion(ps_session *s) {
         s->match_count = 0;
         if (s->start == 0) {
             for (i = 0; i < s->command_count; ++i)
-                if (prefix(s->commands[i].name, token))
+                if (name_match(s, s->commands[i].name, token, 1))
                     s->matches[s->match_count++] = s->commands[i].name;
         } else {
             static const char *const task[] = {"add", "done", "remove", "rename", "list"};
@@ -1197,7 +1300,8 @@ static void completion(ps_session *s) {
             ps_parse(partial, &args);
             if (args.argc) {
                 for (i = 0; i < s->command_count; ++i)
-                    if (equal(args.argv[0], s->commands[i].name) && s->commands[i].complete) {
+                    if (name_match(s, args.argv[0], s->commands[i].name, 0) &&
+                        s->commands[i].complete) {
                         s->match_count =
                             min(PS_COMMANDS, s->commands[i].complete(s, args.argc,
                                                                      (const char *const *)args.argv,
@@ -1228,7 +1332,7 @@ static void completion(ps_session *s) {
                                 s->matches[s->match_count++] = s->vars[i].key;
                     } else if (equal(args.argv[0], "help")) {
                         for (i = 0; i < s->command_count; ++i)
-                            if (prefix(s->commands[i].name, token))
+                            if (name_match(s, s->commands[i].name, token, 1))
                                 s->matches[s->match_count++] = s->commands[i].name;
                     }
                     for (i = 0; i < count; ++i)
@@ -1824,8 +1928,15 @@ PS_API int ps_execute_argv(ps_session *s, int argc, const char *const *a) {
         return fail(s, "invalid argv");
     ++s->executions;
     for (i = 0; i < s->command_count; ++i)
-        if (equal(a[0], s->commands[i].name)) {
-            s->status = s->commands[i].run(s, argc, a, s->commands[i].context);
+        if (name_match(s, a[0], s->commands[i].name, 0)) {
+            const char *canonical[PS_ARGS];
+            unsigned k;
+            for (k = 0; k < (unsigned)argc; ++k)
+                canonical[k] = a[k];
+            canonical[0] = s->commands[i].name;
+            s->executing = 1;
+            s->status = s->commands[i].run(s, argc, canonical, s->commands[i].context);
+            s->executing = 0;
             return s->status;
         }
     s->status = fail(s, "unknown command; use help or Tab");
@@ -1833,6 +1944,23 @@ PS_API int ps_execute_argv(ps_session *s, int argc, const char *const *a) {
 }
 PS_API int ps_execute(ps_session *s, const char *line) {
     ps_args a;
+    char name[PS_LINE];
+    unsigned n = 0, i;
+    if (!line || length(line) >= PS_LINE)
+        return s->status = fail(s, "line too long");
+    while (line[n] && line[n] != ' ' && line[n] != '\t') {
+        name[n] = line[n];
+        ++n;
+    }
+    name[n] = 0;
+    for (i = 0; i < s->command_count; ++i)
+        if (s->raw_commands[i] && name_match(s, name, s->commands[i].name, 0)) {
+            ++s->executions;
+            s->executing = 1;
+            s->status = s->raw_commands[i](s, line + n + (line[n] != 0), s->commands[i].context);
+            s->executing = 0;
+            return s->status;
+        }
     if (ps_parse(line, &a)) {
         out(s, "parse@");
         ps_number(s, a.error_at);
@@ -1933,6 +2061,14 @@ static void input_byte(ps_session *s, unsigned c) {
                 return;
             }
             s->esc = 0;
+            if ((s->io.flags & PS_LEGACY_KEYS) &&
+                (c == 'A' || c == 'B' || c == 'C' || c == 'D' || c == 'H' || c == 'F')) {
+                s->escbuf[0] = 'O';
+                s->escbuf[1] = (char)c;
+                s->escbuf[2] = 0;
+                escape_key(s);
+                return;
+            }
             if (c == 'b') {
                 ps_key(s, PS_KEY_WORDLEFT);
                 return;
