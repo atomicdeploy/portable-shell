@@ -62,6 +62,7 @@ class DeviceView {
         const char *const *choices = nullptr;
         uint8_t choiceCount = 0;
         bool pending = false;
+        bool meter = false; // Meaningful bounded levels/PWM, not ports or timestamps.
         constexpr Row(const char *label_ = nullptr, const char *key_ = nullptr,
                       const char *value_ = nullptr, bool editable_ = false, bool secret_ = false)
             : label(label_), key(key_), value(value_), editable(editable_), secret(secret_) {}
@@ -984,6 +985,7 @@ class DeviceView {
                 add(s.rows[i].value);
             value ^= (s.rows[i].editable ? 4 : 0) | (s.rows[i].secret ? 8 : 0);
             value ^= (unsigned(s.rows[i].kind)<<8)|(s.rows[i].pending?16:0);
+            value ^= s.rows[i].meter?32:0;
             value *= 16777619U;
             value ^= s.rows[i].minimum;value *= 16777619U;
             value ^= s.rows[i].maximum;value *= 16777619U;
@@ -1003,6 +1005,7 @@ class DeviceView {
     uint32_t observed_ = 0;
     uint32_t painted_[PS_DEVICE_VIEW_TABLE ? PS_DEVICE_VIEW_MAX_ROWS : 1]{};
     unsigned paintedSelection_ = 255;
+    unsigned paintedRows_ = 0;
     bool paintedGrid_ = false;
     uint8_t selected_ = 0, cell_ = 1, pixelColor_ = 1;
     uint16_t pixel_ = 0, columns_ = 80, lines_ = 24;

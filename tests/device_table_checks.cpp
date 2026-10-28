@@ -18,7 +18,7 @@ int main(){
     const char *choices[]={"effects","static"};
     for(auto &r:rows)r={"Setting","setting","observed",true};
     rows[0]={"Output","output","true",true};rows[0].kind=V::Toggle;
-    rows[1]={"Brightness","brightness","128",true};rows[1].kind=V::Level;rows[1].minimum=1;rows[1].maximum=255;
+    rows[1]={"Brightness","brightness","128",true};rows[1].kind=V::Level;rows[1].minimum=1;rows[1].maximum=255;rows[1].meter=true;
     rows[2]={"Mode","mode","effects",true};rows[2].kind=V::Choice;rows[2].choices=choices;rows[2].choiceCount=2;
     for(auto &r:rows)r.category="Lighting";
     s.rows=rows;s.rowCount=64;s.unicode=true;s.columns=120;s.lines=40;

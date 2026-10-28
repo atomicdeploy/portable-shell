@@ -20,7 +20,7 @@ int main(int argc,char **argv){
         {"PWM","pwm","42%",true,false},
         {"Credentials","password","never-visible",true,true},
         {"Firmware","firmware","0.8.0",false,false}};
-    rows[3].value="true";rows[3].kind=View::Toggle;rows[4].value="128";rows[4].kind=View::Level;rows[4].minimum=1;rows[4].maximum=255;
+    rows[3].value="true";rows[3].kind=View::Toggle;rows[4].value="128";rows[4].kind=View::Level;rows[4].minimum=1;rows[4].maximum=255;rows[4].meter=true;
     for(auto &r:rows)r.category="Device";
     snapshot.title="PortableShell / device workspace";snapshot.rows=rows;snapshot.rowCount=7;
     snapshot.unicode=true;snapshot.columns=96;snapshot.lines=24;

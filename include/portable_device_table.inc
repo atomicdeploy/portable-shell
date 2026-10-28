@@ -69,10 +69,10 @@ template<class W> void ink(Writer<W> &out,unsigned role) const {if(ansi_)out.raw
 template<class W> void edge(Writer<W> &out,const Snapshot &s,const char *unicode,const char *ascii) const {
     base(out);ink(out,7);out.raw(s.unicode?unicode:ascii);base(out);
 }
-template<class W> void rule(Writer<W> &out,const Snapshot &s,unsigned width,const char *left,const char *right) const {
+template<class W> void rule(Writer<W> &out,const Snapshot &s,unsigned width,const char *left,const char *right,bool newline=true) const {
     base(out);ink(out,7);out.raw(s.unicode?left:"+");
     for(unsigned i=0;i<width-2;++i)out.raw(s.unicode?"\xe2\x94\x80":"-");
-    out.raw(s.unicode?right:"+");base(out);out.raw("\r\n");
+    out.raw(s.unicode?right:"+");base(out);if(newline)out.raw("\r\n");
 }
 template<class W> void gridRule(Writer<W> &out,const Snapshot &s,unsigned w,unsigned group,unsigned label,const char *junction,const char *left,const char *right) const {
     base(out);ink(out,7);out.raw(s.unicode?left:"+");
@@ -88,7 +88,7 @@ template<class W> void value(Writer<W> &out,const Snapshot &s,const Row &r,unsig
         out.field(on<0?"Unknown":on?"[x] On":"[ ] Off",width);return;
     }
     uint32_t n;
-    if(PS_DEVICE_VIEW_WIDGETS&&r.kind==Level&&width>=22&&decimal(r.value,n)&&r.maximum>r.minimum&&n>=r.minimum&&n<=r.maximum){
+    if(PS_DEVICE_VIEW_WIDGETS&&r.kind==Level&&r.meter&&width>=22&&decimal(r.value,n)&&r.maximum>r.minimum&&n>=r.minimum&&n<=r.maximum){
         // At most ten cells, no multiplication overflow for uint32 ranges.
         const unsigned bar=10;const uint32_t span=r.maximum-r.minimum,offset=n-r.minimum;
         const uint32_t quantum=span/bar+(span%bar!=0);
@@ -101,7 +101,7 @@ template<class W> void value(Writer<W> &out,const Snapshot &s,const Row &r,unsig
 template<class Write> bool renderTable(const Snapshot &s,Write write) {
     Writer<Write> out(write,ansi_);
     const unsigned width=s.columns>240?240:s.columns;
-    const bool paintAll=full_||!ansi_;
+    bool paintAll=full_||!ansi_;
     if(ansi_){base(out);out.raw(full_?"\x1b[H\x1b[2J":"\x1b[H");}
     full_=false;
     if(width<40||s.lines<16){out.raw("Resize terminal to 40 x 16\r\n");return true;}
@@ -136,6 +136,8 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     // Bound complete frames rather than silently dropping their final border.
     const unsigned budgetRows=(PS_DEVICE_VIEW_FRAME_BYTES > 8192 ? PS_DEVICE_VIEW_FRAME_BYTES-8192 : 1)/(w+1000U);
     if(visible>budgetRows)visible=budgetRows?budgetRows:1;
+    if(visible>(count?count:1))visible=count?count:1;
+    if(paintedRows_!=visible){paintAll=true;paintedRows_=visible;}
     const unsigned start=selected_>=visible?selected_-visible+1:0;
     for(unsigned i=0;i<visible;++i){
         const unsigned at=start+i;
@@ -162,11 +164,12 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     base(out);ink(out,0);
     const Row *r=currentRow(s);
     const char *hint=editing_?"Enter apply  Esc cancel  ^U clear":
+        grid_?(page_==Led?"f settings  w white  r red  o off":"Enter test  f settings  g group"):
         r&&r->pending?"Waiting for readback":r&&!r->editable?"Read only":
         PS_DEVICE_VIEW_WIDGETS&&r&&r->kind==Toggle?(PS_DEVICE_VIEW_DIALOGS?"Space toggle  Enter value  F2 dialog":"Space toggle  Enter value"):
         PS_DEVICE_VIEW_WIDGETS&&r&&r->kind==Level?(s.unicode?"\xe2\x86\x90/\xe2\x86\x92 adjust  Enter value":"+/- adjust  Enter value"):
         PS_DEVICE_VIEW_WIDGETS&&r&&r->kind==Choice?"Space next  +/- choose  Enter value":PS_DEVICE_VIEW_DIALOGS?"Enter edit  F2 dialog":"Enter edit";
-    out.safe(hint,w);out.raw("\r\n");
+    out.raw(hint);out.raw("\r\n"); // Trusted bounded literals, including Unicode key symbols.
     out.raw(s.unicode?"\xe2\x86\x91/\xe2\x86\x93 select  Tab pages  Esc back":"Up/Down select  Tab pages  Esc back");out.raw("\r\n");
     char status[64];ps_terminal_format(status,sizeof(status),"%u-%u / %u",count?start+1:0,count<start+visible?count:start+visible,count);
     ink(out,1);out.raw(status);out.raw("  ");ink(out,0);out.safe(notice_,w-unsigned(ps_text_length(status))-2);out.raw("\r\n");
@@ -174,11 +177,11 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     if(PS_DEVICE_VIEW_DIALOGS&&dialog_&&editing_&&ansi_){
         const unsigned dw=w<74?w-4:70,left=(w-dw)/2+1,top=s.lines/2-3;
         auto position=[&](unsigned row){char b[24];ps_terminal_format(b,sizeof(b),"\x1b[%u;%uH",row,left);out.raw(b);};
-        position(top);rule(out,s,dw,"\xe2\x95\xad","\xe2\x95\xae");
+        position(top);rule(out,s,dw,"\xe2\x95\xad","\xe2\x95\xae",false);
         position(top+1);edge(out,s,"\xe2\x94\x82 ","| ");ink(out,4);out.field(editLabel_,dw-4);edge(out,s," \xe2\x94\x82"," |");
         position(top+2);edge(out,s,"\xe2\x94\x82 ","| ");editValue(out,dw-4);edge(out,s," \xe2\x94\x82"," |");
         position(top+3);edge(out,s,"\xe2\x94\x82 ","| ");out.field("Enter apply   Esc cancel",dw-4);edge(out,s," \xe2\x94\x82"," |");
-        position(top+4);rule(out,s,dw,"\xe2\x95\xb0","\xe2\x95\xaf");
+        position(top+4);rule(out,s,dw,"\xe2\x95\xb0","\xe2\x95\xaf",false);
         editRow_=top+2;editColumn_=left+2;editWidth_=dw-4;
     }
     if(editing_&&ansi_)editLine(write);
@@ -205,18 +208,18 @@ template<class W> void renderDiagnostics(Writer<W> &out,const Snapshot &snapshot
                                            id);
                         out.raw(number);
                         if (ansi_)
-                            out.raw("\x1b[0m");
+                            base(out);
                     }
                     out.raw("\r\n");
                 }
                 if (ansi_) {
-                    out.raw("\x1b[90m");
+                    ink(out,0);
                 }
                 out.raw(width<50?(snapshot.unicode?"\xe2\x86\x91/\xe2\x86\x93 \xe2\x86\x90/\xe2\x86\x92  w/r/o\r\n":"Up/Down Left/Right  w/r/o\r\n"):snapshot.unicode ? "\xe2\x86\x91/\xe2\x86\x93 \xe2\x86\x90/\xe2\x86\x92 "
                                            "move  w white  r red  o off\r\n"
                                          : "Up/Down Left/Right  w white r red o off\r\n");
                 if (ansi_) {
-                    out.raw("\x1b[0m");
+                    base(out);
                 }
             } else if (page_ == Game) {
                 out.raw("\r\n");
@@ -231,7 +234,7 @@ template<class W> void renderDiagnostics(Writer<W> &out,const Snapshot &snapshot
                     ps_terminal_format(box, sizeof(box), "[%u]%s", id, id == 9 ? "\r\n" : " ");
                     out.raw(box);
                     if (ansi_)
-                        out.raw("\x1b[0m");
+                        base(out);
                 }
                 char winner[64];
                 ps_terminal_format(winner, sizeof(winner), "Winner %u  %s\r\n", snapshot.winner,
@@ -252,11 +255,11 @@ template<class W> void renderDiagnostics(Writer<W> &out,const Snapshot &snapshot
                 out.raw(color());
                 out.raw("\r\n");
                 if (ansi_)
-                    out.raw("\x1b[90m");
+                    ink(out,0);
                 out.raw(width<50?(snapshot.unicode?"\xe2\x86\x90/\xe2\x86\x92 +/-  g group  w/r/o\r\n":"Left/Right +/- g group w/r/o\r\n"):snapshot.unicode
                             ? "\xe2\x86\x90/\xe2\x86\x92 +/- step  g group  w/r/o color\r\n"
                             : "Left/Right +/- step  g group  w/r/o color\r\n");
                 if (ansi_)
-                    out.raw("\x1b[0m");
+                    base(out);
             }
 }
