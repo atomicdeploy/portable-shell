@@ -40,7 +40,12 @@ foreach(line IN LISTS lines)
     if(NOT symbol IN_LIST defined)
       # Darwin/32-bit COFF prepend one underscore; PE imports may use __imp_.
       string(REGEX REPLACE "^__imp_" "" normalized "${symbol}")
-      string(REGEX REPLACE "^_" "" normalized "${normalized}")
+      # Strip exactly one platform prefix. Older CMake regex replacement can
+      # re-match ^ after each replacement, eating all leading underscores.
+      string(SUBSTRING "${normalized}" 0 1 first_character)
+      if(first_character STREQUAL "_")
+        string(SUBSTRING "${normalized}" 1 -1 normalized)
+      endif()
       if(NOT symbol IN_LIST allowed AND NOT normalized IN_LIST allowed)
         message(FATAL_ERROR "Unexpected external symbol ${symbol} in ${ARCHIVE}")
       endif()
