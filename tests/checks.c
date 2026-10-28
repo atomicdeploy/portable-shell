@@ -1,6 +1,6 @@
 /* Freestanding tests: the runner provides only a byte sink. */
 #include "portable_shell.h"
-#include "portable_shell_pu850.h"
+#include "portable_shell_device.h"
 int portable_runtime_checks(void);
 int portable_memory_checks(void);
 int portable_terminal_checks(void);
@@ -246,13 +246,13 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
     feed(s, "echo network\r\n");
     CHECK(ps_history_count(s) == 1, "telnet CRLF one submit");
     {
-        ps_pu850_profile profile;
+        ps_device_profile profile;
         unsigned calls = 0;
         const char *argv[] = {"echo", "original whitespace is unknown"};
         cfg.flags =
             PS_INTERACTIVE | PS_COLOR | PS_CASE_INSENSITIVE | PS_NO_BUILTINS | PS_LEGACY_KEYS;
         s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
-        CHECK(ps_pu850_attach(s, &profile, device_probe, &calls) == 0, "PU850 profile attach");
+        CHECK(ps_device_attach(s, &profile, device_probe, &calls) == 0, "device command profile attach");
         clear();
         ps_start(s);
         CHECK(has(t.output, "> ") && !has(t.output, "PortableShell"),
@@ -296,10 +296,10 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
                 void *align;
                 unsigned char bytes[40000];
             } other_memory;
-            ps_pu850_profile other_profile;
+            ps_device_profile other_profile;
             ps_session *other = ps_init(other_memory.bytes, sizeof other_memory.bytes, &cfg);
             unsigned other_calls = 0;
-            ps_pu850_attach(other, &other_profile, device_probe, &other_calls);
+            ps_device_attach(other, &other_profile, device_probe, &other_calls);
             ps_execute(other, "save");
             ps_execute(other, "exit");
             CHECK(other_calls == 1 && calls == 1 && !ps_exited(s) && ps_exited(other),
@@ -308,13 +308,13 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         CHECK(ps_set_prompt(s, "bad\033[2J", PS_STYLE_PROMPT) == -1,
               "prompt rejects control injection");
         clear();
-        ps_pu850_greet(s, "PU850", "fixture-host", "127.0.0.1");
-        CHECK(has(t.output, "Welcome 127.0.0.1 to PU850 (fixture-host)!"),
+        ps_device_greet(s, "Device", "fixture-host", "127.0.0.1");
+        CHECK(has(t.output, "Welcome 127.0.0.1 to Device (fixture-host)!"),
               "dynamic transport greeting");
         CHECK(ps_execute(s, "EXIT") == 0 && ps_exited(s), "profile exit reaches host lifecycle");
         cfg.flags = PS_NO_BUILTINS | PS_CASE_INSENSITIVE;
         s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
-        ps_pu850_attach(s, &profile, 0, 0);
+        ps_device_attach(s, &profile, 0, 0);
         clear();
         CHECK(ps_execute(s, "save") == 2 && has(t.output, "Device backend not attached.") &&
                   !has(t.output, "\033"),

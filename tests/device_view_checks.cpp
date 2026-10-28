@@ -1,4 +1,4 @@
-/* PakarController b09650e3 regression cases, MIT. */
+/* Snapshot/action device view regression cases, MIT; see donor inventory. */
 #include "portable_device_view.hpp"
 #include <string.h>
 #include <assert.h>

@@ -74,7 +74,7 @@ static int check(void) {
     for (i = 0; i < sizeof negotiation; ++i)
         if (!send_all(s, (const char *)negotiation + i, 1))
             return 4;
-#ifdef TEST_PU850
+#ifdef TEST_DEVICE_COMMANDS
     (void)commands;
     (void)keys;
     (void)tail;

@@ -9,6 +9,9 @@
 - Default presentation should feel vibrant and polished. Prefer violet/magenta or red accents;
   do not default to an industrial dark-blue/pale-cyan appearance.
 - Preserve the original Lumen color scheme as an available theme.
+- Name implementation APIs, files, macros and profiles by their function, never by
+  a donor product. Keep exact donor identities, legal attribution and old-name
+  migration mappings in provenance documents and Git history.
 - Use actual key symbols in Unicode UI hints: ↑/↓, ←/→ and related characters rather than
   generic words such as "Arrows". Supply legible text fallbacks in ASCII mode.
 - Terminal pictures must come from emitted program output. Include a dark Agave rendition,

@@ -39,7 +39,7 @@ draft/confirmation dialogs. See [PCController controls](PCCONTROLLER-DESIGN.md)
 for provider callbacks and source provenance. Red framed tables, shared column
 layout, title bars and contextual footers from the RayanPBX adaptation remain.
 See [RayanPBX design](RAYANPBX-DESIGN.md) for source provenance and configuration.
-The optional `--pu850` prompt/command profile remains available; see [PU850 compatibility](PU850-COMPATIBILITY.md)
+The optional `--device-commands` prompt/command profile remains available; see [PU850 compatibility](PU850-COMPATIBILITY.md)
 for the donor audit and future firmware integration. The unversioned 0.2.0 binary
 is retained to preserve an existing running user session. Normal 0.8.0 builds
 still default to the violet PortableShell workbench.
@@ -71,6 +71,9 @@ startup and replaced on normal exit. Tasks and variables are currently session-l
 No user documents, machine settings, or external processes are modified by commands.
 
 ## Workspace
+
+See [profiles, options and current defaults](OPTIONS.md) for the choice matrix
+and semantic API naming migration.
 
 The default dark theme uses violet/magenta accents, warm text, mint completion
 states and peach values. Switch with `theme red`, `theme violet`, or `theme lumen`
@@ -242,9 +245,9 @@ UTF-8 input bytes. Monochrome uses reverse-video selection; batch output has no 
 Direct GCC portable core build, with no linker libraries:
 
 ```text
-gcc -std=c99 -Os -ffreestanding -fno-builtin -fno-stack-protector -Iinclude -c src/portable_shell.c src/portable_shell_pu850.c
+gcc -std=c99 -Os -ffreestanding -fno-builtin -fno-stack-protector -Iinclude -c src/portable_shell.c src/portable_shell_device.c
 gcc -std=c99 -Os -ffreestanding -fno-builtin -fno-lto -fno-tree-loop-distribute-patterns -fno-stack-protector -c ports/memory_runtime.c
-ar rcs libportable_shell.a portable_shell.o portable_shell_pu850.o memory_runtime.o
+ar rcs libportable_shell.a portable_shell.o portable_shell_device.o memory_runtime.o
 cmake -DNM=nm -DARCHIVE=libportable_shell.a -DUSE_LIBC=OFF -DPROVIDE_MEMORY=ON -P cmake/check-symbols.cmake
 ```
 

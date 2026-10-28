@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(PortableShell VERSION 0.9.0 LANGUAGES C)
+project(PortableShell VERSION 0.10.0 LANGUAGES C)
 option(PORTABLE_SHELL_USE_LIBC "Use the host C library for memory/string primitives" OFF)
 option(PORTABLE_SHELL_PROVIDE_MEMORY "Supply compiler-required memory symbols in portable mode" ON)
 option(PORTABLE_SHELL_AUDIT_SYMBOLS "Audit archive external dependencies after building" ON)
@@ -11,7 +11,7 @@ option(PORTABLE_SHELL_BUILD_TESTS "Build brief byte-level checks" ON)
 option(PORTABLE_SHELL_COMPACT "Smaller buffers for embedded integrations" OFF)
 option(PORTABLE_SHELL_COMPILER_RT "Include freestanding compiler helpers for Xtensa" OFF)
 option(PORTABLE_SHELL_BUILD_LEGACY "Build hosted adapter for the original atomicdeploy API" OFF)
-add_library(portable_shell STATIC src/portable_shell.c src/portable_shell_pu850.c)
+add_library(portable_shell STATIC src/portable_shell.c src/portable_shell_device.c)
 if(PORTABLE_SHELL_USE_LIBC)
   target_compile_definitions(portable_shell PRIVATE PS_USE_LIBC)
 elseif(PORTABLE_SHELL_PROVIDE_MEMORY)
@@ -19,7 +19,7 @@ elseif(PORTABLE_SHELL_PROVIDE_MEMORY)
 endif()
 include(GNUInstallDirs)
 install(TARGETS portable_shell ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(FILES include/portable_shell.h include/portable_shell_pu850.h
+install(FILES include/portable_shell.h include/portable_shell_device.h
   include/portable_terminal.h include/portable_editor.h
   include/portable_parse.h include/portable_probe.h
   include/portable_shell_editor.hpp include/portable_device_view.hpp
