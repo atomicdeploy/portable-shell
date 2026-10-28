@@ -1,5 +1,54 @@
 # PortableShell verification
 
+## 0.5.0 — PCController controls, 2026-10-28
+
+See `PCCONTROLLER-DESIGN.md` and `pccontroller-donor.json` for pinned donor evidence
+and callback boundaries. **92 assertions pass** in native, fixed ASCII and compact
+configurations, including 26 provider/control assertions. The C provider example
+also compiles as C++11. The POSIX adapter compiled and ran a controls listing under
+MSYS GCC; this is not native Linux/macOS execution evidence.
+
+Live Windows PTY input exercised toggling, selection, PWM adjustment, a dialog
+commit and inline text editing. With separately paced input, readback returned
+PWM `3000` and label `Interactive bench`. An initial long synthetic input burst
+did not yield all intended edits; it is not counted as passing rapid-input
+acceptance. Raw-byte and Telnet tests passed combined sequences. Exhaustive
+terminal/input-load acceptance remains for the later AI pass.
+
+A native C TCP client negotiated Telnet byte by byte, opened controls, toggled a
+relay, committed PWM through a dialog and verified readback at the shell. The final
+executable passed. Temporary test servers and PTY sessions were closed; existing
+user windows were preserved. Opening another standalone review window was blocked
+by execution policy without a detailed reason. Launch the versioned executable
+with `--controls` manually.
+
+| 0.5.0 measurement | Bytes |
+| --- | ---: |
+| Windows color / fixed ASCII executable | 56,320 / 55,808 |
+| Full x86_64 / ARM32 session | 30,232 / 28,608 |
+| Compact ESP8266 session | 6,384 |
+| Core heap allocation | 0 |
+| ARM32 combined text/read-only metadata | 34,409 |
+| Compact Xtensa combined text/read-only metadata/helpers | 36,300 |
+| Largest individual native core stack frame | 1,952 |
+| Windows host static .bss | 694,368 |
+| Final loopback server sampled working set / private memory | 5,066,752 / 1,372,160 |
+
+Session sizes exclude application-owned provider state and stack. The PU850 profile
+adds 288 bytes on x86_64 or 144 on 32-bit targets. A compiler-reported frame is not
+nested stack high-water. Process memory is a sample after Telnet interaction and
+disconnect, not embedded RAM usage. Native imports remain Kernel32 and Winsock;
+native core and combined ARM/Xtensa objects have no unresolved symbols. No board
+was programmed or actuated. `profile-0.5.0.json` records the final process sample.
+
+Executable SHA-256:
+`76D0A6DAC29A7FD83DC63723918E6FE6ECE403E19CCBAC3247332E08EDD50CBF`.
+
+Seven fixture states were rendered at 96x24 and 42x14: outputs, settings, inline
+editing, draft dialog, confirmation, ASCII and One Dark. These are actual emitted
+bytes replayed by the C renderer, not native desktop screenshots. Agave resolution
+and supersampled output were checked. Human acceptance and the goal remain paused.
+
 ## 0.4.0 — RayanPBX layout adaptation, 2026-10-28
 
 66 checks pass in color, fixed ASCII and compact builds. New checks cover shared

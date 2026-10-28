@@ -275,11 +275,13 @@ int main(int argc, char **argv) {
             flags |= PS_CASE_INSENSITIVE | PS_NO_BUILTINS | PS_LEGACY_KEYS;
         } else if (equal(argv[i], "--board"))
             board = 1;
+        else if (equal(argv[i], "--controls"))
+            board = 2;
         else if (equal(argv[i], "--")) {
             command_at = i + 1;
             break;
         } else if (equal(argv[i], "--help")) {
-            say("PortableShell [--pu850] [--board] [--ascii] [--no-color] [--history FILE]\n      "
+            say("PortableShell [--pu850] [--board|--controls] [--ascii] [--no-color] [--history FILE]\n      "
                 "[--command TEXT | "
                 "-- ARGV...] [--batch | --interactive]\n      [--listen PORT [--bind IPv4]] "
                 "[--serial PATH [--baud N]]\n");
@@ -369,7 +371,7 @@ int main(int argc, char **argv) {
         resize(s, outfd);
     ps_start(s);
     if (board)
-        ps_execute(s, "board");
+        ps_execute(s, board == 2 ? "controls" : "board");
     start = clock_ms();
     while (!stopping && !ps_exited(s) && !channels[0].failed) {
         struct pollfd p = {fd, POLLIN, 0};

@@ -470,8 +470,10 @@ int host_main(void) {
             flags |= PS_CASE_INSENSITIVE | PS_NO_BUILTINS | PS_LEGACY_KEYS;
         } else if (equal(argv[i], "--board"))
             board = 1;
+        else if (equal(argv[i], "--controls"))
+            board = 2;
         else if (equal(argv[i], "--help")) {
-            say("PortableShell [--pu850] [--board] [--ascii] [--no-color] [--history FILE]\r\n     "
+            say("PortableShell [--pu850] [--board|--controls] [--ascii] [--no-color] [--history FILE]\r\n     "
                 " "
                 "[--command TEXT "
                 "| -- ARGV...] [--batch | --interactive]\r\n      [--listen PORT [--bind IPv4]] "
@@ -580,7 +582,7 @@ int host_main(void) {
                                   ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS);
     ps_start(s);
     if (board)
-        ps_execute(s, "board");
+        ps_execute(s, board == 2 ? "controls" : "board");
     start = GetTickCount();
     for (;;) {
         if (ps_exited(s) || channels[0].failed)

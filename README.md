@@ -11,26 +11,30 @@ No Python, JavaScript, ncurses, readline, or third-party runtime is required.
 
 ## Run the supplied Windows build
 
-The latest build is `bin/PortableShell-0.4.0.exe`, with red framed tables, shared
-column layout, a title bar and contextual footers adapted from RayanPBX.
+The latest build is `bin/PortableShell-0.5.0.exe`. Launch with `--controls` for the
+PCController-style tabs, grouped tables, toggles, PWM sliders, inline values and
+draft/confirmation dialogs. See [PCController controls](PCCONTROLLER-DESIGN.md)
+for provider callbacks and source provenance. Red framed tables, shared column
+layout, title bars and contextual footers from the RayanPBX adaptation remain.
 See [RayanPBX design](RAYANPBX-DESIGN.md) for source provenance and configuration.
 The optional `--pu850` prompt/command profile remains available; see [PU850 compatibility](PU850-COMPATIBILITY.md)
 for the donor audit and future firmware integration. The unversioned 0.2.0 binary
-is retained to preserve an existing running user session. Normal 0.4.0 builds
+is retained to preserve an existing running user session. Normal 0.5.0 builds
 still default to the violet PortableShell workbench.
 
-Open `bin/PortableShell.exe`. Use **F2** for the workspace, **F1** for the command registry,
+Open `bin/PortableShell-0.5.0.exe`. Use **F2** for the workspace, **F1** for the command registry,
 and **Tab** at the prompt for completion. The program has no startup tutorial.
 
 ```text
-bin/PortableShell.exe --board
-bin/PortableShell.exe --ascii --no-color
-bin/PortableShell.exe --history history.txt
-bin/PortableShell.exe --command "calc 21 * 2"
-bin/PortableShell.exe -- args "a b" --name=value
-bin/PortableShell.exe --batch
-bin/PortableShell.exe --listen 2323
-bin/PortableShell.exe --serial COM9 --baud 115200
+bin/PortableShell-0.5.0.exe --controls
+bin/PortableShell-0.5.0.exe --board
+bin/PortableShell-0.5.0.exe --ascii --no-color
+bin/PortableShell-0.5.0.exe --history history.txt
+bin/PortableShell-0.5.0.exe --command "calc 21 * 2"
+bin/PortableShell-0.5.0.exe -- args "a b" --name=value
+bin/PortableShell-0.5.0.exe --batch
+bin/PortableShell-0.5.0.exe --listen 2323
+bin/PortableShell-0.5.0.exe --serial COM9 --baud 115200
 ```
 
 `--batch` reads commands from stdin, including a final line without a newline.

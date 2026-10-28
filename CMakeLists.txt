@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(PortableShell VERSION 0.4.0 LANGUAGES C)
+project(PortableShell VERSION 0.5.0 LANGUAGES C)
 option(PORTABLE_SHELL_ASCII_ONLY "Compile with Unicode and color disabled" OFF)
 option(PORTABLE_SHELL_BUILD_HOST "Build the optional native terminal/TCP/serial adapter" ON)
 option(PORTABLE_SHELL_BUILD_TESTS "Build brief byte-level checks" ON)

@@ -23,14 +23,59 @@ extern "C" {
 #endif
 #define PS_ARGS 32
 #define PS_VALUE 128
-#define PS_VERSION "0.4.0"
-#if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 18
-#error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 18"
+#define PS_VERSION "0.5.0"
+#if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 19
+#error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 19"
 #endif
 typedef unsigned char ps_byte;
 typedef unsigned int ps_u32;
 typedef char ps_requires_32_bit_unsigned[(sizeof(ps_u32) == 4) ? 1 : -1];
 typedef struct ps_session ps_session;
+/* Borrowed immutable definitions; retain them and context until detach/session end.
+   Callbacks run on the owning loop, must not reenter the session. No allocation.
+   read supplies observed state, never a speculative requested value. write must
+   atomically check expected_revision and return 0 rejected, 1 applied, 2 pending.
+   A pending provider exposes PS_CONTROL_PENDING until readback or failure. */
+enum {
+    PS_CONTROL_TOGGLE,
+    PS_CONTROL_LEVEL,
+    PS_CONTROL_CHOICE,
+    PS_CONTROL_TEXT,
+    PS_CONTROL_ACTION,
+    PS_CONTROL_LABEL
+};
+enum { PS_CONTROL_VALID = 1, PS_CONTROL_PENDING = 2, PS_CONTROL_LOCKED = 4 };
+typedef struct {
+    unsigned id;
+    const char *group, *label;
+    unsigned kind, minimum, maximum, step; /* numeric range <= 65535 */
+    const char *const *choices;
+    unsigned choice_count;
+} ps_control;
+typedef struct {
+    const char *title;
+    const ps_control *controls;
+    unsigned count;
+} ps_control_page;
+typedef struct {
+    unsigned number, flags;
+    ps_u32 revision;
+    char text[64];
+} ps_control_value;
+typedef int (*ps_control_read_fn)(void *, unsigned id, ps_control_value *observed);
+typedef int (*ps_control_write_fn)(void *, unsigned id, const ps_control_value *requested,
+                                   ps_u32 expected_revision);
+typedef struct {
+    const char *title, *status;
+    const ps_control_page *pages;
+    unsigned count; /* 1..8 pages, <=128 rows each, unique stable IDs */
+    ps_control_read_fn read;
+    ps_control_write_fn write;
+    void *context;
+} ps_panel;
+PS_API int ps_panel_attach(ps_session *, const ps_panel *); /* NULL detaches */
+PS_API int ps_panel_open(ps_session *, unsigned page);
+PS_API void ps_panel_refresh(ps_session *); /* after provider events, redraw on tick */
 typedef struct {
     const char *title;
     unsigned minimum, maximum, weight; /* maximum=0 means flexible; weight 0..16 */

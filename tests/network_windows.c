@@ -93,6 +93,30 @@ static int check(void) {
         return 0;
     }
 #endif
+#ifdef TEST_CONTROLS
+    {
+        const char open[] = "controls\r\n";
+        const char adjust[] = " \033[B\033[B\033[B\033[C\033OQ\0253000\t\r";
+        const char readback[] = "controls get 3\rcontrols get 0\rexit\r";
+        send_all(s, open, sizeof open - 1);
+        collect(s, 120);
+        if (!has("Local bench") || !has("Relay 1"))
+            return 9;
+        used = 0;
+        send_all(s, adjust, sizeof adjust - 1);
+        collect(s, 120);
+        if (!has("Applied") || !has("3000"))
+            return 10;
+        send_all(s, "\033", 1);
+        collect(s, 120);
+        used = 0;
+        send_all(s, readback, sizeof readback - 1);
+        collect(s, 120);
+        closesocket(s);
+        WSACleanup();
+        return has("3000\r\n") && has("On\r\n") ? 0 : 11;
+    }
+#endif
     send_all(s, commands, sizeof commands - 1);
     collect(s, 180);
     if (!has("wire test") || !has("Tasks"))

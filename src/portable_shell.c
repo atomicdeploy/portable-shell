@@ -181,8 +181,14 @@ typedef struct {
 } Job;
 struct ps_session {
     ps_config io;
-    unsigned theme; /* 0 violet, 1 red, 2 original Lumen */
+    unsigned theme; /* 0 violet, 1 red, 2 original Lumen, 3 One Dark */
     unsigned table_style;
+    const ps_panel *panel;
+    ps_panel local_panel;
+    unsigned control_view, dialog, dialog_focus;
+    ps_u32 draft_revision, local_revision;
+    unsigned local_values[7];
+    char local_label[64];
     ps_command commands[PS_COMMANDS];
     ps_raw_command_fn raw_commands[PS_COMMANDS];
     char prompt_text[64];
@@ -263,7 +269,8 @@ static void reset(ps_session *s) {
     ansi(s, "\033[0m");
     if (s->board) {
         if (s->io.flags & PS_TRUECOLOR)
-            color(s, s->theme == 2   ? "\033[38;2;220;228;238m\033[48;2;12;18;29m"
+            color(s, s->theme == 3   ? "\033[38;2;171;178;191m\033[48;2;40;44;52m"
+                     : s->theme == 2 ? "\033[38;2;220;228;238m\033[48;2;12;18;29m"
                      : s->theme == 1 ? "\033[38;2;255;226;232m\033[48;2;30;20;25m"
                                      : "\033[38;2;241;231;255m\033[48;2;23;19;31m");
         else
@@ -285,12 +292,18 @@ static void ink(ps_session *s, unsigned kind) {
     static const char *const fallback[] = {"\033[38;5;246m", "\033[38;5;213m", "\033[38;5;223m",
                                            "\033[38;5;203m", "\033[38;5;255m", "\033[38;5;157m",
                                            "\033[38;5;183m", "\033[38;5;97m"};
+    static const char *const one_dark[] = {"\033[38;2;120;129;149m", "\033[38;2;198;120;221m",
+                                           "\033[38;2;229;192;123m", "\033[38;2;224;108;117m",
+                                           "\033[38;2;220;223;228m", "\033[38;2;152;195;121m",
+                                           "\033[38;2;198;120;221m", "\033[38;2;92;99;112m"};
     if (kind == 7 && s->theme != 2 && (s->table_style & PS_TABLE_RED_BORDER)) {
         color(s, (s->io.flags & PS_TRUECOLOR) ? "\033[38;2;255;95;115m" : "\033[38;5;203m");
         return;
     }
     color(s, s->theme == 2                  ? original[kind % 8]
-             : (s->io.flags & PS_TRUECOLOR) ? (s->theme == 1 ? red[kind % 8] : violet[kind % 8])
+             : (s->io.flags & PS_TRUECOLOR) ? (s->theme == 3   ? one_dark[kind % 8]
+                                               : s->theme == 1 ? red[kind % 8]
+                                                               : violet[kind % 8])
                                             : fallback[kind % 8]);
 }
 static void surface(ps_session *s, unsigned active) {
@@ -302,6 +315,10 @@ static void surface(ps_session *s, unsigned active) {
         color(s, active == 1   ? "\033[48;5;171;38;5;16m"
                  : active == 2 ? "\033[48;5;53m"
                                : "\033[48;5;53;38;5;225m");
+    else if (s->theme == 3)
+        color(s, active == 1   ? "\033[48;2;198;120;221m\033[38;2;33;37;43m"
+                 : active == 2 ? "\033[48;2;62;68;81m"
+                               : "\033[48;2;33;37;43m\033[38;2;171;178;191m");
     else if (s->theme == 1)
         color(s, active == 1   ? "\033[48;2;251;113;133m\033[38;2;42;16;24m"
                  : active == 2 ? "\033[48;2;72;35;47m"
@@ -589,6 +606,7 @@ PS_API int ps_history_add(ps_session *s, const char *line) {
     return 0;
 }
 static const ps_command builtins[] = {
+    {"controls", "[open [page]|list|get ID|set ID VALUE]", "Workspace", builtin, 0, 0},
     {"help", "[command]", "Shell", builtin, 0, 0},
     {"board", "[tasks|variables|jobs|session]", "Workspace", builtin, 0, 0},
     {"task", "add TITLE | done ID | remove ID | rename ID TITLE | list", "Workspace", builtin, 0,
@@ -604,7 +622,7 @@ static const ps_command builtins[] = {
     {"args", "[ARGUMENT ...]", "Shell", builtin, 0, 0},
     {"history", "[clear]", "Shell", builtin, 0, 0},
     {"bind", "F1|F2|F3|F4 COMMAND", "Shell", builtin, 0, 0},
-    {"theme", "violet|red|lumen|color|ansi|mono|ascii|unicode", "Terminal", builtin, 0, 0},
+    {"theme", "violet|red|lumen|onedark|color|ansi|mono|ascii|unicode", "Terminal", builtin, 0, 0},
     {"clear", "", "Terminal", builtin, 0, 0},
     {"status", "", "Terminal", builtin, 0, 0},
     {"exit", "", "Shell", builtin, 0, 0}};
@@ -704,6 +722,8 @@ static unsigned visible(ps_session *s, unsigned *indices) {
 }
 static unsigned tab_count(ps_session *s) {
     unsigned ids[PS_ROWS];
+    if (s->control_view && s->panel)
+        return s->panel->pages[s->tab].count;
     if (s->tab == 0)
         return visible(s, ids);
     if (s->tab == 1)
@@ -722,9 +742,16 @@ static Grid grid_for(ps_session *s) {
     static const ps_column jobs[] = {
         {"Job", 10, 24, 1}, {"Progress", 12, 0, 3}, {"State", 8, 8, 0}};
     static const ps_column stats[] = {{"Metric", 10, 24, 1}, {"Value", 14, 0, 3}};
+    static const ps_column controls[] = {
+        {"Category", 10, 16, 1}, {"Control", 14, 26, 1}, {"Value", 16, 0, 3}};
+    static const ps_column compact[] = {{"Control", 12, 20, 1}, {"Value", 16, 0, 3}};
     Grid g;
     g.columns = s->tab == 0 ? tasks : s->tab == 1 ? pairs : s->tab == 2 ? jobs : stats;
     g.count = (s->tab == 0 || s->tab == 2) ? 3 : 2;
+    if (s->control_view) {
+        g.columns = s->io.columns >= 64 ? controls : compact;
+        g.count = s->io.columns >= 64 ? 3 : 2;
+    }
     ps_layout_columns(s->io.columns - 2, g.columns, g.count, g.widths);
     return g;
 }
@@ -783,11 +810,16 @@ static void table_open(ps_session *s, unsigned tab) {
 }
 static void table_close(ps_session *s) {
     s->editing = 0;
+    s->dialog = s->control_view = 0;
     s->board = 0;
     s->filter[0] = 0;
     ansi(s, "\033[0m\033[?25h\033[?1049l");
     prompt(s);
 }
+static void enter_edit(ps_session *, unsigned, const char *);
+static void edit_insert(char *, unsigned *, unsigned *, unsigned, unsigned);
+static void edit_delete(char *, unsigned *, unsigned *, int);
+#include "portable_controls.inc"
 static void task_row(ps_session *s, unsigned index, const Grid *g) {
     Task *t = &s->tasks[index];
     char b[20];
@@ -914,14 +946,17 @@ static void render(ps_session *s) {
     ink(s, 0);
     out(s, (s->io.flags & PS_UNICODE) ? "  ·  " : "  /  ");
     ink(s, 4);
-    ps_write(s, tabs[s->tab]);
+    if (s->control_view)
+        grid_text(s, s->panel->title, min(24, w - 24 - (w >= 60 ? 14 : 0)));
+    else
+        ps_write(s, tabs[s->tab]);
     ink(s, 0);
     if (w >= 60) {
         out(s, "   ");
         ps_number(s, count);
         out(s, count == 1 ? " entry" : " entries");
     }
-    if (s->tab == 0 && w >= 76) {
+    if (!s->control_view && s->tab == 0 && w >= 76) {
         unsigned done = 0;
         for (i = 0; i < s->task_count; ++i)
             done += s->tasks[i].done != 0;
@@ -936,7 +971,9 @@ static void render(ps_session *s) {
     at(s, 2, 1);
     ansi(s, "\033[2K");
     out(s, "  ");
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i < (s->control_view ? s->panel->count : 4); ++i) {
+        if (s->control_view && w < 80 && i != s->tab)
+            continue;
         if (i == s->tab) {
             surface(s, 1);
             if (!(s->io.flags & PS_COLOR))
@@ -946,12 +983,24 @@ static void render(ps_session *s) {
         out(s, " ");
         ps_number(s, i + 1);
         out(s, " ");
-        out(s, w < 60 ? (i == 1 ? "Vars" : i == 3 ? "Info" : tabs[i]) : tabs[i]);
+        if (s->control_view)
+            grid_text(s, s->panel->pages[i].title,
+                      min(16, w >= 80 ? (w - 3) / s->panel->count - 6 : w - 12));
+        else
+            out(s, w < 60 ? (i == 1 ? "Vars" : i == 3 ? "Info" : tabs[i]) : tabs[i]);
         out(s, " ");
         if (i == s->tab && !(s->io.flags & PS_COLOR))
             out(s, "]");
         reset(s);
         out(s, " ");
+    }
+    at(s, 3, 1);
+    ansi(s, "\033[2K");
+    if (s->control_view && count) {
+        out(s, "  ");
+        ink(s, 0);
+        grid_text(s, s->panel->pages[s->tab].controls[s->selected].group, w - 4);
+        reset(s);
     }
     at(s, 4, 2);
     grid_border(s, &grid, 0, 1);
@@ -971,7 +1020,7 @@ static void render(ps_session *s) {
     reset(s);
     at(s, 6, 2);
     grid_border(s, &grid, 1, 1);
-    if (s->tab == 0)
+    if (!s->control_view && s->tab == 0)
         visible(s, ids);
     for (i = 0; i < slots; ++i) {
         unsigned idx = s->scroll + i;
@@ -986,7 +1035,9 @@ static void render(ps_session *s) {
                 else
                     ansi(s, "\033[7m");
             }
-            if (s->tab == 0)
+            if (s->control_view)
+                control_row(s, idx, &grid);
+            else if (s->tab == 0)
                 task_row(s, ids[idx], &grid);
             else if (s->tab == 1)
                 pair_row(s, s->vars[idx].key, s->vars[idx].value, &grid);
@@ -1033,9 +1084,9 @@ static void render(ps_session *s) {
     ps_number(s, count ? s->selected + 1 : 0);
     out(s, "/");
     ps_number(s, count);
-    if (s->filter[0] && s->tab == 0)
+    if (!s->control_view && s->filter[0] && s->tab == 0)
         out(s, " filtered");
-    if (s->tab == 0) {
+    if (!s->control_view && s->tab == 0) {
         unsigned selected = 0;
         for (i = 0; i < s->task_count; ++i)
             selected += s->tasks[i].selected != 0;
@@ -1050,7 +1101,7 @@ static void render(ps_session *s) {
     at(s, h - 3, 1);
     ansi(s, "\033[2K");
     out(s, "  ");
-    if (s->editing) {
+    if (s->editing && !s->control_view) {
         const char *label = s->editing == 1   ? "New task"
                             : s->editing == 2 ? "Edit task"
                             : s->editing == 3 ? "Value"
@@ -1073,12 +1124,13 @@ static void render(ps_session *s) {
     out(s, "  ");
     ink(s, 0);
     field(s,
-          s->editing    ? "Enter save   Esc cancel"
-          : s->tab == 0 ? (w < 60 ? "n new  Enter edit  d done  / filter"
-                                  : "n new   Enter edit   d done   Space select   / filter")
-          : s->tab == 1 ? "Enter edit value   Del remove"
-          : s->tab == 2 ? "c cancel job"
-                        : "Live session counters",
+          s->control_view ? control_hint(s)
+          : s->editing    ? "Enter save   Esc cancel"
+          : s->tab == 0   ? (w < 60 ? "n new  Enter edit  d done  / filter"
+                                    : "n new   Enter edit   d done   Space select   / filter")
+          : s->tab == 1   ? "Enter edit value   Del remove"
+          : s->tab == 2   ? "c cancel job"
+                          : "Live session counters",
           w - 4);
     reset(s);
     at(s, h, 1);
@@ -1087,7 +1139,10 @@ static void render(ps_session *s) {
     out(s, "  ");
     field(
         s,
-        (s->io.flags & PS_UNICODE)
+        s->control_view && s->editing ? "Draft   Esc cancel"
+        : s->control_view ? ((s->io.flags & PS_UNICODE) ? "↑/↓ rows  Tab pages  Esc shell"
+                                                        : "Up/Dn rows  Tab pages  Esc shell")
+        : (s->io.flags & PS_UNICODE)
             ? (w < 60 ? "↑↓ move   Tab tabs   Esc shell" : "↑/↓ move   ←/→ tabs   Esc shell")
             : (w < 60 ? "Up/Dn move  Tab tabs  Esc shell" : "Up/Down move   Tab tabs   Esc shell"),
         w - 3);
@@ -1099,10 +1154,15 @@ static void render(ps_session *s) {
         out(s, (s->io.flags & PS_UNICODE) ? "×" : "x");
         ps_number(s, h);
         out(s, "  ");
-        out(s, (s->io.flags & PS_TELNET) ? "Telnet" : "byte stream");
+        if (s->control_view)
+            grid_text(s, s->panel->status, 15);
+        else
+            out(s, (s->io.flags & PS_TELNET) ? "Telnet" : "byte stream");
         reset(s);
     }
-    if (s->editing) {
+    if (s->control_view)
+        control_overlay(s, &grid);
+    else if (s->editing) {
         const char *label = s->editing == 1   ? "New task"
                             : s->editing == 2 ? "Edit task"
                             : s->editing == 3 ? "Value"
@@ -1225,6 +1285,10 @@ static int add_task(ps_session *s, const char *p) {
 }
 static void table_key(ps_session *s, unsigned key) {
     unsigned n = tab_count(s), ids[PS_ROWS], idx = 0, i, any = 0;
+    if (s->control_view) {
+        control_key(s, key);
+        return;
+    }
     if (s->tab == 0) {
         visible(s, ids);
         if (n)
@@ -1437,8 +1501,9 @@ static void completion(ps_session *s) {
         } else {
             static const char *const task[] = {"add", "done", "remove", "rename", "list"};
             static const char *const board[] = {"tasks", "variables", "jobs", "session"};
-            static const char *const theme[] = {"violet", "red",  "lumen", "color",
-                                                "ansi",   "mono", "ascii", "unicode"};
+            static const char *const controls[] = {"open", "list", "get", "set"};
+            static const char *const theme[] = {"violet", "red",   "lumen",   "color",  "ansi",
+                                                "mono",   "ascii", "unicode", "onedark"};
             static const char *const txt[] = {"upper", "lower", "trim", "slug"};
             static const char *const hash_options[] = {"--rounds"};
             const char *const *opts = 0;
@@ -1465,9 +1530,12 @@ static void completion(ps_session *s) {
                     } else if (equal(args.argv[0], "board")) {
                         opts = board;
                         count = 4;
+                    } else if (equal(args.argv[0], "controls") && args.argc == 1) {
+                        opts = controls;
+                        count = 4;
                     } else if (equal(args.argv[0], "theme")) {
                         opts = theme;
-                        count = 8;
+                        count = 9;
                     } else if (equal(args.argv[0], "text") && args.argc == 1) {
                         opts = txt;
                         count = 4;
@@ -1767,6 +1835,15 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
         }
         return 0;
     }
+    if (equal(cmd, "controls")) {
+        int result;
+        s->notice[0] = 0;
+        result = controls_command(s, argc, a);
+        if (result && !s->board)
+            return fail(s, s->notice[0] ? s->notice
+                                        : "controls [open [page]|list|get ID|set ID VALUE]");
+        return result;
+    }
     if (equal(cmd, "board")) {
         unsigned tab = 0;
         if (argc > 2)
@@ -1783,6 +1860,7 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
         }
         if (!(s->io.flags & PS_INTERACTIVE))
             return fail(s, "board requires interactive mode");
+        s->control_view = s->dialog = 0;
         table_open(s, tab);
         return 0;
     }
@@ -2014,14 +2092,19 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     }
     if (equal(cmd, "theme")) {
         if (argc != 2)
-            return fail(s, "theme violet|red|lumen|color|ansi|mono|ascii|unicode");
+            return fail(s, "theme violet|red|lumen|onedark|color|ansi|mono|ascii|unicode");
 #ifdef PS_ASCII_ONLY
         if (equal(a[1], "color") || equal(a[1], "unicode") || equal(a[1], "violet") ||
-            equal(a[1], "red") || equal(a[1], "lumen") || equal(a[1], "ansi"))
+            equal(a[1], "red") || equal(a[1], "lumen") || equal(a[1], "onedark") ||
+            equal(a[1], "ansi"))
             return fail(s, "disabled in ASCII-only build");
 #endif
-        if (equal(a[1], "violet") || equal(a[1], "red") || equal(a[1], "lumen")) {
-            s->theme = equal(a[1], "lumen") ? 2 : equal(a[1], "red") ? 1 : 0;
+        if (equal(a[1], "violet") || equal(a[1], "red") || equal(a[1], "lumen") ||
+            equal(a[1], "onedark")) {
+            s->theme = equal(a[1], "onedark") ? 3
+                       : equal(a[1], "lumen") ? 2
+                       : equal(a[1], "red")   ? 1
+                                              : 0;
             s->io.flags |= PS_COLOR | PS_TRUECOLOR;
         } else if (equal(a[1], "color"))
             s->io.flags |= PS_COLOR | PS_TRUECOLOR;
@@ -2185,9 +2268,10 @@ static void input_byte(ps_session *s, unsigned c) {
         if (c == '\r' || c == '\n' || c == '\t')
             c = ' ';
         if (c >= 32 && c != 127) {
-            if (s->board && s->editing)
-                edit_insert(s->edit, &s->editlen, &s->editpos, PS_VALUE, c);
-            else if (!s->board) {
+            if (s->board && s->editing && (!s->control_view || !s->dialog_focus)) {
+                edit_insert(s->edit, &s->editlen, &s->editpos, s->control_view ? 64 : PS_VALUE, c);
+                s->dirty = 1;
+            } else if (!s->board) {
                 if (s->len + 1 >= PS_LINE)
                     s->overflow = 1;
                 else

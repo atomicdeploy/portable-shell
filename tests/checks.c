@@ -73,6 +73,33 @@ static int device_probe(ps_session *s, const char *name, const char *tail, void 
     ps_newline(s);
     return 19;
 }
+typedef struct {
+    ps_control_value values[6];
+    unsigned writes, mode;
+} ControlProbe;
+static int probe_read(void *ctx, unsigned id, ps_control_value *v) {
+    ControlProbe *p = ctx;
+    if (id >= 6)
+        return 0;
+    *v = p->values[id];
+    return 1;
+}
+static int probe_write(void *ctx, unsigned id, const ps_control_value *v, ps_u32 revision) {
+    ControlProbe *p = ctx;
+    if (id >= 6 || p->values[id].revision != revision)
+        return 0;
+    ++p->writes;
+    if (p->mode == 2) {
+        p->values[id].flags |= PS_CONTROL_PENDING;
+        return 2;
+    }
+    if (p->mode == 3)
+        return 0;
+    p->values[id] = *v;
+    p->values[id].flags = PS_CONTROL_VALID;
+    ++p->values[id].revision;
+    return 1;
+}
 int portable_shell_checks(ps_write_fn report, void *ctx) {
     ps_args a;
     ps_session *s;
@@ -307,6 +334,112 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         ps_tick(s, 500);
         CHECK(has(t.output, "Running") && !has(t.output, "Done"),
               "caller progress remains active until total reached");
+    }
+    {
+        static const char *const options[] = {"Manual", "Auto", "Hold"};
+        static const ps_control rows[] = {
+            {0, "RELAYS", "Relay", PS_CONTROL_TOGGLE, 0, 1, 1, 0, 0},
+            {1, "PWM", "Level", PS_CONTROL_LEVEL, 0, 4095, 41, 0, 0},
+            {2, "SETUP", "Name", PS_CONTROL_TEXT, 0, 0, 0, 0, 0},
+            {3, "SETUP", "Mode", PS_CONTROL_CHOICE, 0, 2, 1, options, 3},
+            {4, "ACTIONS", "Stop", PS_CONTROL_ACTION, 0, 0, 0, 0, 0}};
+        static const ps_control info[] = {{5, "INFO", "Backend", PS_CONTROL_LABEL, 0, 0, 0, 0, 0}};
+        static const ps_control_page pages[] = {{"Control", rows, 5}, {"Info", info, 1}};
+        ControlProbe probe = {0};
+        ps_panel panel = {"Probe", "Test provider", pages, 2, probe_read, probe_write, &probe};
+        unsigned before;
+        for (i = 0; i < 6; ++i)
+            probe.values[i].flags = PS_CONTROL_VALID;
+        cfg.flags = PS_INTERACTIVE | PS_COLOR | PS_UNICODE;
+        s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
+        CHECK(ps_panel_attach(s, &panel) && ps_panel_open(s, 0), "provider pages attach and open");
+        feed(s, " ");
+        CHECK(probe.values[0].number == 1 && probe.writes == 1, "toggle dispatches provider write");
+        feed(s, "\033[B\033[C");
+        CHECK(probe.values[1].number == 41, "byte arrows adjust PWM without changing tab");
+        ps_key(s, PS_KEY_END);
+        ps_key(s, PS_KEY_RIGHT);
+        CHECK(probe.values[1].number == 4095, "level clamps at maximum");
+        ps_key(s, PS_KEY_HOME);
+        ps_key(s, PS_KEY_LEFT);
+        CHECK(probe.values[1].number == 0, "level clamps at minimum");
+        feed(s, "\r\0252048\r");
+        CHECK(probe.values[1].number == 2048, "inline exact value commits");
+        before = probe.writes;
+        feed(s, "\r\0254096\r");
+        CHECK(probe.values[1].number == 2048 && probe.writes == before,
+              "invalid draft never reaches backend");
+        ps_key(s, 27);
+        ps_key(s, PS_KEY_F2);
+        feed(s, "\0251000");
+        ++probe.values[1].revision;
+        ps_panel_refresh(s);
+        ps_key(s, 13);
+        CHECK(probe.writes == before && probe.values[1].number == 2048,
+              "stale dialog revision blocks mutation");
+        ps_key(s, 27);
+        ps_key(s, PS_KEY_F2);
+        feed(s, "\0251000\t\r");
+        CHECK(probe.values[1].number == 1000, "dialog Apply commits isolated draft");
+        ps_key(s, PS_KEY_F2);
+        feed(s, "\0252000\t\t\r");
+        CHECK(probe.values[1].number == 1000, "dialog Cancel leaves observed state unchanged");
+        probe.mode = 2;
+        before = probe.writes;
+        ps_key(s, PS_KEY_RIGHT);
+        ps_key(s, PS_KEY_RIGHT);
+        CHECK(probe.writes == before + 1 && probe.values[1].number == 1000,
+              "pending write never becomes applied and suppresses repeat dispatch");
+        clear();
+        ps_tick(s, 700);
+        CHECK(has(t.output, "pending"), "pending observation is rendered");
+        probe.mode = 0;
+        probe.values[1].flags = PS_CONTROL_VALID | PS_CONTROL_LOCKED;
+        before = probe.writes;
+        ps_key(s, PS_KEY_LEFT);
+        CHECK(probe.writes == before, "locked control cannot dispatch");
+        probe.values[1].flags = 0;
+        ps_key(s, PS_KEY_END);
+        clear();
+        ps_tick(s, 800);
+        CHECK(probe.writes == before && has(t.output, "Unknown"),
+              "unknown is not zero or writable");
+        ps_key(s, PS_KEY_DOWN);
+        feed(s, "\rbench\r");
+        CHECK(eq(probe.values[2].text, "bench"), "inline text editing");
+        ps_key(s, PS_KEY_DOWN);
+        ps_key(s, PS_KEY_LEFT);
+        CHECK(probe.values[3].number == 2, "choice control cycles backwards");
+        ps_key(s, PS_KEY_DOWN);
+        before = probe.writes;
+        feed(s, "\r\r");
+        CHECK(probe.writes == before, "confirmation defaults to Cancel");
+        feed(s, "\r\t\r");
+        CHECK(probe.writes == before + 1, "confirmed action callback exactly once");
+        clear();
+        feed(s, "\t");
+        ps_tick(s, 900);
+        CHECK(has(t.output, "Backend") && has(t.output, "Row 1/1"), "tab selects provider page");
+        before = probe.writes;
+        ps_key(s, 13);
+        CHECK(probe.writes == before, "label cannot be edited");
+        CHECK(ps_panel_attach(s, 0), "provider detaches cleanly");
+        cfg.flags = 0;
+        s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
+        ps_panel_attach(s, &panel);
+        CHECK(!ps_panel_open(s, 0), "batch refuses alternate screen");
+        clear();
+        CHECK(ps_execute(s, "controls set 2 'batch label'") == 0 &&
+                  ps_execute(s, "controls get 2") == 0 && has(t.output, "batch label") &&
+                  !has(t.output, "\033"),
+              "batch controls share backend without terminal escapes");
+        CHECK(ps_execute(s, "controls set 4 1") == 2, "batch set cannot bypass action dialog");
+        CHECK(ps_execute(s, "controls set 3 99") == 2, "choice bounds validated in batch");
+        probe.mode = 3;
+        CHECK(ps_execute(s, "controls set 0 0") == 2 && probe.values[0].number == 1,
+              "provider rejection preserves state");
+        panel.count = 9;
+        CHECK(!ps_panel_attach(s, &panel), "invalid provider page count rejected");
     }
     report(ctx, (const ps_byte *)(t.failed ? "Checks failed\n" : "All checks passed\n"),
            t.failed ? 14 : 18);
