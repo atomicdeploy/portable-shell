@@ -1,6 +1,8 @@
 # PortableShell conventions
 
-- Shell, parser, TUI and Telnet logic remains OS-independent C. Default builds use
+- Shell, parser and Telnet logic remains OS-independent C. The optional snapshot/action
+  device view and callback facade may use freestanding C++11, with no OS or C++ runtime dependency.
+  Default builds use
   freestanding primitives; the explicitly selectable libc backend may use host
   memory/string functions. Never enable libc silently for a firmware build.
 - Only the optional C host adapters perform native terminal, serial and socket I/O.

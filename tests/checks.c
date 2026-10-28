@@ -3,6 +3,7 @@
 #include "portable_shell_pu850.h"
 int portable_runtime_checks(void);
 int portable_memory_checks(void);
+int portable_terminal_checks(void);
 typedef struct {
     char output[65536];
     unsigned n, failed, checks;
@@ -476,6 +477,24 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         ps_unregister(s, "temporary");
         ps_register(s, &command);
         CHECK(ps_execute(s, "temporary") == 7, "reused command slot clears raw callback");
+    }
+    CHECK(!portable_terminal_checks(), "shared firmware C components");
+    {
+        cfg.flags = 0;
+        s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
+        ps_history_add(s, "set PASSWORD private-marker");
+        ps_history_add(s, "fetch https://user:pass@host/");
+        CHECK(!ps_history_count(s), "credential lines are not retained");
+        ps_history_add(s, "echo retained-marker");
+        ps_history_clear(s);
+        CHECK(!ps_history_count(s), "explicit history clear");
+        clear();
+        ps_write(s, "A\033]52;c;private\aB\033Pprivate\033\\C");
+        CHECK(eq(t.output,"ABC"), "private escape payloads are not printed");
+        ps_destroy_session(s);
+        { unsigned i, nonzero=0;
+          for(i=0;i<ps_sizeof_session();++i) nonzero |= memory.bytes[i];
+          CHECK(!nonzero,"session destruction scrubs caller storage"); }
     }
     report(ctx, (const ps_byte *)(t.failed ? "Checks failed\n" : "All checks passed\n"),
            t.failed ? 14 : 18);

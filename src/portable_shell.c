@@ -1,4 +1,8 @@
 #include "portable_shell.h"
+#ifdef PS_USE_LIBC
+#define PS_TERMINAL_USE_LIBC
+#endif
+#include "portable_terminal.h"
 
 #include "portable_primitives.h"
 static unsigned min(unsigned a, unsigned b) {
@@ -138,6 +142,8 @@ struct ps_session {
     unsigned len, pos;
     char history[PS_HISTORY][PS_LINE];
     unsigned history_count, history_head, history_nav, history_limit;
+    ps_history_filter_fn history_filter;
+    void *history_context;
     char notice[128], filter[64], edit[PS_VALUE];
     unsigned editing, editlen, editpos;
     Task tasks[PS_ROWS];
@@ -156,9 +162,7 @@ struct ps_session {
     unsigned querylen;
     const char *matches[PS_COMMANDS];
     unsigned match_count, match_index, completion, start, end;
-    unsigned tn_state, tn_verb, tn_len, tn_overflow;
-    ps_byte tn_buf[96], tn_us[256], tn_him[256];
-    char terminal[41];
+    ps_telnet telnet;
     unsigned bytes_in, bytes_out, executions;
     ps_u32 hash_work;
     char job_data[PS_LINE];
@@ -285,6 +289,10 @@ static void signed_number(ps_session *s, int n) {
 PS_API void ps_write(ps_session *s, const char *text) {
     unsigned i = 0, n, c;
     while (text[i]) {
+        if ((unsigned char)text[i] == 27) {
+            i += (unsigned)ps_escape_span(text + i, (size_t)-1);
+            continue;
+        }
         c = rune(text + i, &n);
         if (c >= 32 && c != 127 && !(c >= 128 && c < 160)) {
             if (c == 0xfffd || (!(s->io.flags & PS_UNICODE) && c > 126))
@@ -308,6 +316,10 @@ static void at(ps_session *s, unsigned r, unsigned c) {
 static void field(ps_session *s, const char *p, unsigned cap) {
     unsigned i = 0, n, w = 0, k, c;
     while (p[i]) {
+        if ((unsigned char)p[i] == 27) {
+            i += (unsigned)ps_escape_span(p + i, (size_t)-1);
+            continue;
+        }
         c = rune(p + i, &n);
         k = (s->io.flags & PS_UNICODE) ? width(c) : 1;
         if (w + k > cap)
@@ -552,22 +564,50 @@ PS_API const char *ps_history_get(const ps_session *s, unsigned index) {
     return s->history[(s->history_head + PS_HISTORY - s->history_count + index) % PS_HISTORY];
 }
 PS_API int ps_history_add(ps_session *s, const char *line) {
-    if (!*line || length(line) >= PS_LINE)
+    if (!line || !*line || length(line) >= PS_LINE)
         return -1;
-    if (!s->history_limit)
+    if (!s->history_limit || !ps_history_safe(line, PS_LINE))
+        return 0;
+    if (s->history_filter && !s->history_filter(s->history_context, line))
         return 0;
     if (s->history_count && equal(ps_history_get(s, s->history_count - 1), line))
         return 0;
+    ps_secure_clear(s->history[s->history_head], PS_LINE);
     str(s->history[s->history_head], line, PS_LINE);
     s->history_head = (s->history_head + 1) % PS_HISTORY;
     if (s->history_count < s->history_limit)
         ++s->history_count;
     return 0;
 }
+PS_API void ps_history_clear(ps_session *s) {
+    ps_secure_clear(s->history, sizeof s->history);
+    ps_secure_clear(s->saved, sizeof s->saved);
+    s->history_count = s->history_head = s->history_nav = 0;
+}
+PS_API void ps_history_filter(ps_session *s, ps_history_filter_fn filter, void *context) {
+    ps_history_clear(s);
+    s->history_filter = filter;
+    s->history_context = context;
+}
+/* Explicit destruction scrubs the complete caller-owned session after restoring
+   terminal modes. ps_close remains a display lifecycle operation. */
+PS_API void ps_destroy_session(ps_session *s) {
+    if (!s)
+        return;
+    ps_close(s);
+    ps_secure_clear(s, sizeof *s);
+}
 PS_API unsigned ps_history_limit(ps_session *s, unsigned limit) {
     if (!s)
         return 0;
     s->history_limit = limit > PS_HISTORY ? PS_HISTORY : limit;
+    if (!s->history_limit)
+        ps_history_clear(s);
+    while (s->history_count > s->history_limit) {
+        unsigned oldest = (s->history_head + PS_HISTORY - s->history_count) % PS_HISTORY;
+        ps_secure_clear(s->history[oldest], PS_LINE);
+        --s->history_count;
+    }
     if (s->history_count > s->history_limit)
         s->history_count = s->history_limit;
     s->history_nav = 0;
@@ -658,32 +698,23 @@ PS_API ps_session *ps_init(void *memory, unsigned bytes, const ps_config *c) {
     s->io.columns = c->columns ? (c->columns < 8 ? 8 : min(c->columns, 240)) : 80;
     s->io.rows = c->rows ? (c->rows < 4 ? 4 : min(c->rows, 80)) : 24;
     s->next_id = 1;
-    str(s->terminal, "byte stream", sizeof s->terminal);
+    ps_telnet_init(&s->telnet, PS_TN_CONTROLS, s->io.columns, s->io.rows);
+    str(s->telnet.terminal, "byte stream", sizeof s->telnet.terminal);
     if (!(c->flags & PS_NO_BUILTINS))
         for (i = 0; i < sizeof builtins / sizeof builtins[0]; ++i)
             ps_register(s, &builtins[i]);
     return s;
 }
-static void telnet_cmd(ps_session *s, unsigned verb, unsigned opt) {
-    ps_byte b[3] = {255, (ps_byte)verb, (ps_byte)opt};
-    s->io.write(s->io.context, b, 3);
+static void telnet_write(void *context, const unsigned char *bytes, size_t count) {
+    ps_session *s = (ps_session *)context;
+    s->io.write(s->io.context, bytes, (unsigned)count);
 }
 PS_API void ps_start(ps_session *s) {
     if (s->started)
         return;
     s->started = 1;
-    if (s->io.flags & PS_TELNET) {
-        telnet_cmd(s, 251, 1);
-        s->tn_us[1] = 2;
-        telnet_cmd(s, 251, 3);
-        s->tn_us[3] = 2;
-        telnet_cmd(s, 253, 3);
-        s->tn_him[3] = 2;
-        telnet_cmd(s, 253, 31);
-        s->tn_him[31] = 2;
-        telnet_cmd(s, 253, 24);
-        s->tn_him[24] = 2;
-    }
+    if (s->io.flags & PS_TELNET)
+        ps_telnet_greet(&s->telnet, telnet_write, s);
     if (s->io.flags & PS_INTERACTIVE) {
         ansi(s, "\033[?2004h");
         prompt(s);
@@ -855,7 +886,7 @@ static void stat_row(ps_session *s, unsigned i, const Grid *g) {
         break;
     case 7:
         key = "Terminal";
-        value = s->terminal;
+        value = s->telnet.terminal;
         break;
     case 8:
         key = "Uptime seconds";
@@ -1651,9 +1682,9 @@ PS_API void ps_key(ps_session *s, unsigned key) {
             ps_execute(s, s->line);
         }
         s->len = s->pos = s->history_nav = s->overflow = 0;
-        s->line[0] = 0;
+        ps_secure_clear(s->line, sizeof s->line);
     } else if (key == 3) {
-        s->line[0] = 0;
+        ps_secure_clear(s->line, sizeof s->line);
         s->len = s->pos = 0;
         s->overflow = 0;
         if (s->job.active) {
@@ -1702,7 +1733,7 @@ PS_API void ps_key(ps_session *s, unsigned key) {
         edit_delete(s->line, &s->len, &s->pos, 0);
     else if (key == 21) {
         str(s->kill, s->line, PS_LINE);
-        s->line[0] = 0;
+        ps_secure_clear(s->line, sizeof s->line);
         s->len = s->pos = 0;
         s->overflow = 0;
     } else if (key == 11) {
@@ -2035,7 +2066,7 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     }
     if (equal(cmd, "history")) {
         if (argc == 2 && equal(a[1], "clear")) {
-            s->history_count = s->history_head = s->history_nav = 0;
+            ps_history_clear(s);
             return 0;
         }
         if (argc != 1)
@@ -2331,7 +2362,7 @@ static void input_byte(ps_session *s, unsigned c) {
                 s->status = fail(s, "line too long");
             } else if (s->len)
                 ps_execute(s, s->line);
-            s->line[0] = 0;
+            ps_secure_clear(s->line, sizeof s->line);
             s->len = s->pos = s->overflow = 0;
         } else if (c >= 32 || c == 9) {
             if (s->len + 1 < PS_LINE) {
@@ -2345,118 +2376,20 @@ static void input_byte(ps_session *s, unsigned c) {
     }
     ps_key(s, c);
 }
-static void negotiation(ps_session *s, unsigned verb, unsigned opt) {
-    ps_byte *state;
-    int allowed;
-    unsigned yes, no;
-    if (verb == 253 || verb == 254) {
-        state = &s->tn_us[opt];
-        allowed = opt == 1 || opt == 3;
-        yes = 251;
-        no = 252;
-    } else {
-        state = &s->tn_him[opt];
-        allowed = opt == 3 || opt == 31 || opt == 24;
-        yes = 253;
-        no = 254;
-    }
-    if (verb == 253 || verb == 251) {
-        if (!allowed) {
-            if (*state != 3)
-                telnet_cmd(s, no, opt);
-            *state = 3;
-            return;
-        }
-        if (*state != 1) {
-            if (*state != 2)
-                telnet_cmd(s, yes, opt);
-            *state = 1;
-            if (verb == 251 && opt == 24) {
-                ps_byte b[] = {255, 250, 24, 1, 255, 240};
-                s->io.write(s->io.context, b, 6);
-            }
-        }
-    } else {
-        if (*state == 1)
-            telnet_cmd(s, no, opt);
-        *state = 0;
-    }
-}
-static void subnegotiation(ps_session *s) {
-    if (s->tn_overflow || !s->tn_len)
-        return;
-    if (s->tn_buf[0] == 31 && s->tn_len == 5 && s->tn_him[31] == 1) {
-        unsigned w = (s->tn_buf[1] << 8) | s->tn_buf[2], h = (s->tn_buf[3] << 8) | s->tn_buf[4];
-        ps_resize(s, w ? w : s->io.columns, h ? h : s->io.rows);
-    } else if (s->tn_buf[0] == 24 && s->tn_len >= 2 && s->tn_buf[1] == 0 && s->tn_him[24] == 1) {
-        unsigned i, n = min(40, s->tn_len - 2);
-        for (i = 0; i < n; ++i) {
-            unsigned c = s->tn_buf[i + 2];
-            s->terminal[i] = (char)((c >= 32 && c < 127) ? c : '?');
-        }
-        s->terminal[n] = 0;
-        if (equal(s->terminal, "dumb") || equal(s->terminal, "DUMB")) {
+static void telnet_byte(ps_session *s, unsigned c) {
+    unsigned char decoded = 0;
+    int event = ps_telnet_feed(&s->telnet, (unsigned char)c, telnet_write, s, &decoded);
+    if (event == PS_TN_DATA)
+        input_byte(s, decoded);
+    else if (event == PS_TN_RESIZE)
+        ps_resize(s, s->telnet.columns, s->telnet.rows);
+    else if (event == PS_TN_TERMINAL) {
+        if (!ps_telnet_ansi(&s->telnet)) {
             if (s->board)
                 table_close(s);
             s->io.flags &= ~(PS_INTERACTIVE | PS_COLOR | PS_UNICODE);
         }
         s->dirty = 1;
-    }
-}
-static void telnet_byte(ps_session *s, unsigned c) {
-    switch (s->tn_state) {
-    case 0:
-        if (c == 255)
-            s->tn_state = 1;
-        else
-            input_byte(s, c);
-        break;
-    case 1:
-        if (c == 255) {
-            s->tn_state = 0;
-            input_byte(s, c);
-        } else if (c >= 251 && c <= 254) {
-            s->tn_verb = c;
-            s->tn_state = 2;
-        } else if (c == 250) {
-            s->tn_len = s->tn_overflow = 0;
-            s->tn_state = 3;
-        } else {
-            if (c == 244)
-                ps_key(s, 3);
-            else if (c == 247)
-                ps_key(s, 127);
-            else if (c == 248)
-                ps_key(s, 21);
-            s->tn_state = 0;
-        }
-        break;
-    case 2:
-        negotiation(s, s->tn_verb, c);
-        s->tn_state = 0;
-        break;
-    case 3:
-        if (c == 255)
-            s->tn_state = 4;
-        else if (s->tn_len < sizeof s->tn_buf)
-            s->tn_buf[s->tn_len++] = (ps_byte)c;
-        else
-            s->tn_overflow = 1;
-        break;
-    case 4:
-        if (c == 240) {
-            subnegotiation(s);
-            s->tn_state = 0;
-        } else if (c == 255) {
-            if (s->tn_len < sizeof s->tn_buf)
-                s->tn_buf[s->tn_len++] = 255;
-            else
-                s->tn_overflow = 1;
-            s->tn_state = 3;
-        } else {
-            s->tn_state = 0;
-        }
-        break;
     }
 }
 PS_API void ps_feed(ps_session *s, const void *data, unsigned n) {
@@ -2521,7 +2454,7 @@ PS_API void ps_finish(ps_session *s) {
         else
             ps_execute(s, s->line);
         s->len = s->pos = s->overflow = 0;
-        s->line[0] = 0;
+        ps_secure_clear(s->line, sizeof s->line);
     }
     while (s->job.active)
         ps_tick(s, s->now + 1);
