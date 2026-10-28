@@ -1,3 +1,4 @@
+#include "portable_parse.h"
 #include "portable_shell.h"
 #ifdef PS_USE_LIBC
 #define PS_TERMINAL_USE_LIBC
@@ -405,67 +406,15 @@ PS_API void ps_request_exit(ps_session *s) {
 }
 
 PS_API int ps_parse(const char *line, ps_args *a) {
-    unsigned i = 0, o = 0;
+    ps_parse_result result;
+    int status;
     zero(a, sizeof *a);
-    while (line[i]) {
-        unsigned quote = 0;
-        while (line[i] == ' ' || line[i] == '\t')
-            ++i;
-        if (!line[i] || line[i] == '#')
-            break;
-        if (a->argc == PS_ARGS) {
-            a->error = "too many arguments";
-            goto bad;
-        }
-        a->argv[a->argc++] = a->storage + o;
-        while (line[i]) {
-            unsigned char c = (unsigned char)line[i++];
-            if (!quote && (c == ' ' || c == '\t'))
-                break;
-            if (c == '\'' || c == '"') {
-                if (!quote) {
-                    quote = c;
-                    continue;
-                }
-                if (quote == c) {
-                    quote = 0;
-                    continue;
-                }
-            }
-            if (c == '\\' && quote != '\'') {
-                c = (unsigned char)line[i++];
-                if (!c) {
-                    --i;
-                    a->error = "trailing escape";
-                    goto bad;
-                }
-                if (c == 'n')
-                    c = '\n';
-                else if (c == 't')
-                    c = '\t';
-                else if (c == 'r')
-                    c = '\r';
-            }
-            if (o + 1 >= PS_LINE) {
-                a->error = "line too long";
-                goto bad;
-            }
-            a->storage[o++] = (char)c;
-        }
-        if (quote) {
-            a->error = "unclosed quote";
-            goto bad;
-        }
-        if (o >= PS_LINE) {
-            a->error = "line too long";
-            goto bad;
-        }
-        a->storage[o++] = 0;
-    }
-    return 0;
-bad:
-    a->error_at = i;
-    return -1;
+    status = ps_parse_tokens(line, PS_LINE, a->storage, sizeof(a->storage),
+                             a->argv, PS_ARGS, &result);
+    a->argc = result.argc;
+    a->error = result.error;
+    a->error_at = (unsigned)result.error_at;
+    return status;
 }
 PS_API const char *ps_option(int argc, const char *const *argv, const char *name) {
     int i;

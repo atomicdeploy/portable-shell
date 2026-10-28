@@ -23,6 +23,9 @@ No Python, JavaScript, ncurses, readline, or third-party runtime is required.
 PakarController's editor, Telnet and snapshot/action TUI now have their canonical
 implementation here. See [component selection and comparison](PAKAR-INTEGRATION.md).
 The firmware profile needs no allocator, OS calls or full desktop workspace.
+Ardush now consumes these same components for AVR and STM32, contributing a
+bounded asynchronous terminal-size probe and a shared in-place tokenizer. See
+[AVR/STM32 profiles and Ardush reconciliation](ARDUSH-INTEGRATION.md).
 
 ## Run the supplied Windows build
 
