@@ -49,7 +49,7 @@ Do not compile the full desktop session into an Uno and call it the micro profil
 without hardware divide. Default zero preserves native compiler optimization.
 AVR component symbol checks allow only the compiler's data/bss startup markers
 `__do_copy_data` and `__do_clear_bss`, supplied by the target startup adapter;
-they reject libc, allocation, arithmetic helper and OS dependencies. The Arduino
+they reject libc, allocation, arithmetic helper and OS dependencies. The
 strict component audit uses `-fno-jump-tables` because some AVR GCC releases
 otherwise emit the compiler helper `__tablejump2__` for the key decoder.
 The Arduino
