@@ -50,6 +50,9 @@ without hardware divide. Default zero preserves native compiler optimization.
 AVR component symbol checks allow only the compiler's data/bss startup markers
 `__do_copy_data` and `__do_clear_bss`, supplied by the target startup adapter;
 they reject libc, allocation, arithmetic helper and OS dependencies. The Arduino
+strict component audit uses `-fno-jump-tables` because some AVR GCC releases
+otherwise emit the compiler helper `__tablejump2__` for the key decoder.
+The Arduino
 adapter itself links the board SDK/startup and can use its native serial/GPIO APIs.
 No SDK or Arduino library is required by the shell components.
 

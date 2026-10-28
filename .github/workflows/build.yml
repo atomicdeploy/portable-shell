@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y gcc-avr avr-libc
-      - run: avr-gcc -std=c99 -Os -mmcu=atmega328p -ffreestanding -fno-builtin -fno-tree-loop-distribute-patterns -Wall -Wextra -Werror -Iinclude -c tests/micro_components.c -o micro.o
+      - run: avr-gcc -std=c99 -Os -mmcu=atmega328p -ffreestanding -fno-builtin -fno-tree-loop-distribute-patterns -fno-jump-tables -Wall -Wextra -Werror -Iinclude -c tests/micro_components.c -o micro.o
       - name: Audit MCU components (only target data/bss startup allowed)
         run: cmake -DNM=avr-nm -DOBJECT=micro.o -P cmake/check-micro-symbols.cmake
   native:
