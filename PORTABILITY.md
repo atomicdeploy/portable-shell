@@ -1,4 +1,4 @@
-# PortableShell 0.6: portable core, optional native primitives
+# PortableShell: portable core, optional native primitives
 
 GCC can recognize memory loops and synthesize calls or optimized instructions.
 It does not generally recognize a handwritten allocator and replace it with
@@ -102,6 +102,9 @@ against definitions across archive members and rejects unexpected externals.
 Libc mode permits only memory/string functions and a small list of compiler stack
 protection/fortified-memory helpers, and rejects definitions overriding host string
 functions. External-memory mode permits the four intentional memory references.
+The native Darwin zero-fill primitive `bzero` is allowed only in libc mode;
+AppleClang actually emitted it in the macOS CI build. Platform symbol prefixes
+are normalized exactly once, preserving stack-protection helper names.
 A deliberately injected unknown dependency was confirmed to fail this audit.
 
 Archive inspection is not a complete final-image/LTO proof. Strict native tests are
@@ -110,11 +113,13 @@ Inspect the final firmware/application image after changing compiler, flags, CPU
 linker script. Additional ABI helpers may be required for other architectures. This
 does not promise every compiler/architecture is supported automatically.
 
-GNU/LLVM `nm` is required for the automatic audit; select it with `CMAKE_NM`.
+GNU/LLVM/Darwin `nm` with POSIX `-P` output is required for the automatic audit;
+select it with `CMAKE_NM`.
 Unsupported toolchains can explicitly disable `PORTABLE_SHELL_AUDIT_SYMBOLS` and
 perform equivalent inspection with their own tools. Cross-toolchain files now honor
-an explicitly supplied compiler path. ARM32 was compiled with Clang targeting
-Cortex-M4/Thumb; ARM GCC and physical board execution were not available in this pass.
+an explicitly supplied compiler path. ARM32 was compiled locally with Clang and
+in GitHub Actions with GCC targeting Cortex-M4/Thumb. Physical board execution
+remains unverified.
 
 ## Interaction and validation
 
@@ -123,7 +128,7 @@ core. Repeats, Alt sequences and UTF-8 retain order; resize events flush the pen
 batch first. The table therefore redraws per batch instead of per individual key.
 No timer delay or transport assumption was added to the core.
 
-94 assertions pass in portable size/speed+LTO, libc size/speed+LTO, fixed ASCII and
+100 core assertions pass in portable size/speed+LTO, libc size/speed+LTO, fixed ASCII and
 compact native builds. The memory check includes 38,016 overlapping-move cases,
 unaligned copy/fill, sentinel bounds, byte comparison, null/empty wrapper semantics,
 and bounded string termination. Tests invoke standard symbols through volatile

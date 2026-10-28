@@ -20,6 +20,9 @@ No Python, JavaScript, ncurses, readline, or third-party runtime is required.
 
 ## Run the supplied Windows build
 
+Packaged downloads include `bin/`; Git source checkouts exclude generated binaries.
+For a source checkout, follow Build below and run `build/PortableShell` (`.exe` on Windows).
+
 The latest builds are `bin/PortableShell-0.7.0.exe` (portable primitives) and
 `bin/PortableShell-libc-0.7.0.exe` (host C runtime). Launch with `--controls` for the
 PCController-style tabs, grouped tables, toggles, PWM sliders, inline values and

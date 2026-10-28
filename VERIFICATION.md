@@ -21,6 +21,10 @@ controls run passed negotiation and value readback. Sample after that interactio
 measurement. Existing user processes were preserved.
 
 ARM32 Clang and compact Xtensa GCC builds pass the archive dependency audit.
+GitHub Actions also executed successful Windows/Linux/macOS tests and an ARM32
+GCC cross-build. The macOS passes required native feature visibility and accepting
+compiler-generated `bzero` only in libc mode. Final commit-specific check results
+remain available on PR #1 and the repository's Actions page.
 The nm audit now uses the portable `-P` output format and resolves internal archive
 references. Install staging includes the selected libraries and public headers.
 Cross-target builds and examples do not constitute board, serial wiring or human
