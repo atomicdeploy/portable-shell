@@ -24,12 +24,41 @@ and component headers. No hardware deployment is part of this source merge.
 | Hardware and authentication | Pakar owns command catalogue, property validation, authentication, authorization, maintenance locks, session leases, USB framing, SSH/FTP/file transfer and hardware routing. They are not generalized into unsafe raw device writes. |
 | Desktop/serial/TCP adapters | Remain optional host-only C. Firmware supplies its existing transport callbacks. |
 
-The full command runtime and small event editor are intentionally different
-entry points, not two projects or interchangeable session layouts. Firmware
-already owns dispatch/authentication and must decide whether a submitted line
-may execute. Pulling in the desktop workspace would waste firmware RAM and
-change that ownership. Both profiles and the optional device view live here;
-the consumer does not maintain a divergent implementation.
+The full command runtime and callback event editor are two composable interfaces
+in the same project. They do not select themselves from the target CPU. A consumer
+with an existing authenticated dispatcher can use the event interface; a new
+application can use the full C runtime on a desktop or a capable MCU. Neither
+choice justifies removing UI capabilities. The shared device table defaults to
+rich presentation on every target. Smaller builds must request explicit flags.
+
+## Device workspace defaults
+
+The device view now shares the desktop palette implementation (`portable_style.h`):
+violet, red, original Lumen and One Dark, RGB/256-color or plain output. It provides
+two columns, or category/setting/value columns on wider terminals; proper Unicode
+junctions and rounded corners; viewport scrolling; context hints and row status;
+inline value editing; optional F2 dialogs; typed toggle, level and choice controls;
+secret masking; observed-value conflict detection; and changed-row repaint.
+
+| Consumer selection | Default | Meaning |
+| --- | --- | --- |
+| `PS_DEVICE_VIEW_TABLE` | 1 | Rich responsive table; 0 retains the former layout |
+| `PS_DEVICE_VIEW_WIDGETS` | 1 | Typed validation, toggle/step/choice actions and meters |
+| `PS_DEVICE_VIEW_DIALOGS` | 1 | Optional F2 editor; inline editing remains the default |
+| `PS_DEVICE_VIEW_DIAGNOSTICS` | 1 | Capability-gated cell/pixel/game pages |
+| `PS_STYLE_THEMES` | 1 | Shared palette strings; 0 omits theme styles |
+| `PS_DEVICE_VIEW_MAX_ROWS` | 64 | Caller-owned rows; no heap allocation |
+| `PS_DEVICE_VIEW_FRAME_BYTES` | 32768 | Complete-frame output bound, independent of CPU |
+| `PS_DEVICE_VIEW_INLINE_EDIT` | 1 | Inline editing in the retained legacy layout |
+
+The rich table always edits in the cell. To reproduce the old footer editor,
+select both TABLE=0 and INLINE_EDIT=0. Compile definitions must agree in every
+translation unit. No `MCU mode` exists. AVR consumers may explicitly exclude the
+view or select a smaller layout; no architecture macro does that automatically.
+
+The event editor still accepts printable ASCII text; the full C runtime has
+UTF-8 command editing. Grapheme/RTL input and complete application command/property
+parity are separate open work, not features claimed by these terminal pictures.
 
 ## Reuse without an OS
 

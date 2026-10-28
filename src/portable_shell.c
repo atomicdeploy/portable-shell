@@ -1,3 +1,4 @@
+#include "portable_style.h"
 #include "portable_parse.h"
 #include "portable_shell.h"
 #ifdef PS_USE_LIBC
@@ -221,55 +222,11 @@ static void reset(ps_session *s) {
     }
 }
 static void ink(ps_session *s, unsigned kind) {
-    static const char *const original[] = {"\033[38;5;245m", "\033[38;5;80m",    "\033[38;5;223m",
-                                           "\033[38;5;203m", "\033[1;38;5;231m", "\033[38;5;151m",
-                                           "\033[38;5;80m",  "\033[38;5;245m"};
-    static const char *const violet[] = {"\033[38;2;162;150;181m", "\033[38;2;232;121;249m",
-                                         "\033[38;2;255;201;157m", "\033[38;2;255;107;138m",
-                                         "\033[38;2;241;231;255m", "\033[38;2;134;239;172m",
-                                         "\033[38;2;190;153;255m", "\033[38;2;111;78;132m"};
-    static const char *const red[] = {"\033[38;2;181;151;161m", "\033[38;2;255;107;138m",
-                                      "\033[38;2;255;201;157m", "\033[38;2;255;87;113m",
-                                      "\033[38;2;255;226;232m", "\033[38;2;134;239;172m",
-                                      "\033[38;2;253;164;175m", "\033[38;2;125;68;87m"};
-    static const char *const fallback[] = {"\033[38;5;246m", "\033[38;5;213m", "\033[38;5;223m",
-                                           "\033[38;5;203m", "\033[38;5;255m", "\033[38;5;157m",
-                                           "\033[38;5;183m", "\033[38;5;97m"};
-    static const char *const one_dark[] = {"\033[38;2;120;129;149m", "\033[38;2;198;120;221m",
-                                           "\033[38;2;229;192;123m", "\033[38;2;224;108;117m",
-                                           "\033[38;2;220;223;228m", "\033[38;2;152;195;121m",
-                                           "\033[38;2;198;120;221m", "\033[38;2;92;99;112m"};
-    if (kind == 7 && s->theme != 2 && (s->table_style & PS_TABLE_RED_BORDER)) {
-        color(s, (s->io.flags & PS_TRUECOLOR) ? "\033[38;2;255;95;115m" : "\033[38;5;203m");
-        return;
-    }
-    color(s, s->theme == 2                  ? original[kind % 8]
-             : (s->io.flags & PS_TRUECOLOR) ? (s->theme == 3   ? one_dark[kind % 8]
-                                               : s->theme == 1 ? red[kind % 8]
-                                                               : violet[kind % 8])
-                                            : fallback[kind % 8]);
+    color(s, ps_style_ink(s->theme, (s->io.flags & PS_TRUECOLOR) != 0,
+                         (s->table_style & PS_TABLE_RED_BORDER) != 0, kind));
 }
 static void surface(ps_session *s, unsigned active) {
-    if (s->theme == 2)
-        color(s, active == 1   ? "\033[48;5;23;38;5;159;1m"
-                 : active == 2 ? "\033[48;5;236m"
-                               : "\033[48;5;23;38;5;159m");
-    else if (!(s->io.flags & PS_TRUECOLOR))
-        color(s, active == 1   ? "\033[48;5;171;38;5;16m"
-                 : active == 2 ? "\033[48;5;53m"
-                               : "\033[48;5;53;38;5;225m");
-    else if (s->theme == 3)
-        color(s, active == 1   ? "\033[48;2;198;120;221m\033[38;2;33;37;43m"
-                 : active == 2 ? "\033[48;2;62;68;81m"
-                               : "\033[48;2;33;37;43m\033[38;2;171;178;191m");
-    else if (s->theme == 1)
-        color(s, active == 1   ? "\033[48;2;251;113;133m\033[38;2;42;16;24m"
-                 : active == 2 ? "\033[48;2;72;35;47m"
-                               : "\033[48;2;55;29;39m\033[38;2;253;194;205m");
-    else
-        color(s, active == 1   ? "\033[48;2;209;111;232m\033[38;2;30;16;40m"
-                 : active == 2 ? "\033[48;2;62;37;78m"
-                               : "\033[48;2;45;31;59m\033[38;2;225;194;247m");
+    color(s, ps_style_surface(s->theme, (s->io.flags & PS_TRUECOLOR) != 0, active));
 }
 static void spaces(ps_session *s, unsigned n) {
     while (n--)
