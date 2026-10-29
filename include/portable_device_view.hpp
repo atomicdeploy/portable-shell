@@ -20,6 +20,12 @@
 #ifndef PS_DEVICE_VIEW_DIALOGS
 #define PS_DEVICE_VIEW_DIALOGS 1
 #endif
+#ifndef PS_DEVICE_VIEW_MATRIX
+#define PS_DEVICE_VIEW_MATRIX 1
+#endif
+#ifndef PS_DEVICE_VIEW_CATEGORY_COLUMN
+#define PS_DEVICE_VIEW_CATEGORY_COLUMN 0
+#endif
 #ifndef PS_DEVICE_VIEW_MAX_ROWS
 #define PS_DEVICE_VIEW_MAX_ROWS 64
 #endif
@@ -66,6 +72,9 @@ class DeviceView {
         uint8_t choiceCount = 0;
         bool pending = false;
         bool meter = false; // Meaningful bounded levels/PWM, not ports or timestamps.
+        const char *unit = "";
+        const char *const *choiceLabels = nullptr;
+        const char *onLabel = "On", *offLabel = "Off";
         constexpr Row(const char *label_ = nullptr, const char *key_ = nullptr,
                       const char *value_ = nullptr, bool editable_ = false, bool secret_ = false)
             : label(label_), key(key_), value(value_), editable(editable_), secret(secret_) {}
@@ -75,6 +84,9 @@ class DeviceView {
         const Row *rows = nullptr;               // Current page only, retained through feed/render.
         uint8_t rowCount = 0;                    // Bounded by PS_DEVICE_VIEW_MAX_ROWS.
         const uint8_t *cellStates = nullptr;     // Exactly 80: 0 white, 1 red, 2 off.
+        const uint32_t *cellColors = nullptr;    // Optional 80 configured state RGBs, never physical proof.
+        const char *const *cellStateNames = nullptr; // Optional four labels for states 0..3.
+        bool cellStaggered = false;              // Provider's paired, offset 20-column table geometry.
         uint16_t pixelCount = 0, usedPixels = 0; // Wire capacity and configured prefix.
         const uint8_t *groupCounts = nullptr;
         const uint16_t *groupStarts = nullptr; // Exactly groupCount prefix spans.
@@ -300,10 +312,10 @@ class DeviceView {
             syncPixel(snapshot);
         if (ch == 'f' && (page_ == Led || page_ == Pixel)) {
             grid_ = !grid_;
-            dirty_ = true;
+            dirty_ = full_ = true;
             return false;
         }
-        if (page_ == Led && snapshot.canLeds && (ch == 'w' || ch == 'r' || ch == 'o')) {
+        if (page_ == Led && grid_ && snapshot.canLeds && (ch == 'w' || ch == 'r' || ch == 'o')) {
             action.type = Action::Cell;
             action.index = cell_;
             copy(action.key, sizeof(action.key), "cell");
@@ -728,6 +740,12 @@ class DeviceView {
             return false;
         }
         if (grid_ && page_ == Led && s.canLeds) {
+            if(s.cellStaggered&&(key=='A'||key=='B'||key=='C'||key=='D')){
+                const unsigned n=cell_-1,x=2*(n%10)+(n/10)%2,y=n/20;
+                const int nx=int(x)+(key=='C'?1:key=='D'?-1:0),ny=int(y)+(key=='B'?1:key=='A'?-1:0);
+                if(nx>=0&&nx<20&&ny>=0&&ny<4)cell_=uint8_t(ny*20+(nx%2)*10+nx/2+1);
+                dirty_=true;return false;
+            }
             int next = cell_ + (key == 'D'   ? -1
                                 : key == 'C' ? 1
                                 : key == 'A' ? -10
@@ -958,6 +976,7 @@ class DeviceView {
         value ^= (s.terminalSettings?1U:0U)|(s.cloudSettings?2U:0U)|(s.notificationSettings?4U:0U)|(s.clockSettings?8U:0U);
         value *= 16777619U;
         value ^= s.canLeds ? 1 : 0;
+        value ^= s.cellStaggered ? 32 : 0;
         value ^= s.canPixels ? 2 : 0;
         value ^= s.pixelCount;
         value ^= s.enabledKeys;
@@ -984,6 +1003,8 @@ class DeviceView {
             add(s.rows[i].label);
             add(s.rows[i].key);
             add(s.rows[i].category);
+            add(s.rows[i].unit);add(s.rows[i].onLabel);add(s.rows[i].offLabel);
+            for(unsigned j=0;s.rows[i].choiceLabels&&j<s.rows[i].choiceCount;++j)add(s.rows[i].choiceLabels[j]);
             if (!s.rows[i].secret)
                 add(s.rows[i].value);
             value ^= (s.rows[i].editable ? 4 : 0) | (s.rows[i].secret ? 8 : 0);
@@ -998,6 +1019,8 @@ class DeviceView {
                 value ^= s.cellStates[i];
                 value *= 16777619U;
             }
+        if(s.canLeds&&s.cellColors)for(unsigned i=0;i<80;++i){value^=s.cellColors[i];value*=16777619U;}
+        if(s.cellStateNames)for(unsigned i=0;i<4;++i)add(s.cellStateNames[i]);
         return value;
     }
     Page page_ = Device;
