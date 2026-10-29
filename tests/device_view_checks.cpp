@@ -61,6 +61,10 @@ int main(){
   assert(!feed("\x1b[C\x1b[B"));assert(model.selectedCell()==12);
   assert(feed("r"));assert(action.type==T::Action::Cell&&action.index==12&&std::string(action.value)=="red");
   snapshot.canLeds=false;assert(!feed("w"));
+  {T geometry;T::Snapshot board;T::Action move;board.canLeds=true;board.cellStaggered=true;geometry.begin();
+   geometry.feed('\t',board,move);geometry.feed('\t',board,move);
+   for(unsigned char key:std::string("\x1b[C"))geometry.feed(key,board,move);
+   assert(geometry.selectedCell()==(PS_DEVICE_VIEW_TABLE&&PS_DEVICE_VIEW_MATRIX?11:2));}
   snapshot.canLeds=true;assert(!feed("\t"));assert(model.page()==T::Pixel&&model.selectedPixel()==0);
   assert(!feed("g"));assert(model.group());
   assert(feed("\x1b[C"));assert(action.type==T::Action::Pixel&&action.index==6&&action.group&&action.count==6&&action.groupLayoutRevision==17);
@@ -86,7 +90,7 @@ int main(){
   game.begin();game.feed('\t',keys,action);game.feed('\t',keys,action);
   assert(game.page()==T::Game&&action.type==T::Action::None);
   output.clear();assert(game.render(keys,write));assert(output.find("\xe2\x95\xad\xe2\x94\x80 ")!=std::string::npos);
-  assert(output.find("1-9 press box")!=std::string::npos&&output.size()<PS_DEVICE_VIEW_FRAME_BYTES);
+  assert(output.find("1-9 press")!=std::string::npos&&output.size()<PS_DEVICE_VIEW_FRAME_BYTES);
   assert(game.feed('1',keys,action)&&action.type==T::Action::Press&&action.index==1);
   assert(!game.feed('3',keys,action)&&action.type==T::Action::None);
   assert(game.feed('r',keys,action)&&action.type==T::Action::Reset);

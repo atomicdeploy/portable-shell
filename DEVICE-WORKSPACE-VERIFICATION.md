@@ -1,4 +1,76 @@
-# Rich device workspace verification — 2026-10-29
+# Contextual device workspace verification — 2026-10-29
+
+## Current correction after visual review
+
+The earlier captures below exposed repeated categories/hints and an inadequate
+generic LED grid. They are historical evidence, superseded by this revision.
+Canonical code: `e90ffc004b39912e21a1799a75061ac61f22c74f` (0.13.0).
+Actual Pakar binding: `b44a1fba080f7113e1f07d2364a0466a6ffc0c34`.
+Serial consumer: `8c36d79af3c160c9cb8472a97e4c1e0b1348ae9f`, merged as
+`386649768601141ef63d9d9074f1069bf517bf89`.
+
+- Dedicated matrix uses the application's staggered 20 × 4 geometry and all
+  80 configured state colors, including won/custom colors. Contrasting index
+  text and a separate selection marker preserve the state color. Narrow windows
+  follow selection; monochrome retains state letters.
+- Grouped Setting/Value tables borrow the logical-row/section-line separation
+  from PCController `Tools/Controller/internal/tui/table.go` at `b0111ae0`.
+  Categories appear once per contiguous group. The optional third column remains.
+- A single contextual footer owns hints. Inline edits and dialogs suppress
+  unrelated navigation. Settings focus cannot trigger cell/game actions.
+- On/Off, Connected/Offline and Available/Unavailable labels, readable network
+  and lighting choices, units and brightness percentage/raw range improve values.
+  Inline editing remains the default; F2 dialogs are optional. Unicode uses ×.
+
+The matrix fixture uses the actual application's `StateAppearance` type and a
+deliberately non-default palette. Tests verify all 80 adapter colors, exact RGB
+sequences, staggered arrow neighbors, action rejection feedback, 40-column bounds,
+all nine pages, inline commits and canceled dialogs. This proves configured-state
+mapping, not sampled physical LED output. Bitmasks, RGB numeric properties and
+Unix timestamps still use numeric editing; specialist editors remain future work.
+
+Current evidence:
+
+- Eight native and libc suites pass; retained legacy layout also passes.
+- Canonical CI [40796431046](https://github.com/atomicdeploy/portable-shell/actions/runs/40796431046)
+  passes native hosts, ARM32, AVR components and feature/optimization profiles.
+- Serial CI [40796459041](https://github.com/DRSDavidSoft/Ardush/actions/runs/40796459041)
+  passes native hosts, AVR simulation, explicit-small Uno, rich Mega and STM32.
+- Pakar's actual binding, source lock and full shell/metadata/property fixtures
+  pass. Final guarded ESP32-S3 SDK compilation passes at the exact binding commit
+  above, with buffered link, 16 MB flash, OPI PSRAM, Ethernet, GPIO/RMT-DMA LEDs
+  and Bluetooth disabled. No upload or board reset occurred.
+
+| Current build/object | Program/file bytes | Static state / RAM |
+| --- | ---: | ---: |
+| Windows host 0.13.0 | 58,880 executable | 29,784-byte full C session; core heap 0 |
+| Freestanding x86-64 components | 26,080 text; zero undefined symbols/data/BSS | DeviceView 856; Row 104; editor 5,320; Telnet 196 bytes |
+| Complete ESP32-S3 firmware | 2,400,291 linked program; BIN 2,400,432 | 140,156 static; 187,524 reported remaining |
+| AVR Mega rich serial consumer | 34,918 flash | 4,679 static; 3,513 remaining |
+| AVR Uno explicit view=0 | 9,184 flash | 1,235 static; 813 remaining |
+| STM32F103C8 serial consumer | 35,168 flash | 2,512 static; 17,968 remaining |
+
+ESP application BIN SHA256:
+`d9c59830d0fd0b39fd76542dd668e17407704dc9e23eb7bcdb39f51790933cef`.
+These are linked/static measurements, not peak runtime stack/heap consumption.
+
+Latest actual-binding byte replays, rendered with Agave and antialiasing:
+
+- [All nine pages](previews/pakar-contextual-pages.png)
+- [Dedicated matrix](previews/pakar-contextual-page-2.png)
+- [Inline value editor](previews/pakar-contextual-inline.png)
+- [Dialog with exclusive hints](previews/pakar-contextual-dialog.png)
+- [Lumen cyan](previews/pakar-contextual-lumen.png)
+- [One Dark](previews/pakar-contextual-onedark.png)
+
+Adjacent `.ansi` files preserve exact emitted bytes; `.svg` files are generated
+by the C terminal replay utility. Deterministic host doubles provide observations;
+these are not screenshots of a deployed board. All 13 final-head ANSI captures
+were regenerated and verified byte-identical to these reviewed pictures.
+The rendering procedure below
+also applies using the `pakar-contextual-` prefix. Human acceptance remains open.
+
+## Historical first rich-table pass
 
 The ESP consumer now uses PortableShell's shared rich presentation by default.
 CPU identity never selects a reduced UI. Source component pin:

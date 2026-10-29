@@ -35,7 +35,8 @@ rich presentation on every target. Smaller builds must request explicit flags.
 
 The device view now shares the desktop palette implementation (`portable_style.h`):
 violet, red, original Lumen and One Dark, RGB/256-color or plain output. It provides
-two columns, or category/setting/value columns on wider terminals; proper Unicode
+two columns with one section heading per group; optional category/setting/value
+columns on wider terminals; proper Unicode
 junctions and rounded corners; viewport scrolling; context hints and row status;
 inline value editing; optional F2 dialogs; typed toggle, level and choice controls;
 secret masking; observed-value conflict detection; and changed-row repaint.
@@ -45,6 +46,8 @@ secret masking; observed-value conflict detection; and changed-row repaint.
 | `PS_DEVICE_VIEW_TABLE` | 1 | Rich responsive table; 0 retains the former layout |
 | `PS_DEVICE_VIEW_WIDGETS` | 1 | Typed validation, toggle/step/choice actions and meters |
 | `PS_DEVICE_VIEW_DIALOGS` | 1 | Optional F2 editor; inline editing remains the default |
+| `PS_DEVICE_VIEW_MATRIX` | 1 | Dedicated matrix, provider state colors and optional staggered geometry; 0 retains the earlier grid |
+| `PS_DEVICE_VIEW_CATEGORY_COLUMN` | 0 | Group headings by default; 1 selects a separate category column when width permits |
 | `PS_DEVICE_VIEW_DIAGNOSTICS` | 1 | Capability-gated cell/pixel/game pages |
 | `PS_STYLE_THEMES` | 1 | Shared palette strings; 0 omits theme styles |
 | `PS_DEVICE_VIEW_MAX_ROWS` | 64 | Caller-owned rows; no heap allocation |
@@ -55,6 +58,15 @@ The rich table always edits in the cell. To reproduce the old footer editor,
 select both TABLE=0 and INLINE_EDIT=0. Compile definitions must agree in every
 translation unit. No `MCU mode` exists. AVR consumers may explicitly exclude the
 view or select a smaller layout; no architecture macro does that automatically.
+
+The optional `Snapshot::cellColors` supplies 80 configured state RGB values;
+`cellStateNames` supplies four state labels and `cellStaggered` selects the paired
+20-column geometry. State colors and the selection marker are independent. These
+values describe the provider's configuration, not measured physical LED output.
+Unknown states stay unknown. Monochrome output retains state letters and selection.
+Row metadata supports readable choice labels, units and contextual boolean labels
+without changing raw property keys, values or validators. Only the active table,
+matrix or editor owns its keyboard hints; settings focus cannot invoke grid actions.
 
 The event editor still accepts printable ASCII text; the full C runtime has
 UTF-8 command editing. Grapheme/RTL input and complete application command/property

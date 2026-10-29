@@ -26,8 +26,8 @@ int main(){
     std::string output;auto write=[&](const uint8_t *p,size_t n){output.append((const char*)p,n);};
     auto feed=[&](const char *keys){bool emitted=false;while(*keys)emitted=v.feed(uint8_t(*keys++),s,a)||emitted;return emitted;};
     v.begin();v.render(s,write);
-    assert(output.find("Category")!=std::string::npos);assert(output.find("[x] On")!=std::string::npos);
-    assert(output.find("1-21 / 64")!=std::string::npos);widths(output,119);
+    assert(output.find("Category")==std::string::npos);assert(output.find("Lighting")!=std::string::npos);assert(output.find("Lighting",output.find("Lighting")+1)==std::string::npos);assert(output.find("[x]")==std::string::npos);
+    assert(output.find("1 / 64")!=std::string::npos);widths(output,119);
     assert(feed(" ")&&std::string(a.value)=="false");assert(std::string(rows[0].value)=="true");
     rows[0].pending=true;assert(!feed(" "));rows[0].pending=false;
     assert(!feed("\x1b[B"));assert(feed("+")&&std::string(a.value)=="129");
@@ -40,6 +40,7 @@ int main(){
     feed("\x1b[B");assert(feed(" ")&&std::string(a.value)=="static");
     feed("\x1b[12~");assert(v.editing());output.clear();v.render(s,write);
     assert(output.find("Enter apply   Esc cancel")!=std::string::npos);
+    assert(output.find("cursor  Enter apply")==std::string::npos);
     feed("\x1b");v.flushEscape(a);
     for(unsigned theme=0;theme<4;++theme){v.setTheme(V::Theme(theme));output.clear();assert(v.render(s,write));assert(output.find("\x1b[48;")!=std::string::npos);}
     // Maximum viewport must be complete, bounded and use available space.
@@ -49,6 +50,29 @@ int main(){
     for(unsigned i=0;i<20;++i){assert(!feed("\t"));output.clear();v.render(s,write);assert(a.type==V::Action::None);}
     s.columns=40;s.lines=16;output.clear();v.render(s,write);widths(output,39);
     v.setAnsi(false);s.unicode=false;output.clear();v.render(s,write);assert(output.find('\x1b')==std::string::npos);widths(output,39);
+    // A matrix is not a generic property table plus duplicated action hints.
+    V matrix;V::Snapshot board;uint8_t states[80];uint32_t colors[80];
+    const uint32_t palette[]={0xffeecc,0xd82855,0,0x33dd99};
+    for(unsigned i=0;i<80;++i){states[i]=uint8_t(i%4);colors[i]=palette[i%4];}
+    board.cellStates=states;board.cellColors=colors;board.cellStaggered=true;board.canLeds=true;
+    board.columns=96;board.lines=24;board.unicode=true;matrix.begin();
+    matrix.feed('\t',board,a);matrix.feed('\t',board,a);
+    output.clear();matrix.render(board,write);widths(output,95);
+    assert(output.find("20 \xc3\x97 4 staggered")!=std::string::npos);
+    assert(output.find("\x1b[48;2;51;221;153m")!=std::string::npos); // Configured won color, not gray.
+    assert(output.find("\x1b[48;2;216;40;85m")!=std::string::npos); // Configured lost color, not fixed red.
+    assert(output.find("Category")==std::string::npos&&output.find("W idle")!=std::string::npos&&output.find("Tab pages")==output.rfind("Tab pages"));
+    auto arrow=[&](char key){matrix.feed(27,board,a);matrix.feed('[',board,a);matrix.feed(key,board,a);assert(a.type==V::Action::None);};
+    arrow('C');assert(matrix.selectedCell()==11);arrow('C');assert(matrix.selectedCell()==2);
+    arrow('B');assert(matrix.selectedCell()==22);arrow('D');assert(matrix.selectedCell()==31);
+    matrix.feed('f',board,a);assert(!matrix.feed('r',board,a)&&a.type==V::Action::None);
+    matrix.feed('f',board,a);matrix.feedback("ERR owner rejected");output.clear();matrix.render(board,write);
+    assert(output.find("ERR owner rejected")!=std::string::npos);
+    arrow('F');assert(matrix.selectedCell()==80);
+    board.columns=40;board.lines=16;output.clear();matrix.render(board,write);widths(output,39);
+    assert(output.find("Tab next")==std::string::npos&&output.find("Tab pages")==output.rfind("Tab pages"));
+    matrix.setAnsi(false);board.unicode=false;output.clear();matrix.render(board,write);widths(output,39);
+    for(unsigned char c:output)assert(c<128&&c!=27);
     std::printf("Device table: typed controls, stale edits, dialogs, 4 palettes, 40..240 columns; state=%u bytes\n",unsigned(sizeof(v)));
 }
 
