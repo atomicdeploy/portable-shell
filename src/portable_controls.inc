@@ -106,7 +106,9 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
     control_read(s, c, &v);
     if (g->count == 3) {
         ink(s, 0);
-        grid_text(s, c->group, g->widths[col++]);
+        const ps_control_page *page = &s->panel->pages[s->tab];
+        grid_text(s, index == s->scroll || !index || !equal(c->group, page->controls[index-1].group)
+                         ? c->group : "", g->widths[col++]);
         grid_divide(s);
     }
     ink(s, 4);

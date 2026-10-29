@@ -60,7 +60,7 @@ int main(){
     assert(output.find("20 \xc3\x97 4 staggered")!=std::string::npos);
     assert(output.find("\x1b[48;2;51;221;153m")!=std::string::npos); // Configured won color, not gray.
     assert(output.find("\x1b[48;2;216;40;85m")!=std::string::npos); // Configured lost color, not fixed red.
-    assert(output.find("Category")==std::string::npos&&output.find("W/R/O state")==output.rfind("W/R/O state"));
+    assert(output.find("Category")==std::string::npos&&output.find("W idle")!=std::string::npos&&output.find("Tab pages")==output.rfind("Tab pages"));
     auto arrow=[&](char key){matrix.feed(27,board,a);matrix.feed('[',board,a);matrix.feed(key,board,a);assert(a.type==V::Action::None);};
     arrow('C');assert(matrix.selectedCell()==11);arrow('C');assert(matrix.selectedCell()==2);
     arrow('B');assert(matrix.selectedCell()==22);arrow('D');assert(matrix.selectedCell()==31);

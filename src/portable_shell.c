@@ -831,10 +831,10 @@ static void render(ps_session *s) {
         ink(s, 1);
         out(s, "PortableShell  ");
         ps_number(s, w);
-        out(s, " x ");
+        out(s, (s->io.flags & PS_UNICODE) ? " \xc3\x97 " : " x ");
         ps_number(s, h);
         at(s, 3, 1);
-        out(s, "42 x 14 minimum | Esc shell");
+        out(s, (s->io.flags & PS_UNICODE) ? "42 \xc3\x97 14 minimum | Esc shell" : "42 x 14 minimum | Esc shell");
         return;
     }
     inner = w - 6;

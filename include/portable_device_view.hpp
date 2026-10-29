@@ -83,7 +83,7 @@ class DeviceView {
         const char *title = "Device";
         const Row *rows = nullptr;               // Current page only, retained through feed/render.
         uint8_t rowCount = 0;                    // Bounded by PS_DEVICE_VIEW_MAX_ROWS.
-        const uint8_t *cellStates = nullptr;     // Exactly 80: 0 white, 1 red, 2 off.
+        const uint8_t *cellStates = nullptr;     // Exactly 80: 0 idle, 1 lost, 2 off, 3 won; other values unknown.
         const uint32_t *cellColors = nullptr;    // Optional 80 configured state RGBs, never physical proof.
         const char *const *cellStateNames = nullptr; // Optional four labels for states 0..3.
         bool cellStaggered = false;              // Provider's paired, offset 20-column table geometry.
@@ -286,7 +286,7 @@ class DeviceView {
             action.type = Action::Refresh;
             return true;
         }
-        if (page_ == Game) {
+        if (page_ == Game && grid_) {
             if (ch >= '1' && ch <= '9') {
                 if (!snapshot.canGame || !snapshot.gameReady ||
                     !(snapshot.enabledKeys & (1U << (ch - '1')))) {
@@ -310,7 +310,7 @@ class DeviceView {
             return false;
         if (page_ == Pixel)
             syncPixel(snapshot);
-        if (ch == 'f' && (page_ == Led || page_ == Pixel)) {
+        if (ch == 'f' && (page_ == Led || page_ == Pixel || page_ == Game)) {
             grid_ = !grid_;
             dirty_ = full_ = true;
             return false;
@@ -344,7 +344,7 @@ class DeviceView {
             crPending_ = ch == '\r';
             if (grid_ && page_ == Pixel && pixels(snapshot))
                 return pixelAction(snapshot, action);
-            if (grid_ && page_ == Led) {
+            if (grid_ && (page_ == Led || page_ == Game)) {
                 grid_ = false;
                 dirty_ = true;
                 return false;
@@ -415,7 +415,7 @@ class DeviceView {
         }
         out.raw("\r\n");
         if (snapshot.lines < 16 || snapshot.columns < 40) {
-            out.raw("Resize terminal to 40 x 16\r\n");
+            out.raw(snapshot.unicode?"Resize terminal to 40 \xc3\x97 16\r\n":"Resize terminal to 40 x 16\r\n");
             return true;
         }
         for (uint8_t i = 0; i < PageCount; ++i) {
@@ -688,7 +688,7 @@ class DeviceView {
                 break;
         }
         selected_ = 0;
-        grid_ = page_ == Led || page_ == Pixel;
+        grid_ = page_ == Led || page_ == Pixel || page_ == Game;
         dirty_ = full_ = true;
         notice_[0] = 0;
     }

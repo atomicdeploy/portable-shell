@@ -120,18 +120,19 @@ template<class W> void footer(Writer<W> &out,const Snapshot &s,unsigned w) const
     if(editing_){out.raw(s.unicode?"\xe2\x86\x90/\xe2\x86\x92 cursor  Enter apply  Esc cancel":"Left/Right cursor Enter apply Esc cancel");out.raw("\r\n");return;}
     const Row *r=currentRow(s);
     if(grid_&&page_==Led){
-        out.raw(s.unicode?"\xe2\x86\x91\xe2\x86\x93\xe2\x86\x90\xe2\x86\x92 move  W/R/O state":"Up/Down Left/Right  W/R/O state");
+        out.raw(s.unicode?"\xe2\x86\x91\xe2\x86\x93\xe2\x86\x90\xe2\x86\x92 move":"Up/Down Left/Right");
+        out.raw(w>=60?"  W idle  R lost  O off":"  W/R/O state");
     }else if(grid_&&page_==Pixel){out.raw(s.unicode?"\xe2\x86\x90/\xe2\x86\x92 test  G group  W/R/O color":"Left/Right test G group W/R/O color");}
-    else if(page_==Game&&s.gameReady){out.raw("1-9 press  R reset");}
+    else if(page_==Game&&grid_){out.raw(s.gameReady?"1-9 press  R reset":"AVR unavailable");}
     else {out.raw(s.unicode?"\xe2\x86\x91/\xe2\x86\x93 select":"Up/Down select");
         if(r&&r->editable&&!r->pending){
-            out.raw(PS_DEVICE_VIEW_WIDGETS&&r->kind==Toggle?"  Space toggle":PS_DEVICE_VIEW_WIDGETS&&(r->kind==Level||r->kind==Choice)?(s.unicode?"  \xe2\x86\x90/\xe2\x86\x92 adjust":"  +/- adjust"):"  Enter edit");
-            if(w>=70&&r->kind!=Text)out.raw("  Enter value");
+            out.raw(PS_DEVICE_VIEW_WIDGETS&&r->kind==Toggle?"  Space toggle":PS_DEVICE_VIEW_WIDGETS&&r->kind==Choice?(s.unicode?"  \xe2\x86\x90/\xe2\x86\x92 choose":"  +/- choose"):PS_DEVICE_VIEW_WIDGETS&&r->kind==Level?(s.unicode?"  \xe2\x86\x90/\xe2\x86\x92 adjust":"  +/- adjust"):"  Enter edit");
+            if(w>=70&&r->kind==Level)out.raw("  Enter edit");
             if(w>=90&&PS_DEVICE_VIEW_DIALOGS)out.raw("  F2 dialog");
         }
     }
     out.raw("\r\n");
-    if(page_==Led||page_==Pixel)out.raw(grid_?"F settings  ":page_==Led?"F matrix  ":"F pixels  ");
+    if(page_==Led||page_==Pixel||page_==Game)out.raw(grid_?"F settings  ":page_==Led?"F matrix  ":page_==Game?"F game  ":"F pixels  ");
     out.raw("Tab pages  Esc close\r\n");
 }
 
@@ -162,16 +163,18 @@ template<class W> void matrix(Writer<W> &out,const Snapshot &s,unsigned w){
             const unsigned id=y*10+(s.cellStaggered?x/2:x)+1;
             const unsigned state=s.cellStates?s.cellStates[id-1]:255;
             const uint32_t rgb=cellRgb(s,id);const bool picked=id==cell_;
+            const unsigned bright=((rgb>>16)&255)*299+((rgb>>8)&255)*587+(rgb&255)*114;
             if(ansi_){
                 if(state>=4){ink(out,0);}
-                else if(trueColor_){char style[80];const unsigned bright=((rgb>>16)&255)*299+((rgb>>8)&255)*587+(rgb&255)*114;
+                else if(trueColor_){char style[80];
                     ps_terminal_format(style,sizeof(style),"\x1b[48;2;%u;%u;%um\x1b[38;2;%u;%u;%um",(rgb>>16)&255,(rgb>>8)&255,rgb&255,bright>128000?20:255,bright>128000?20:255,bright>128000?20:255);out.raw(style);}
                 else {const unsigned index=16+36*(((rgb>>16)&255)*5/255)+6*(((rgb>>8)&255)*5/255)+(rgb&255)*5/255;
-                    char style[40];ps_terminal_format(style,sizeof(style),"\x1b[48;5;%um\x1b[%um",index,rgb>0x808080?30:97);out.raw(style);}
+                    char style[40];ps_terminal_format(style,sizeof(style),"\x1b[48;5;%um\x1b[%um",index,bright>128000?30:97);out.raw(style);}
                 if(picked)out.raw("\x1b[1;4m");
             }
             char number[8];ps_terminal_format(number,sizeof(number),"%02u",id);
-            out.raw(picked?(s.unicode?"\xe2\x96\xb8":">"):state>=4?"?":" ");out.raw(number);
+            static const char *const plainState[]={"I","L","O","W"};
+            out.raw(picked?(s.unicode?"\xe2\x96\xb8":">"):state>=4?"?":!ansi_?plainState[state]:" ");out.raw(number);
             if(tile==4)out.raw(" ");
             base(out);
         }
@@ -179,10 +182,12 @@ template<class W> void matrix(Writer<W> &out,const Snapshot &s,unsigned w){
     }
     rule(out,s,w,"\xe2\x95\xb0","\xe2\x95\xaf");
     const unsigned state=s.cellStates?s.cellStates[cell_-1]:255;char status[128];
-    ps_terminal_format(status,sizeof(status),"Cell %02u  %s",cell_,cellName(s,state));ink(out,4);out.safe(status,w);
+    ps_terminal_format(status,sizeof(status),"Cell %02u  %s",cell_,cellName(s,state));ink(out,4);out.safe(status,w>=60?24:w);
     if(w>=60){const uint32_t rgb=cellRgb(s,cell_);char hex[8]={'#',0};const char *digits="0123456789ABCDEF";
         for(unsigned i=0;i<6;++i)hex[i+1]=digits[(rgb>>(20-4*i))&15];
-        if(state<4){out.raw("  ");out.raw(hex);}ink(out,0);out.raw("  Configured state colors");}
+        if(state<4){out.raw("  ");out.raw(hex);}ink(out,0);out.raw("  ");
+        out.safe(*notice_?notice_:"Configured state colors",w-35);}
+    else if(*notice_){out.raw("\r\n");out.safe(notice_,w);}
     out.raw("\r\n");footer(out,s,w);if(ansi_)out.raw("\x1b[J");
 }
 template<class Write> bool renderTable(const Snapshot &s,Write write) {
@@ -191,7 +196,7 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     bool paintAll=full_||!ansi_;
     if(ansi_){base(out);out.raw(full_?"\x1b[H\x1b[2J":"\x1b[H");}
     full_=false;
-    if(width<40||s.lines<16){out.raw("Resize terminal to 40 x 16\r\n");return true;}
+    if(width<40||s.lines<16){out.raw(s.unicode?"Resize terminal to 40 \xc3\x97 16\r\n":"Resize terminal to 40 x 16\r\n");return true;}
     // Leave the physical terminal's last column free to avoid delayed autowrap.
     const unsigned w=width-1;
     base(out);ink(out,7);out.raw(s.unicode?"\xe2\x95\xad\xe2\x94\x80 ":"+- ");
