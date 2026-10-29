@@ -71,6 +71,15 @@ callbacks supply transport. C++ uses native `bool`; no Arduino macro redefines i
 
 ## Compatibility boundaries and corrected behavior
 
+The [preservation audit](PRESERVATION-AUDIT.md) records the 2026-10-29
+behavior/style comparison and corrections. The optional adapter retains green
+SGR 32 prompts, repeated explicit prompt calls, restart after stop/EOF, `yes/no`
+boolean aliases, unregisterable original built-ins and visible parameter types.
+Help enumerates both original and modern commands through the shared registry.
+Register/unregister rejects changes while a parameter draft owns its binding.
+`ps_run` retains the original prompt even without VT100; use `ps_process_char`
+or the core byte API for prompt-free batch input.
+
 - Public functions are source-compatible; recompile consumers. The old exposed
   command-buffer/history fields are not an ABI contract. Access the canonical
   session via `shell->core` and the public APIs. `running` remains observable;

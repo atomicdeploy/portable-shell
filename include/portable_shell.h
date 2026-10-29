@@ -24,7 +24,7 @@ extern "C" {
 #endif
 #define PS_ARGS 32
 #define PS_VALUE 128
-#define PS_VERSION "0.13.0"
+#define PS_VERSION "0.13.1"
 #ifndef PS_WORKSPACE_INLINE_EDIT
 #define PS_WORKSPACE_INLINE_EDIT 1
 #endif
@@ -130,7 +130,8 @@ enum {
     PS_NO_BUILTINS = 64,
     PS_LEGACY_KEYS = 128
 };
-enum { PS_STYLE_DEFAULT, PS_STYLE_PROMPT, PS_STYLE_SUCCESS, PS_STYLE_WARNING, PS_STYLE_ERROR };
+enum { PS_STYLE_DEFAULT, PS_STYLE_PROMPT, PS_STYLE_SUCCESS, PS_STYLE_WARNING, PS_STYLE_ERROR,
+       PS_STYLE_GREEN };
 enum {
     PS_KEY_UP = 256,
     PS_KEY_DOWN,
@@ -170,6 +171,9 @@ PS_API int ps_parse(const char *line, ps_args *out);
 PS_API const char *ps_option(int argc, const char *const *argv, const char *name);
 PS_API int ps_register(ps_session *s, const ps_command *command);
 PS_API int ps_unregister(ps_session *s, const char *name);
+/* Metadata remains borrowed until the next registry mutation. */
+PS_API unsigned ps_command_count(const ps_session *s);
+PS_API const ps_command *ps_command_at(const ps_session *s, unsigned index);
 PS_API int ps_register_raw(ps_session *s, const ps_command *metadata, ps_raw_command_fn run);
 /* Text is copied, max 63 UTF-8 bytes, no control characters. NULL restores default. */
 PS_API int ps_set_prompt(ps_session *s, const char *text, unsigned style);

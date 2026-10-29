@@ -402,6 +402,17 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         cfg.flags = PS_INTERACTIVE | PS_COLOR | PS_UNICODE;
         s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
         CHECK(ps_panel_attach(s, &panel) && ps_panel_open(s, 0), "provider pages attach and open");
+        clear();
+        ps_tick(s, 100);
+        {
+            unsigned groups = 0, at_ = 0;
+            for (; at_ + 6 <= t.n; ++at_) {
+                if (t.output[at_] == 'R' && t.output[at_+1] == 'E' &&
+                    t.output[at_+2] == 'L' && t.output[at_+3] == 'A' &&
+                    t.output[at_+4] == 'Y' && t.output[at_+5] == 'S') ++groups;
+            }
+            CHECK(groups == 1, "wide table does not repeat selected category above table");
+        }
         feed(s, " ");
         CHECK(probe.values[0].number == 1 && probe.writes == 1, "toggle dispatches provider write");
         feed(s, "\033[B\033[C");
