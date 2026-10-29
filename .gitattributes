@@ -1,0 +1,3 @@
+
+# Terminal captures must retain exact CR/LF byte sequences.
+*.ansi -text
