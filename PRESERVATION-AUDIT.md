@@ -18,6 +18,7 @@ overwritten or replaced with a snapshot.
 | A registry change could invalidate the binding being edited | Register/unregister reject while a draft owns a binding; existing draft can still apply | Rejected mutation followed by successful draft commit |
 | Serial keycode mode discarded LF/NUL after CR | Diagnostic mode consumes only the command's pending separator; subsequent bytes remain raw | `Ardush/tests/checks.c`, both raw/parsed echo builds |
 | Desktop wide control table repeated the selected category above its category column | Caption is now narrow-layout-only | `tests/checks.c` category occurrence check |
+| Pakar's targeted conversation auditor dropped other donor records when its ignored raw cache was absent | Merge refreshed records into the committed inventory; retain other repositories and their exact review evidence | Pakar PR #39; cold-cache/partial/full refresh tests; all 778 PCController/Pealayer records preserved alongside 38 Pakar records |
 
 The repeated plain prompt test and raw CR/LF/NUL keycode test were run against
 the pre-fix code and failed, then passed after correction. Other corrections
@@ -104,3 +105,26 @@ separate evidence. This pass does not certify an installed AVR/STM32/ESP upgrade
 nor complete ncurses/grapheme/mouse parity or every PCController/PBX feature.
 The detailed integration/design documents retain those boundaries. Final PR
 and CI identities are recorded in the delivery section when observed.
+
+## Published repair checkpoints
+
+- PortableShell PR [#9](https://github.com/atomicdeploy/portable-shell/pull/9),
+  code `51fcff1594bf8d86f81f30044d31989d57e5c536`: all 13 CI jobs passed,
+  including three native hosts, both memory backends, ASCII/compact/retained
+  layouts/LTO, ARM32 and AVR components. This subsequent report update is docs-only.
+- Serial console PR [#6](https://github.com/DRSDavidSoft/Ardush/pull/6),
+  `a8875e0b00545beb6bd176ca85baee5cb697a252`: all seven CI jobs passed,
+  including three native hosts, Uno/Mega/STM32 builds and AVR simulation.
+- Additional audit-tool repair PR
+  [#39](https://github.com/atomicdeploy/PakarController/pull/39),
+  `9098dad`: restores inventory preservation; focused native tooling tests pass.
+  Its package CI and merge are not yet attested here. The rejected generated
+  deletion was never committed. No application source was lost in that incident.
+- Existing contextual TUI PR [#38](https://github.com/atomicdeploy/PakarController/pull/38)
+  remains a separate final package-CI/merge gate at this checkpoint. The other
+  task's draft PR #37 is untouched.
+
+Local Windows 0.13.1 builds: portable executable 58,880 bytes, libc executable
+81,920 bytes. Session storage remains 29,784 bytes (no new session fields).
+These are executable/caller-owned-storage measurements, not peak process RAM.
+New binaries are saved alongside previous versions, preserving running sessions.
