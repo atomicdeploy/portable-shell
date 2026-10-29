@@ -72,6 +72,16 @@ static int raw_check(ps_session *s, const char *tail, void *ctx) {
     (void)ctx;
     return 9;
 }
+static unsigned preview_complete(ps_session *s, int argc, const char *const *argv,
+                                 const char *prefix, const char **items, unsigned capacity,
+                                 void *ctx) {
+    unsigned *calls = ctx;
+    (void)s; (void)argc; (void)argv; (void)prefix;
+    ++*calls;
+    if (!capacity) return 0;
+    items[0] = "green light";
+    return 1;
+}
 static int device_probe(ps_session *s, const char *name, const char *tail, void *context) {
     unsigned *calls = context;
     ++*calls;
@@ -522,6 +532,84 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         ps_unregister(s, "temporary");
         ps_register(s, &command);
         CHECK(ps_execute(s, "temporary") == 7, "reused command slot clears raw callback");
+    }
+    {
+        unsigned calls = 0, before;
+        ps_command command = {"preview", "VALUE", "Custom", custom, preview_complete, &calls};
+        ps_command unnamed = {"long-custom-command", "ARG", 0, custom, 0, 0};
+        cfg.flags = PS_INTERACTIVE | PS_COLOR | PS_UNICODE;
+        s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
+        ps_register(s, &command);
+        ps_register(s, &unnamed);
+        clear();
+        feed(s, "pre");
+        CHECK(has(t.output, "view"), "fresh registry ghost without history");
+        feed(s, "\033[C\r");
+        CHECK(eq(ps_history_get(s, 0), "preview"), "Right accepts registry ghost");
+        clear();
+        feed(s, "theme lum");
+        CHECK(has(t.output, "en"), "argument ghost uses Tab provider");
+        feed(s, "\033[F\r");
+        CHECK(eq(ps_history_get(s, 1), "theme lumen"), "End accepts argument ghost");
+        feed(s, "echo newest retained\r");
+        feed(s, "echo n\033[F\r");
+        CHECK(eq(ps_history_get(s, ps_history_count(s)-1), "echo newest retained"),
+              "End accepts history before registry candidates");
+        feed(s, "preview \"gre");
+        before = calls;
+        feed(s, "\033[C\r");
+        CHECK(eq(ps_history_get(s, ps_history_count(s)-1), "preview \"green light\""),
+              "quoted ghost appends valid escaped argument");
+        CHECK(calls == before + 1, "acceptance uses displayed candidate then redraws once");
+        feed(s, "the\r");
+        CHECK(eq(ps_history_get(s, ps_history_count(s)-1), "the"),
+              "Enter discards ghost instead of implicitly accepting it");
+        ps_history_add(s, "echo caf\303\251");
+        feed(s, "echo ca\033[F\r");
+        CHECK(eq(ps_history_get(s, ps_history_count(s)-1), "echo caf\303\251"),
+              "UTF-8 history suffix survives End acceptance");
+        feed(s, "th\033[D\033[F\r");
+        CHECK(eq(ps_history_get(s, ps_history_count(s)-1), "th"),
+              "End inside line only moves to existing end");
+        feed(s, "ta\tadd 'still Tab'\r");
+        CHECK(eq(ps_history_get(s, ps_history_count(s)-1), "task add 'still Tab'"),
+              "ghost queries preserve Tab completion state");
+        clear(); ps_key(s, 8);
+        CHECK(has(t.output, "\a"), "Backspace at start emits BEL");
+        clear(); feed(s, "zzzz\t");
+        CHECK(has(t.output, "\a"), "unmatched Tab emits BEL");
+        feed(s, "\003");
+        for (i = 0; i < PS_LINE - 1; ++i) ps_key(s, 'q');
+        clear(); ps_key(s, 'q');
+        CHECK(has(t.output, "\a"), "full input buffer emits BEL without accepting overflow");
+        feed(s, "\003"); clear(); ps_execute(s, "bell");
+        CHECK(eq(t.output, "\a"), "bell command emits exactly byte 7");
+        clear(); ps_execute(s, "help");
+        CHECK(has(t.output, "Workspace:") && has(t.output, "Shell:") &&
+                  has(t.output, "Commands:") && has(t.output, "long-custom-command"),
+              "help groups registry headings and preserves full names with null category");
+        clear(); ps_execute(s, "help --compact");
+        CHECK(!has(t.output, "Workspace:") && has(t.output, "Workspace") &&
+                  has(t.output, "long-custom-command"), "compact help remains selectable");
+        clear(); ps_execute(s, "help --headings preview");
+        CHECK(has(t.output, "Usage: ") && has(t.output, "preview VALUE"),
+              "command help shows Usage");
+        CHECK(ps_execute(s, "help unknown") == 2, "unknown help target reports failure");
+        cfg.flags = PS_INTERACTIVE | PS_NO_BELL | PS_NO_SUGGESTIONS;
+        s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
+        clear(); ps_key(s, 8); ps_execute(s, "bell"); feed(s, "th\033[C\r");
+        CHECK(!has(t.output, "\a") && eq(ps_history_get(s,0), "th"),
+              "runtime opt-outs mute BEL and disable ghost acceptance");
+        feed(s, "ta\tadd optout\r");
+        CHECK(eq(ps_history_get(s,1), "task add optout"), "opt-out retains explicit Tab");
+        cfg.flags = PS_INTERACTIVE | PS_TELNET;
+        s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
+        clear(); ps_ring_bell(s);
+        CHECK(eq(t.output, "\a"), "Telnet passes BEL without negotiation or escaping");
+        cfg.flags = 0;
+        s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
+        clear(); ps_execute(s, "bell"); feed(s, "echo batch\n");
+        CHECK(eq(t.output, "batch\n"), "batch emits neither BEL nor ghost escapes");
     }
     CHECK(!portable_terminal_checks(), "shared firmware C components");
     {

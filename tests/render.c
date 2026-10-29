@@ -326,7 +326,14 @@ static unsigned svg(char *p) {
                 add("</text>");
             }
         }
-    add("</g></svg>");
+    add("</g>");
+#ifdef PS_REPLAY_CURSOR
+    /* Optional static cursor for prompt fixtures, at the emitted terminal position. */
+    add("<rect x=\""); number(32 + col * 12);
+    add("\" y=\""); number(32 + row * 26);
+    add("\" width=\"2\" height=\"26\" fill=\"#abb2bf\"/>");
+#endif
+    add("</svg>");
     return size;
 }
 static void feed(ps_session *s, const char *p) {

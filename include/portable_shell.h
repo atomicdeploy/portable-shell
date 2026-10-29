@@ -24,12 +24,12 @@ extern "C" {
 #endif
 #define PS_ARGS 32
 #define PS_VALUE 128
-#define PS_VERSION "0.13.1"
+#define PS_VERSION "0.14.0"
 #ifndef PS_WORKSPACE_INLINE_EDIT
 #define PS_WORKSPACE_INLINE_EDIT 1
 #endif
-#if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 19
-#error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 19"
+#if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 20
+#error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 20"
 #endif
 typedef unsigned char ps_byte;
 typedef char
@@ -97,6 +97,9 @@ typedef int (*ps_command_fn)(ps_session *, int argc, const char *const *argv, vo
 /* Raw tail starts immediately after the first space/tab; quotes and all remaining
    whitespace are preserved. Only command-name matching is case folded. */
 typedef int (*ps_raw_command_fn)(ps_session *, const char *tail, void *context);
+/* Completion providers are queried by Tab and interactive ghost previews. Return
+   stable borrowed strings; enumeration must not mutate device/application state.
+   PS_NO_SUGGESTIONS disables preview queries while retaining explicit Tab. */
 typedef unsigned (*ps_complete_fn)(ps_session *, int argc, const char *const *argv,
                                    const char *prefix, const char **items, unsigned capacity,
                                    void *context);
@@ -128,7 +131,9 @@ enum {
     PS_TRUECOLOR = 16,
     PS_CASE_INSENSITIVE = 32,
     PS_NO_BUILTINS = 64,
-    PS_LEGACY_KEYS = 128
+    PS_LEGACY_KEYS = 128,
+    PS_NO_BELL = 256,
+    PS_NO_SUGGESTIONS = 512
 };
 enum { PS_STYLE_DEFAULT, PS_STYLE_PROMPT, PS_STYLE_SUCCESS, PS_STYLE_WARNING, PS_STYLE_ERROR,
        PS_STYLE_GREEN };
@@ -187,6 +192,12 @@ PS_API int ps_bind(ps_session *s, unsigned key, ps_key_fn callback, void *contex
 PS_API void ps_key(ps_session *s, unsigned key);
 PS_API void ps_write(ps_session *s, const char *text); /* safe printable output, strips controls */
 PS_API void ps_newline(ps_session *s);
+/* Emits byte 7 through the normal transport in interactive sessions unless muted.
+   The receiving terminal decides whether to sound or visually indicate the bell. */
+PS_API void ps_ring_bell(ps_session *s);
+enum { PS_HELP_HEADINGS, PS_HELP_COMPACT };
+/* NULL name lists the registry; non-NULL prints Usage. Returns entries printed. */
+PS_API int ps_print_help(ps_session *s, const char *name, unsigned layout);
 PS_API void ps_number(ps_session *s, ps_u32 value);
 PS_API void ps_progress(ps_session *s, const char *name, unsigned done, unsigned total);
 PS_API void ps_history_clear(ps_session *s);
