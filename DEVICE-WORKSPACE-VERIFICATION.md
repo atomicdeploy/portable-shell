@@ -4,9 +4,10 @@
 
 The earlier captures below exposed repeated categories/hints and an inadequate
 generic LED grid. They are historical evidence, superseded by this revision.
-Canonical code: `891dfa234f621794b6b7a2512d4bbb0dfb958bdd` (0.13.0).
-Actual Pakar binding: `4f6d1bc878c950fb8313b9e21c72d0db9228add5`.
-Serial consumer: `68bc6496fbd21cc2f8bedfa501faf28c95545043`.
+Canonical code: `e90ffc004b39912e21a1799a75061ac61f22c74f` (0.13.0).
+Actual Pakar binding: `b44a1fba080f7113e1f07d2364a0466a6ffc0c34`.
+Serial consumer: `8c36d79af3c160c9cb8472a97e4c1e0b1348ae9f`, merged as
+`386649768601141ef63d9d9074f1069bf517bf89`.
 
 - Dedicated matrix uses the application's staggered 20 × 4 geometry and all
   80 configured state colors, including won/custom colors. Contrasting index
@@ -31,9 +32,9 @@ Unix timestamps still use numeric editing; specialist editors remain future work
 Current evidence:
 
 - Eight native and libc suites pass; retained legacy layout also passes.
-- Canonical CI [40795293372](https://github.com/atomicdeploy/portable-shell/actions/runs/40795293372)
+- Canonical CI [40796431046](https://github.com/atomicdeploy/portable-shell/actions/runs/40796431046)
   passes native hosts, ARM32, AVR components and feature/optimization profiles.
-- Serial CI [40795465812](https://github.com/DRSDavidSoft/Ardush/actions/runs/40795465812)
+- Serial CI [40796459041](https://github.com/DRSDavidSoft/Ardush/actions/runs/40796459041)
   passes native hosts, AVR simulation, explicit-small Uno, rich Mega and STM32.
 - Pakar's actual binding, source lock and full shell/metadata/property fixtures
   pass. Final guarded ESP32-S3 SDK compilation passes at the exact binding commit
@@ -43,14 +44,14 @@ Current evidence:
 | Current build/object | Program/file bytes | Static state / RAM |
 | --- | ---: | ---: |
 | Windows host 0.13.0 | 58,880 executable | 29,784-byte full C session; core heap 0 |
-| Freestanding x86-64 components | 26,112 text; zero undefined symbols/data/BSS | DeviceView 856; Row 104; editor 5,320; Telnet 196 bytes |
-| Complete ESP32-S3 firmware | 2,400,275 linked program; BIN 2,400,416 | 140,156 static; 187,524 reported remaining |
-| AVR Mega rich serial consumer | 34,928 flash | 4,689 static; 3,503 remaining |
+| Freestanding x86-64 components | 26,080 text; zero undefined symbols/data/BSS | DeviceView 856; Row 104; editor 5,320; Telnet 196 bytes |
+| Complete ESP32-S3 firmware | 2,400,291 linked program; BIN 2,400,432 | 140,156 static; 187,524 reported remaining |
+| AVR Mega rich serial consumer | 34,918 flash | 4,679 static; 3,513 remaining |
 | AVR Uno explicit view=0 | 9,184 flash | 1,235 static; 813 remaining |
-| STM32F103C8 serial consumer | 35,180 flash | 2,512 static; 17,968 remaining |
+| STM32F103C8 serial consumer | 35,168 flash | 2,512 static; 17,968 remaining |
 
 ESP application BIN SHA256:
-`d34dafd380922c7e7f29a45c3d88761ac4feac0a10e521112a85739e52241d5a`.
+`d9c59830d0fd0b39fd76542dd668e17407704dc9e23eb7bcdb39f51790933cef`.
 These are linked/static measurements, not peak runtime stack/heap consumption.
 
 Latest actual-binding byte replays, rendered with Agave and antialiasing:
@@ -64,7 +65,9 @@ Latest actual-binding byte replays, rendered with Agave and antialiasing:
 
 Adjacent `.ansi` files preserve exact emitted bytes; `.svg` files are generated
 by the C terminal replay utility. Deterministic host doubles provide observations;
-these are not screenshots of a deployed board. The rendering procedure below
+these are not screenshots of a deployed board. All 13 final-head ANSI captures
+were regenerated and verified byte-identical to these reviewed pictures.
+The rendering procedure below
 also applies using the `pakar-contextual-` prefix. Human acceptance remains open.
 
 ## Historical first rich-table pass
