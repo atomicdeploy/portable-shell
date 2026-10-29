@@ -117,6 +117,7 @@ template<class W> void value(Writer<W> &out,const Snapshot &s,const Row &r,unsig
 // Exactly one context owns hints. Editing suppresses page/grid navigation.
 template<class W> void footer(Writer<W> &out,const Snapshot &s,unsigned w) const {
     base(out);ink(out,0);
+    if(editing_&&dialog_&&ansi_)return; // The modal owns its only Apply/Cancel hint.
     if(editing_){out.raw(s.unicode?"\xe2\x86\x90/\xe2\x86\x92 cursor  Enter apply  Esc cancel":"Left/Right cursor Enter apply Esc cancel");out.raw("\r\n");return;}
     const Row *r=currentRow(s);
     if(grid_&&page_==Led){

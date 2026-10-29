@@ -40,6 +40,7 @@ int main(){
     feed("\x1b[B");assert(feed(" ")&&std::string(a.value)=="static");
     feed("\x1b[12~");assert(v.editing());output.clear();v.render(s,write);
     assert(output.find("Enter apply   Esc cancel")!=std::string::npos);
+    assert(output.find("cursor  Enter apply")==std::string::npos);
     feed("\x1b");v.flushEscape(a);
     for(unsigned theme=0;theme<4;++theme){v.setTheme(V::Theme(theme));output.clear();assert(v.render(s,write));assert(output.find("\x1b[48;")!=std::string::npos);}
     // Maximum viewport must be complete, bounded and use available space.
@@ -64,6 +65,10 @@ int main(){
     auto arrow=[&](char key){matrix.feed(27,board,a);matrix.feed('[',board,a);matrix.feed(key,board,a);assert(a.type==V::Action::None);};
     arrow('C');assert(matrix.selectedCell()==11);arrow('C');assert(matrix.selectedCell()==2);
     arrow('B');assert(matrix.selectedCell()==22);arrow('D');assert(matrix.selectedCell()==31);
+    matrix.feed('f',board,a);assert(!matrix.feed('r',board,a)&&a.type==V::Action::None);
+    matrix.feed('f',board,a);matrix.feedback("ERR owner rejected");output.clear();matrix.render(board,write);
+    assert(output.find("ERR owner rejected")!=std::string::npos);
+    arrow('F');assert(matrix.selectedCell()==80);
     board.columns=40;board.lines=16;output.clear();matrix.render(board,write);widths(output,39);
     matrix.setAnsi(false);board.unicode=false;output.clear();matrix.render(board,write);widths(output,39);
     for(unsigned char c:output)assert(c<128&&c!=27);
