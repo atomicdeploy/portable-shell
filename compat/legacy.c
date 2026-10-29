@@ -373,16 +373,17 @@ int ps_cmd_set(PortableShell *s, int argc, char **argv) {
     return ps_cmd_get(s, 2, argv);
 }
 int ps_cmd_help(PortableShell *s, int argc, char **argv) {
-    unsigned i;
-    (void)argc;
-    (void)argv;
-    for (i = 0; i < ps_command_count(s->core); ++i) {
-        const ps_command *c = ps_command_at(s->core, i);
-        ps_print(s, c->name);
-        ps_print(s, " ");
-        ps_println(s, c->usage);
+    int i;
+    const char *name = NULL;
+    unsigned layout = PS_HELP_HEADINGS;
+    for (i = 1; i < argc; ++i) {
+        if (!strcmp(argv[i], "--compact")) layout = PS_HELP_COMPACT;
+        else if (!strcmp(argv[i], "--headings")) layout = PS_HELP_HEADINGS;
+        else if (!name) name = argv[i];
+        else return error(s, "INVALID_ARGUMENT", "help", "[--headings|--compact] [command]");
     }
-    return 0;
+    return ps_print_help(s->core, name, layout) ? 0 :
+        error(s, "UNKNOWN_COMMAND", name, "use help to list commands");
 }
 int ps_cmd_clear(PortableShell *s, int argc, char **argv) {
     (void)argc;

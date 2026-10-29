@@ -32,8 +32,8 @@ bounded asynchronous terminal-size probe and a shared in-place tokenizer. See
 Packaged downloads include `bin/`; Git source checkouts exclude generated binaries.
 For a source checkout, follow Build below and run `build/PortableShell` (`.exe` on Windows).
 
-The latest builds are `bin/PortableShell-0.13.1.exe` (portable primitives) and
-`bin/PortableShell-libc-0.13.1.exe` (host C runtime). Launch with `--controls` for the
+The latest builds are `bin/PortableShell-0.14.0.exe` (portable primitives) and
+`bin/PortableShell-libc-0.14.0.exe` (host C runtime). Launch with `--controls` for the
 PCController-style tabs, grouped tables, toggles, PWM sliders, inline values and
 draft/confirmation dialogs. See [PCController controls](PCCONTROLLER-DESIGN.md)
 for provider callbacks and source provenance. Red framed tables, shared column
@@ -44,19 +44,19 @@ for the donor audit and future firmware integration. The unversioned 0.2.0 binar
 is retained to preserve an existing running user session. Current builds
 still default to the violet PortableShell workbench.
 
-Open `bin/PortableShell-0.13.1.exe`. Use **F2** for the workspace, **F1** for the command registry,
+Open `bin/PortableShell-0.14.0.exe`. Use **F2** for the workspace, **F1** for the command registry,
 and **Tab** at the prompt for completion. The program has no startup tutorial.
 
 ```text
-bin/PortableShell-0.13.1.exe --controls
-bin/PortableShell-0.13.1.exe --board
-bin/PortableShell-0.13.1.exe --ascii --no-color
-bin/PortableShell-0.13.1.exe --history history.txt
-bin/PortableShell-0.13.1.exe --command "calc 21 * 2"
-bin/PortableShell-0.13.1.exe -- args "a b" --name=value
-bin/PortableShell-0.13.1.exe --batch
-bin/PortableShell-0.13.1.exe --listen 2323
-bin/PortableShell-0.13.1.exe --serial COM9 --baud 115200
+bin/PortableShell-0.14.0.exe --controls
+bin/PortableShell-0.14.0.exe --board
+bin/PortableShell-0.14.0.exe --ascii --no-color
+bin/PortableShell-0.14.0.exe --history history.txt
+bin/PortableShell-0.14.0.exe --command "calc 21 * 2"
+bin/PortableShell-0.14.0.exe -- args "a b" --name=value
+bin/PortableShell-0.14.0.exe --batch
+bin/PortableShell-0.14.0.exe --listen 2323
+bin/PortableShell-0.14.0.exe --serial COM9 --baud 115200
 ```
 
 `--batch` reads commands from stdin, including a final line without a newline.
@@ -126,7 +126,7 @@ theme ascii
 status
 ```
 
-`help` is generated from the registered commands and their categories. `help NAME`
+`help` groups registered commands under category headings. `help --compact` retains the category column layout. `help NAME`
 shows a command's usage. `args` exposes parsed argument boundaries and byte lengths.
 `echo`, `get`, `unset`, `jobs cancel`, `history clear`, `clear`, and `exit` are also
 available. `text` supports ASCII upper/lower/slug transformations and whitespace trim.
@@ -145,7 +145,7 @@ comments beginning at a token boundary. `ps_option` recognizes `--name=value`,
 | Tab, repeated Tab | Common-prefix completion, candidate list, candidate cycling |
 | Up / Down, Ctrl+P / Ctrl+N | History with draft restoration |
 | Ctrl+R | Incremental reverse history search; repeat for older match |
-| Right at end | Accept a matching history suggestion |
+| → or End at end, Ctrl+F / Ctrl+E | Accept the visible muted suggestion; Enter is still required to execute |
 | Left / Right, Ctrl+A / Ctrl+E | Cursor movement, start/end |
 | Ctrl+Left / Ctrl+Right, Alt+B / Alt+F | Word movement |
 | Backspace / Delete | Delete a UTF-8 code point |
@@ -157,6 +157,20 @@ comments beginning at a token boundary. `ps_option` recognizes `--name=value`,
 
 Completion understands quoted prefixes, completes registered commands, subcommands,
 variable keys and `--rounds`, and supports caller-provided completion callbacks.
+Ghost suggestions are enabled by default, with no special build flag: newest matching
+history first, then registered command/argument completions. Only a suffix is offered;
+quoting that requires rewriting the typed prefix remains a Tab operation. End within
+the line first moves to its end. `--no-suggestions` (embedding: `PS_NO_SUGGESTIONS`)
+disables previews while retaining Tab. Completion callbacks also serve previews and
+must enumerate stable candidates without changing application or device state.
+
+`bell` or Ctrl+G emits BEL (byte 7), as do invalid cursor/history operations,
+no-match Tab and full input buffers. `--no-bell` (`PS_NO_BELL`) mutes it. The core
+API is `ps_ring_bell(session)`; it uses the supplied byte sink, including Telnet or
+serial. The receiving terminal controls sound/visual bell preferences. Batch mode
+emits neither bells nor ghost previews. The original optional `ps_bell(PortableShell*)`
+compatibility API retains its explicit raw-byte behavior.
+
 Bracketed paste is inserted without executing pasted newlines. Escape sequences may
 arrive one byte at a time; a standalone Escape resolves after a 60 ms tick timeout.
 

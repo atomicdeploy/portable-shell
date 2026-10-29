@@ -140,7 +140,7 @@ struct ps_session {
     unsigned command_count;
     Binding bindings[24];
     unsigned binding_count;
-    char line[PS_LINE], saved[PS_LINE], kill[PS_LINE];
+    char line[PS_LINE], saved[PS_LINE], kill[PS_LINE], suggestion[PS_LINE];
     unsigned len, pos;
     char history[PS_HISTORY][PS_LINE];
     unsigned history_count, history_head, history_nav, history_limit;
@@ -494,6 +494,7 @@ PS_API int ps_history_add(ps_session *s, const char *line) {
 PS_API void ps_history_clear(ps_session *s) {
     ps_secure_clear(s->history, sizeof s->history);
     ps_secure_clear(s->saved, sizeof s->saved);
+    ps_secure_clear(s->suggestion, sizeof s->suggestion);
     s->history_count = s->history_head = s->history_nav = 0;
 }
 PS_API void ps_history_filter(ps_session *s, ps_history_filter_fn filter, void *context) {
@@ -527,7 +528,7 @@ PS_API unsigned ps_history_limit(ps_session *s, unsigned limit) {
 }
 static const ps_command builtins[] = {
     {"controls", "[open [page]|list|get ID|set ID VALUE]", "Workspace", builtin, 0, 0},
-    {"help", "[command]", "Shell", builtin, 0, 0},
+    {"help", "[--headings|--compact] [command]", "Shell", builtin, 0, 0},
     {"board", "[tasks|variables|jobs|session]", "Workspace", builtin, 0, 0},
     {"task", "add TITLE | done ID | remove ID | rename ID TITLE | list", "Workspace", builtin, 0,
      0},
@@ -538,6 +539,7 @@ static const ps_command builtins[] = {
     {"calc", "INTEGER +|-|*|/|% INTEGER", "Tools", builtin, 0, 0},
     {"hash", "TEXT [--rounds N]", "Tools", builtin, 0, 0},
     {"jobs", "[cancel]", "Tools", builtin, 0, 0},
+    {"bell", "", "Shell", builtin, 0, 0},
     {"echo", "[TEXT ...]", "Shell", builtin, 0, 0},
     {"args", "[ARGUMENT ...]", "Shell", builtin, 0, 0},
     {"history", "[clear]", "Shell", builtin, 0, 0},
@@ -1115,14 +1117,33 @@ static void render(ps_session *s) {
     }
     (void)inner;
 }
-static const char *suggest(ps_session *s) {
-    unsigned i;
-    if (!s->len)
+static unsigned collect_completions(ps_session *, unsigned *, unsigned *, const char **);
+static unsigned encode_completion(const char *, unsigned, char *);
+/* Append-only preview: never rewrite a user's quoting or run a command. */
+static const char *suggest(ps_session *s, char *buffer) {
+    unsigned i, start, end, count, n;
+    const char *matches[PS_COMMANDS];
+    if (!(s->io.flags & PS_INTERACTIVE) || (s->io.flags & PS_NO_SUGGESTIONS) ||
+        !s->len || s->pos != s->len || s->overflow || s->search || s->completion)
         return 0;
     for (i = s->history_count; i; --i) {
         const char *p = ps_history_get(s, i - 1);
         if (prefix(p, s->line) && length(p) > s->len)
             return p;
+    }
+    count = collect_completions(s, &start, &end, matches);
+    /* An empty token is deliberate; don't fill arbitrary arguments after a space. */
+    if (start == s->len)
+        return 0;
+    for (i = 0; i < count; ++i) {
+        char encoded[PS_LINE];
+        n = encode_completion(matches[i], length(matches[i]), encoded);
+        if (n <= s->len - start || start + n >= PS_LINE ||
+            !name_match(s, encoded, s->line + start, 1))
+            continue;
+        copy(buffer, s->line, s->len);
+        copy(buffer + s->len, encoded + s->len - start, start + n - s->len + 1);
+        return buffer;
     }
     return 0;
 }
@@ -1160,14 +1181,17 @@ static void prompt(ps_session *s) {
             if (display[i] >= 'a' && display[i] <= 'z')
                 display[i] -= 32;
     field(s, display + start, min(cells(display + start, s->len - start, s->io.flags), avail));
-    hint = suggest(s);
+    hint = suggest(s, s->suggestion);
+    if (hint) str(s->suggestion, hint, sizeof s->suggestion);
+    else ps_secure_clear(s->suggestion, sizeof s->suggestion);
     if (hint && s->pos == s->len && cells(s->line + start, s->len - start, s->io.flags) < avail) {
         ink(s, 0);
         field(s, hint + s->len,
               min(cells(hint + s->len, length(hint + s->len), s->io.flags),
                   avail - cells(s->line + start, s->len - start, s->io.flags)));
         reset(s);
-    }
+    } else
+        ps_secure_clear(s->suggestion, sizeof s->suggestion);
     ansi(s, "\r\033[");
     ps_number(s, prompt_width + cells(s->line + start, s->pos - start, s->io.flags) + 1);
     out(s, "G");
@@ -1341,8 +1365,7 @@ static void table_key(ps_session *s, unsigned key) {
     }
     s->dirty = 1;
 }
-static int complete_replace(ps_session *s, const char *value, unsigned n, int finish) {
-    char encoded[PS_LINE];
+static unsigned encode_completion(const char *value, unsigned n, char *encoded) {
     unsigned i, count = 0, quoted = 0;
     for (i = 0; i < n; ++i)
         if (value[i] <= ' ' || value[i] == '\\' || value[i] == '"' || value[i] == '\'')
@@ -1363,6 +1386,14 @@ static int complete_replace(ps_session *s, const char *value, unsigned n, int fi
     }
     if (quoted)
         encoded[count++] = '"';
+    encoded[count] = 0;
+    return count;
+}
+static int complete_replace(ps_session *s, const char *value, unsigned n, int finish) {
+    char encoded[PS_LINE];
+    unsigned count = encode_completion(value, n, encoded);
+    if (n && !count)
+        return 0;
     if (s->start + count + s->len - s->end + 2 >= PS_LINE)
         return 0;
     move(s->line + s->start + count, s->line + s->end, s->len - s->end + 1);
@@ -1373,135 +1404,142 @@ static int complete_replace(ps_session *s, const char *value, unsigned n, int fi
         edit_insert(s->line, &s->len, &s->pos, PS_LINE, ' ');
     return 1;
 }
-static void completion(ps_session *s) {
-    unsigned i, j, common;
+static unsigned collect_completions(ps_session *s, unsigned *start, unsigned *end,
+                                    const char **matches) {
+    unsigned i, match_count;
     char token[PS_LINE];
     ps_args args;
-    if (!s->completion) {
-        unsigned quote = 0, decoded = 0;
-        s->start = 0;
-        for (i = 0; i < s->pos; ++i) {
-            unsigned c = (unsigned char)s->line[i];
-            if (c == '\\' && quote != '\'' && i + 1 < s->pos) {
-                ++i;
+    unsigned quote = 0, decoded = 0;
+    (*start) = 0;
+    for (i = 0; i < s->pos; ++i) {
+        unsigned c = (unsigned char)s->line[i];
+        if (c == '\\' && quote != '\'' && i + 1 < s->pos) {
+            ++i;
+            continue;
+        }
+        if (c == '\'' || c == '"') {
+            if (!quote)
+                quote = c;
+            else if (quote == c)
+                quote = 0;
+        } else if (!quote && (c == ' ' || c == '\t'))
+            (*start) = i + 1;
+    }
+    (*end) = s->pos;
+    while (s->line[(*end)]) {
+        unsigned c = (unsigned char)s->line[(*end)];
+        if (!quote && (c == ' ' || c == '\t'))
+            break;
+        ++(*end);
+        if (c == '\\' && quote != '\'' && s->line[(*end)]) {
+            ++(*end);
+            continue;
+        }
+        if (c == '\'' || c == '"') {
+            if (!quote)
+                quote = c;
+            else if (quote == c)
+                quote = 0;
+        }
+    }
+    quote = 0;
+    for (i = (*start); i < s->pos; ++i) {
+        unsigned c = (unsigned char)s->line[i];
+        if (c == '\'' || c == '"') {
+            if (!quote) {
+                quote = c;
                 continue;
             }
-            if (c == '\'' || c == '"') {
-                if (!quote)
-                    quote = c;
-                else if (quote == c)
-                    quote = 0;
-            } else if (!quote && (c == ' ' || c == '\t'))
-                s->start = i + 1;
-        }
-        s->end = s->pos;
-        while (s->line[s->end]) {
-            unsigned c = (unsigned char)s->line[s->end];
-            if (!quote && (c == ' ' || c == '\t'))
-                break;
-            ++s->end;
-            if (c == '\\' && quote != '\'' && s->line[s->end]) {
-                ++s->end;
+            if (quote == c) {
+                quote = 0;
                 continue;
             }
-            if (c == '\'' || c == '"') {
-                if (!quote)
-                    quote = c;
-                else if (quote == c)
-                    quote = 0;
-            }
         }
-        quote = 0;
-        for (i = s->start; i < s->pos; ++i) {
-            unsigned c = (unsigned char)s->line[i];
-            if (c == '\'' || c == '"') {
-                if (!quote) {
-                    quote = c;
-                    continue;
-                }
-                if (quote == c) {
-                    quote = 0;
-                    continue;
-                }
-            }
-            if (c == '\\' && quote != '\'' && i + 1 < s->pos) {
-                c = (unsigned char)s->line[++i];
-                if (c == 'n')
-                    c = '\n';
-                else if (c == 't')
-                    c = '\t';
-                else if (c == 'r')
-                    c = '\r';
-            }
-            token[decoded++] = (char)c;
+        if (c == '\\' && quote != '\'' && i + 1 < s->pos) {
+            c = (unsigned char)s->line[++i];
+            if (c == 'n')
+                c = '\n';
+            else if (c == 't')
+                c = '\t';
+            else if (c == 'r')
+                c = '\r';
         }
-        token[decoded] = 0;
-        s->match_count = 0;
-        if (s->start == 0) {
+        token[decoded++] = (char)c;
+    }
+    token[decoded] = 0;
+    match_count = 0;
+    if ((*start) == 0) {
+        for (i = 0; i < s->command_count; ++i)
+            if (name_match(s, s->commands[i].name, token, 1))
+                matches[match_count++] = s->commands[i].name;
+    } else {
+        static const char *const task[] = {"add", "done", "remove", "rename", "list"};
+        static const char *const board[] = {"tasks", "variables", "jobs", "session"};
+        static const char *const controls[] = {"open", "list", "get", "set"};
+        static const char *const theme[] = {"violet", "red",   "lumen",   "color",  "ansi",
+                                            "mono",   "ascii", "unicode", "onedark"};
+        static const char *const txt[] = {"upper", "lower", "trim", "slug"};
+        static const char *const hash_options[] = {"--rounds"};
+        const char *const *opts = 0;
+        unsigned count = 0;
+        char partial[PS_LINE];
+        copy(partial, s->line, (*start));
+        partial[(*start)] = 0;
+        ps_parse(partial, &args);
+        if (args.argc) {
             for (i = 0; i < s->command_count; ++i)
-                if (name_match(s, s->commands[i].name, token, 1))
-                    s->matches[s->match_count++] = s->commands[i].name;
-        } else {
-            static const char *const task[] = {"add", "done", "remove", "rename", "list"};
-            static const char *const board[] = {"tasks", "variables", "jobs", "session"};
-            static const char *const controls[] = {"open", "list", "get", "set"};
-            static const char *const theme[] = {"violet", "red",   "lumen",   "color",  "ansi",
-                                                "mono",   "ascii", "unicode", "onedark"};
-            static const char *const txt[] = {"upper", "lower", "trim", "slug"};
-            static const char *const hash_options[] = {"--rounds"};
-            const char *const *opts = 0;
-            unsigned count = 0;
-            char partial[PS_LINE];
-            copy(partial, s->line, s->start);
-            partial[s->start] = 0;
-            ps_parse(partial, &args);
-            if (args.argc) {
-                for (i = 0; i < s->command_count; ++i)
-                    if (name_match(s, args.argv[0], s->commands[i].name, 0) &&
-                        s->commands[i].complete) {
-                        s->match_count =
-                            min(PS_COMMANDS, s->commands[i].complete(s, args.argc,
-                                                                     (const char *const *)args.argv,
-                                                                     token, s->matches, PS_COMMANDS,
-                                                                     s->commands[i].context));
-                        break;
-                    }
-                if (!s->match_count) {
-                    if (equal(args.argv[0], "task") && args.argc == 1) {
-                        opts = task;
-                        count = 5;
-                    } else if (equal(args.argv[0], "board")) {
-                        opts = board;
-                        count = 4;
-                    } else if (equal(args.argv[0], "controls") && args.argc == 1) {
-                        opts = controls;
-                        count = 4;
-                    } else if (equal(args.argv[0], "theme")) {
-                        opts = theme;
-                        count = 9;
-                    } else if (equal(args.argv[0], "text") && args.argc == 1) {
-                        opts = txt;
-                        count = 4;
-                    } else if (equal(args.argv[0], "hash") && args.argc >= 2) {
-                        opts = hash_options;
-                        count = 1;
-                    } else if (equal(args.argv[0], "get") || equal(args.argv[0], "set") ||
-                               equal(args.argv[0], "unset")) {
-                        for (i = 0; i < s->var_count; ++i)
-                            if (prefix(s->vars[i].key, token))
-                                s->matches[s->match_count++] = s->vars[i].key;
-                    } else if (equal(args.argv[0], "help")) {
-                        for (i = 0; i < s->command_count; ++i)
-                            if (name_match(s, s->commands[i].name, token, 1))
-                                s->matches[s->match_count++] = s->commands[i].name;
-                    }
-                    for (i = 0; i < count; ++i)
-                        if (prefix(opts[i], token))
-                            s->matches[s->match_count++] = opts[i];
+                if (name_match(s, args.argv[0], s->commands[i].name, 0) &&
+                    s->commands[i].complete) {
+                    match_count =
+                        min(PS_COMMANDS, s->commands[i].complete(s, args.argc,
+                                                                 (const char *const *)args.argv,
+                                                                 token, matches, PS_COMMANDS,
+                                                                 s->commands[i].context));
+                    break;
                 }
+            if (!match_count) {
+                if (equal(args.argv[0], "task") && args.argc == 1) {
+                    opts = task;
+                    count = 5;
+                } else if (equal(args.argv[0], "board")) {
+                    opts = board;
+                    count = 4;
+                } else if (equal(args.argv[0], "controls") && args.argc == 1) {
+                    opts = controls;
+                    count = 4;
+                } else if (equal(args.argv[0], "theme")) {
+                    opts = theme;
+                    count = 9;
+                } else if (equal(args.argv[0], "text") && args.argc == 1) {
+                    opts = txt;
+                    count = 4;
+                } else if (equal(args.argv[0], "hash") && args.argc >= 2) {
+                    opts = hash_options;
+                    count = 1;
+                } else if (equal(args.argv[0], "get") || equal(args.argv[0], "set") ||
+                           equal(args.argv[0], "unset")) {
+                    for (i = 0; i < s->var_count && match_count < PS_COMMANDS; ++i)
+                        if (prefix(s->vars[i].key, token))
+                            matches[match_count++] = s->vars[i].key;
+                } else if (equal(args.argv[0], "help")) {
+                    for (i = 0; i < s->command_count; ++i)
+                        if (name_match(s, s->commands[i].name, token, 1))
+                            matches[match_count++] = s->commands[i].name;
+                }
+                for (i = 0; i < count; ++i)
+                    if (prefix(opts[i], token))
+                        matches[match_count++] = opts[i];
             }
         }
+    }
+    return match_count;
+}
+static void completion(ps_session *s) {
+    unsigned i, j, common;
+    if (!s->completion) {
+        s->match_count = collect_completions(s, &s->start, &s->end, s->matches);
         if (!s->match_count) {
+            ps_ring_bell(s);
             notice(s, "No completion");
             return;
         }
@@ -1541,6 +1579,7 @@ static void history_search(ps_session *s) {
             return;
         }
     }
+    ps_ring_bell(s);
     notice(s, "No older match");
 }
 PS_API void ps_key(ps_session *s, unsigned key) {
@@ -1603,6 +1642,8 @@ PS_API void ps_key(ps_session *s, unsigned key) {
         s->io.flags ^= PS_COLOR;
 #endif
     } else if (key == 13) {
+        /* Discard the visible preview before submitting only the typed line. */
+        if (*s->suggestion) ansi(s, "\033[K");
         ps_newline(s);
         s->line[s->len] = 0;
         if (s->overflow) {
@@ -1616,6 +1657,7 @@ PS_API void ps_key(ps_session *s, unsigned key) {
         s->len = s->pos = s->history_nav = s->overflow = 0;
         ps_secure_clear(s->line, sizeof s->line);
     } else if (key == 3) {
+        if (*s->suggestion) ansi(s, "\033[K");
         ps_secure_clear(s->line, sizeof s->line);
         s->len = s->pos = 0;
         s->overflow = 0;
@@ -1631,25 +1673,35 @@ PS_API void ps_key(ps_session *s, unsigned key) {
             ps_close(s);
             return;
         }
+        if (s->pos == s->len) ps_ring_bell(s);
         edit_delete(s->line, &s->len, &s->pos, 0);
+    } else if (key == 7) {
+        ps_ring_bell(s);
     } else if (key == 12) {
         ansi(s, "\033[2J\033[H");
     } else if (key == 9) {
         completion(s);
-    } else if (key == PS_KEY_LEFT || key == 2)
+    } else if (key == PS_KEY_LEFT || key == 2) {
+        if (!s->pos) ps_ring_bell(s);
         s->pos = prev(s->line, s->pos);
-    else if (key == PS_KEY_RIGHT || key == 6) {
+    } else if (key == PS_KEY_RIGHT || key == 6) {
         if (s->pos == s->len) {
-            const char *p = suggest(s);
+            const char *p = *s->suggestion ? s->suggestion : 0;
             if (p)
                 line_set(s, p);
+            else
+                ps_ring_bell(s);
         } else
             s->pos = next(s->line, s->pos);
     } else if (key == PS_KEY_HOME || key == 1)
         s->pos = 0;
-    else if (key == PS_KEY_END || key == 5)
-        s->pos = s->len;
-    else if (key == PS_KEY_WORDLEFT) {
+    else if (key == PS_KEY_END || key == 5) {
+        const char *p = s->pos == s->len && *s->suggestion ? s->suggestion : 0;
+        if (p)
+            line_set(s, p);
+        else
+            s->pos = s->len;
+    } else if (key == PS_KEY_WORDLEFT) {
         while (s->pos && s->line[s->pos - 1] == ' ')
             s->pos = prev(s->line, s->pos);
         while (s->pos && s->line[s->pos - 1] != ' ')
@@ -1659,11 +1711,13 @@ PS_API void ps_key(ps_session *s, unsigned key) {
             s->pos = next(s->line, s->pos);
         while (s->line[s->pos] == ' ')
             ++s->pos;
-    } else if (key == 8 || key == 127)
+    } else if (key == 8 || key == 127) {
+        if (!s->pos) ps_ring_bell(s);
         edit_delete(s->line, &s->len, &s->pos, 1);
-    else if (key == PS_KEY_DELETE)
+    } else if (key == PS_KEY_DELETE) {
+        if (s->pos == s->len) ps_ring_bell(s);
         edit_delete(s->line, &s->len, &s->pos, 0);
-    else if (key == 21) {
+    } else if (key == 21) {
         str(s->kill, s->line, PS_LINE);
         ps_secure_clear(s->line, sizeof s->line);
         s->len = s->pos = 0;
@@ -1698,17 +1752,18 @@ PS_API void ps_key(ps_session *s, unsigned key) {
         if (s->history_nav < s->history_count) {
             ++s->history_nav;
             line_set(s, ps_history_get(s, s->history_count - s->history_nav));
-        }
+        } else ps_ring_bell(s);
     } else if (key == PS_KEY_DOWN || key == 14) {
         if (s->history_nav) {
             --s->history_nav;
             line_set(s, s->history_nav ? ps_history_get(s, s->history_count - s->history_nav)
                                        : s->saved);
-        }
+        } else ps_ring_bell(s);
     } else if (key >= 32 && key < 256) {
-        if (s->len + 1 >= PS_LINE)
+        if (s->len + 1 >= PS_LINE) {
+            ps_ring_bell(s);
             s->overflow = 1;
-        else
+        } else
             edit_insert(s->line, &s->len, &s->pos, PS_LINE, key);
     }
     prompt(s);
@@ -1741,21 +1796,68 @@ static void job_report(ps_session *s) {
     hex(s, s->job.hash);
     ps_newline(s);
 }
+PS_API void ps_ring_bell(ps_session *s) {
+    if (s && (s->io.flags & PS_INTERACTIVE) && !(s->io.flags & PS_NO_BELL))
+        out(s, "\a");
+}
+static const char *command_category(const ps_command *c) {
+    return c->category && *c->category ? c->category : "Commands";
+}
+PS_API int ps_print_help(ps_session *s, const char *name, unsigned layout) {
+    unsigned i, j, k, printed = 0, width = 0, group_width = 0;
+    if (!s) return 0;
+    for (i = 0; i < s->command_count; ++i) {
+        const ps_command *c = &s->commands[i];
+        if (length(c->name) > width) width = length(c->name);
+        if (length(command_category(c)) > group_width) group_width = length(command_category(c));
+    }
+    for (i = 0; i < s->command_count; ++i) {
+        const ps_command *c = &s->commands[i];
+        if (name) {
+            if (!name_match(s, c->name, name, 0)) continue;
+            ink(s, 1); out(s, "Usage: "); reset(s);
+            ps_write(s, c->name); out(s, " "); ps_write(s, c->usage); ps_newline(s);
+            return 1;
+        }
+        if (layout == PS_HELP_COMPACT) {
+            ink(s, 0); field(s, command_category(c), group_width + 2);
+            ink(s, 1); field(s, c->name, width + 2); reset(s);
+            ps_write(s, c->usage); ps_newline(s); ++printed;
+            continue;
+        }
+        for (j = 0; j < i; ++j)
+            if (equal(command_category(&s->commands[j]), command_category(c))) break;
+        if (j != i) continue;
+        if (printed) ps_newline(s);
+        ink(s, 1);
+        ps_write(s, command_category(c)); out(s, ":");
+        reset(s); ps_newline(s);
+        for (k = i; k < s->command_count; ++k) {
+            const ps_command *entry = &s->commands[k];
+            if (!equal(command_category(entry), command_category(c))) continue;
+            out(s, "  "); ink(s, 5); field(s, entry->name, width + 2); reset(s);
+            ps_write(s, entry->usage); ps_newline(s); ++printed;
+        }
+    }
+    return (int)printed;
+}
 static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     unsigned i, j;
     const char *cmd = a[0];
     (void)ctx;
     if (equal(cmd, "help")) {
-        for (i = 0; i < s->command_count; ++i)
-            if (argc == 1 || equal(a[1], s->commands[i].name)) {
-                ink(s, 0);
-                field(s, s->commands[i].category, 11);
-                ink(s, 1);
-                field(s, s->commands[i].name, 10);
-                reset(s);
-                ps_write(s, s->commands[i].usage);
-                ps_newline(s);
-            }
+        const char *name = 0;
+        unsigned layout = PS_HELP_HEADINGS;
+        for (i = 1; i < (unsigned)argc; ++i) {
+            if (equal(a[i], "--compact")) layout = PS_HELP_COMPACT;
+            else if (equal(a[i], "--headings")) layout = PS_HELP_HEADINGS;
+            else if (!name) name = a[i];
+            else return fail(s, "help [--headings|--compact] [command]");
+        }
+        return ps_print_help(s, name, layout) ? 0 : fail(s, "Unknown command");
+    }
+    if (equal(cmd, "bell")) {
+        ps_ring_bell(s);
         return 0;
     }
     if (equal(cmd, "echo")) {

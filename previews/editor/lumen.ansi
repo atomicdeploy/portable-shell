@@ -1,0 +1,29 @@
+[?2004h[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0m[21G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mh[38;5;245melp[0m[22G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mhe[38;5;245mlp[0m[23G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mhel[38;5;245mp[0m[24G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mhelp[25G
+[38;5;80mWorkspace:[0m
+  [38;5;151mcontrols  [0m[open [page]|list|get ID|set ID VALUE]
+  [38;5;151mboard     [0m[tasks|variables|jobs|session]
+  [38;5;151mtask      [0madd TITLE | done ID | remove ID | rename ID TITLE | list
+  [38;5;151mset       [0mKEY VALUE
+  [38;5;151mget       [0m[KEY]
+  [38;5;151munset     [0mKEY
+
+[38;5;80mShell:[0m
+  [38;5;151mhelp      [0m[--headings|--compact] [command]
+  [38;5;151mbell      [0m
+  [38;5;151mecho      [0m[TEXT ...]
+  [38;5;151margs      [0m[ARGUMENT ...]
+  [38;5;151mhistory   [0m[clear]
+  [38;5;151mbind      [0mF1|F2|F3|F4 COMMAND
+  [38;5;151mexit      [0m
+
+[38;5;80mTools:[0m
+  [38;5;151mtext      [0mupper|lower|trim|slug TEXT
+  [38;5;151mcalc      [0mINTEGER +|-|*|/|% INTEGER
+  [38;5;151mhash      [0mTEXT [--rounds N]
+  [38;5;151mjobs      [0m[cancel]
+
+[38;5;80mTerminal:[0m
+  [38;5;151mtheme     [0mviolet|red|lumen|onedark|color|ansi|mono|ascii|unicode
+  [38;5;151mclear     [0m
+  [38;5;151mstatus    [0m
+[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0m[21G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mt[38;5;245mask[0m[22G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mth[38;5;245meme[0m[23G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mthe[38;5;245mme[0m[24G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mthem[38;5;245me[0m[25G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mtheme[26G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mtheme [27G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mtheme l[38;5;245mumen[0m[28G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mtheme lu[38;5;245mmen[0m[29G[2K[38;5;80mPortableShell[38;5;245m [0] [38;5;151m> [0mtheme lum[38;5;245men[0m[30G

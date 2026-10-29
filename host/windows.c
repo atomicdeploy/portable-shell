@@ -477,6 +477,10 @@ int host_main(void) {
             flags &= ~PS_UNICODE;
         else if (equal(argv[i], "--no-color") || equal(argv[i], "--mono"))
             flags &= ~PS_COLOR;
+        else if (equal(argv[i], "--no-bell"))
+            flags |= PS_NO_BELL;
+        else if (equal(argv[i], "--no-suggestions"))
+            flags |= PS_NO_SUGGESTIONS;
         else if (equal(argv[i], "--batch"))
             batch = 1;
         else if (equal(argv[i], "--interactive"))
@@ -489,7 +493,7 @@ int host_main(void) {
         else if (equal(argv[i], "--controls"))
             board = 2;
         else if (equal(argv[i], "--help")) {
-            say("PortableShell [--device-commands] [--board|--controls] [--ascii] [--no-color] [--history "
+            say("PortableShell [--device-commands] [--board|--controls] [--ascii] [--no-color] [--no-bell] [--no-suggestions] [--history "
                 "FILE]\r\n     "
                 " "
                 "[--command TEXT "
@@ -587,7 +591,7 @@ int host_main(void) {
         SetConsoleTitleW(L"PortableShell - byte-native workbench");
         old_cp = GetConsoleOutputCP();
         SetConsoleOutputCP(CP_UTF8);
-        if (!SetConsoleMode(output, output_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
+        if (!SetConsoleMode(output, output_mode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
             say("VT output unavailable; use --batch\r\n");
             return 1;
         }
