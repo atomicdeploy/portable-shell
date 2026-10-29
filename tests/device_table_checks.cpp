@@ -70,6 +70,7 @@ int main(){
     assert(output.find("ERR owner rejected")!=std::string::npos);
     arrow('F');assert(matrix.selectedCell()==80);
     board.columns=40;board.lines=16;output.clear();matrix.render(board,write);widths(output,39);
+    assert(output.find("Tab next")==std::string::npos&&output.find("Tab pages")==output.rfind("Tab pages"));
     matrix.setAnsi(false);board.unicode=false;output.clear();matrix.render(board,write);widths(output,39);
     for(unsigned char c:output)assert(c<128&&c!=27);
     std::printf("Device table: typed controls, stale edits, dialogs, 4 palettes, 40..240 columns; state=%u bytes\n",unsigned(sizeof(v)));
