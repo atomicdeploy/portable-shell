@@ -317,8 +317,8 @@ static int name_match(ps_session *s, const char *a, const char *b, int partial) 
 }
 static void style(ps_session *s, unsigned value) {
     static const char *const colors[] = {"\033[0m", "\033[1;93m", "\033[92m", "\033[93m",
-                                         "\033[91m"};
-    color(s, colors[value <= PS_STYLE_ERROR ? value : 0]);
+                                         "\033[91m", "\033[32m"};
+    color(s, colors[value <= PS_STYLE_GREEN ? value : 0]);
 }
 PS_API int ps_set_prompt(ps_session *s, const char *text, unsigned value) {
     unsigned i;
@@ -404,6 +404,12 @@ PS_API int ps_register(ps_session *s, const ps_command *c) {
     s->raw_commands[s->command_count] = 0;
     s->commands[s->command_count++] = *c;
     return 0;
+}
+PS_API unsigned ps_command_count(const ps_session *s) {
+    return s ? s->command_count : 0;
+}
+PS_API const ps_command *ps_command_at(const ps_session *s, unsigned index) {
+    return s && index < s->command_count ? &s->commands[index] : 0;
 }
 PS_API int ps_unregister(ps_session *s, const char *name) {
     unsigned i;
@@ -913,7 +919,7 @@ static void render(ps_session *s) {
     }
     at(s, 3, 1);
     ansi(s, "\033[2K");
-    if (s->control_view && count) {
+    if (s->control_view && count && grid.count == 2) {
         out(s, "  ");
         ink(s, 0);
         grid_text(s, s->panel->pages[s->tab].controls[s->selected].group, w - 4);
@@ -2391,6 +2397,7 @@ PS_API void ps_close(ps_session *s) {
         s->board = 0;
     }
     ansi(s, "\033[0m\033[?25h\033[?2004l");
+    s->started = 0;
 }
 PS_API int ps_exited(const ps_session *s) {
     return (int)s->exit;

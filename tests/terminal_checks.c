@@ -47,5 +47,15 @@ int portable_terminal_checks(void) {
         ps_editor_feed(&editor, 'a', discard, 0);
     if (ps_editor_feed(&editor, '\r', discard, 0) != PS_EDIT_TOO_LONG)
         return 9;
+#if PS_STYLE_THEMES
+    /* Original six Lumen inks must survive palette extraction/theme additions. */
+    {
+        static const char *const original[] = {"\033[38;5;245m", "\033[38;5;80m",
+            "\033[38;5;223m", "\033[38;5;203m", "\033[1;38;5;231m", "\033[38;5;151m"};
+        for (i = 0; i < 6; ++i)
+            if (!ps_text_equal(ps_style_ink(2, 1, 1, i), original[i]) ||
+                !ps_text_equal(ps_style_ink(2, 0, 1, i), original[i])) return 10;
+    }
+#endif
     return 0;
 }

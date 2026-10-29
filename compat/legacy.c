@@ -207,9 +207,11 @@ static int parameter_set(PSParameter *p, const char *text) {
             return 0;
         for (i = 0; i <= n; ++i)
             lowered[i] = text[i] >= 'A' && text[i] <= 'Z' ? (char)(text[i] + 32) : text[i];
-        if (!strcmp(lowered, "true") || !strcmp(lowered, "on") || !strcmp(lowered, "1"))
+        if (!strcmp(lowered, "true") || !strcmp(lowered, "on") || !strcmp(lowered, "1") ||
+            !strcmp(lowered, "yes"))
             *(bool *)p->value_ptr = true;
-        else if (!strcmp(lowered, "false") || !strcmp(lowered, "off") || !strcmp(lowered, "0"))
+        else if (!strcmp(lowered, "false") || !strcmp(lowered, "off") || !strcmp(lowered, "0") ||
+                 !strcmp(lowered, "no"))
             *(bool *)p->value_ptr = false;
         else
             return 0;
@@ -264,6 +266,7 @@ static int panel_write(void *ctx, unsigned id, const ps_control_value *v, ps_u32
     return parameter_set(p, p->type == PS_PARAM_BOOL ? (v->number ? "true" : "false") : v->text);
 }
 static void refresh_panel(PortableShell *s) {
+    static const char *const types[] = {"int", "float", "string", "bool"};
     PSParameter *p;
     unsigned n = 0;
     ps_panel_attach(s->core, NULL);
@@ -271,7 +274,7 @@ static void refresh_panel(PortableShell *s) {
         ps_control *c = &s->controls[n++];
         memset(c, 0, sizeof(*c));
         c->id = p->slot + 1;
-        c->group = "Parameters";
+        c->group = types[p->type];
         c->label = p->name;
         c->kind = p->type == PS_PARAM_BOOL ? PS_CONTROL_TOGGLE : PS_CONTROL_TEXT;
     }
@@ -309,6 +312,10 @@ int ps_register_parameter(PortableShell *s, const char *name, PSParamType type, 
     p = (PSParameter *)calloc(1, sizeof(*p));
     if (!p)
         return error(s, "ALLOCATION_FAILED", name, "provide host memory before retrying");
+    if (!ps_panel_attach(s->core, NULL)) {
+        free(p);
+        return error(s, "ACTIVE_EDIT", name, "finish or cancel the current edit first");
+    }
     p->name = name;
     p->type = type;
     p->value_ptr = ptr;
@@ -327,6 +334,8 @@ int ps_unregister_parameter(PortableShell *s, const char *name) {
     for (p = &s->parameters; *p; p = &(*p)->next)
         if (!strcmp((*p)->name, name)) {
             PSParameter *old = *p;
+            if (!ps_panel_attach(s->core, NULL))
+                return error(s, "ACTIVE_EDIT", name, "finish or cancel the current edit first");
             *p = old->next;
             refresh_panel(s);
             free(old);
@@ -364,13 +373,14 @@ int ps_cmd_set(PortableShell *s, int argc, char **argv) {
     return ps_cmd_get(s, 2, argv);
 }
 int ps_cmd_help(PortableShell *s, int argc, char **argv) {
-    PSCommand *c;
+    unsigned i;
     (void)argc;
     (void)argv;
-    for (c = s->commands; c; c = c->next) {
+    for (i = 0; i < ps_command_count(s->core); ++i) {
+        const ps_command *c = ps_command_at(s->core, i);
         ps_print(s, c->name);
         ps_print(s, " ");
-        ps_println(s, c->help);
+        ps_println(s, c->usage);
     }
     return 0;
 }
@@ -429,10 +439,12 @@ PortableShell *ps_create(PSConfig *config) {
         free(s);
         return NULL;
     }
-    ps_set_prompt(s->core, s->config.prompt, PS_STYLE_PROMPT);
+    ps_set_prompt(s->core, s->config.prompt, PS_STYLE_GREEN);
     if (ps_history_limit(s->core, s->config.history_size) != s->config.history_size)
         ps_println(s, "WARNING HISTORY_CLAMPED: rebuild with larger PS_HISTORY for more entries");
-    if (ps_register_command(s, "get", "NAME", ps_cmd_get) ||
+    if (ps_register_command(s, "help", "", ps_cmd_help) ||
+        ps_register_command(s, "clear", "", ps_cmd_clear) ||
+        ps_register_command(s, "get", "NAME", ps_cmd_get) ||
         ps_register_command(s, "set", "NAME VALUE", ps_cmd_set) ||
         ps_register_command(s, "edit", "", ps_cmd_edit) ||
         ps_register_command(s, "cls", "", ps_cmd_clear)) {
@@ -463,6 +475,8 @@ void ps_run(PortableShell *s) {
         return;
     s->running = true;
     ps_start(s->core);
+    if (!s->config.vt100_enabled)
+        ps_print_prompt(s);
     while (s->running && !s->io_error && !ps_exited(s->core)) {
         int c = s->config.read_char(s->config.io_ctx);
         if (c < 0) {
@@ -495,8 +509,11 @@ void ps_println(PortableShell *s, const char *text) {
     }
 }
 void ps_print_prompt(PortableShell *s) {
-    if (s)
-        ps_start(s->core);
+    if (s) {
+        ps_vt100_color(s, 32, -1);
+        ps_print(s, s->config.prompt);
+        ps_vt100_reset(s);
+    }
 }
 /* Trusted terminal controls only; untrusted text goes through ps_print. */
 static void vt(PortableShell *s, const char *text) {
