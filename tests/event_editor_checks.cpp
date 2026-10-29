@@ -112,6 +112,19 @@ int main() {
   assert(std::string(editor.line())==beforeEvent&&editor.cursor()==beforeCursor);
   editor.setPrompt("plain",false);output.clear();editor.prompt(write);
   assert(std::string(output.begin(),output.end())=="plain> ");
+  output.clear();editor.refreshPrompt("new-hostname",write,true);
+  assert(std::string(output.begin(),output.end()).find("new-hostname")!=std::string::npos);
+  assert(std::string(editor.line())==beforeEvent&&editor.cursor()==beforeCursor);
+  const std::string longHost(63,'h'); output.clear();editor.refreshPrompt(longHost.c_str(),write);
+  assert(std::string(output.begin(),output.end()).find(longHost+"> ")!=std::string::npos);
+  editor.setEcho(false);output.clear();editor.refreshPrompt("hidden-host",write);
+  assert(output.empty()&&std::string(editor.line())==beforeEvent);
+  editor.setEcho(true);editor.reset();editor.setEcho(true);
+  feed("echo exact raw tail");assert(editor.remember(true));editor.clear();feed("echo e");
+  editor.suggest(0,0,[](size_t)->const char*{return nullptr;},write);
+  feed("\x1b[F");assert(std::string(editor.line())=="echo exact raw tail");
+  editor.clear();feed("echo e");editor.suggest(0,0,[](size_t)->const char*{return nullptr;},write);
+  editor.clearHistory();feed("\x1b[C");assert(std::string(editor.line())=="echo e");
   char safe[16];terminalText(safe,sizeof(safe),"a\x1bPprivate\x1b\\b\x1b[31mc");assert(std::string(safe)=="abc");
 
   // Inspect the caller-owned backing bytes after an explicit placement
