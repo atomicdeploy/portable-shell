@@ -97,3 +97,6 @@ These prove source and simulated transport behavior, not board deployment.
 `previews/pakar/` contains actual emitted-byte replays of the shared view, using
 Agave on a One Dark background. Fixture values are explicitly supplied by
 `tests/device_view_render.cpp`; they are not live hardware observations.
+
+
+The [rich workspace verification](DEVICE-WORKSPACE-VERIFICATION.md) includes the actual consumer's nine-page key-injection fixture, ANSI captures, Agave pictures, exact source identities and resource measurements.
