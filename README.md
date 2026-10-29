@@ -22,7 +22,7 @@ No Python, JavaScript, ncurses, readline, or third-party runtime is required.
 
 PakarController's editor, Telnet and snapshot/action TUI now have their canonical
 implementation here. See [component selection and comparison](PAKAR-INTEGRATION.md).
-The firmware profile needs no allocator, OS calls or full desktop workspace.
+Both the full runtime and callback editor are available on capable MCUs. Feature flags, not CPU detection, select smaller builds. The shared device table now defaults to rich presentation.
 Ardush now consumes these same components for AVR and STM32, contributing a
 bounded asynchronous terminal-size probe and a shared in-place tokenizer. See
 [AVR/STM32 profiles and Ardush reconciliation](ARDUSH-INTEGRATION.md).
@@ -32,8 +32,8 @@ bounded asynchronous terminal-size probe and a shared in-place tokenizer. See
 Packaged downloads include `bin/`; Git source checkouts exclude generated binaries.
 For a source checkout, follow Build below and run `build/PortableShell` (`.exe` on Windows).
 
-The latest builds are `bin/PortableShell-0.11.0.exe` (portable primitives) and
-`bin/PortableShell-libc-0.8.0.exe` (host C runtime). Launch with `--controls` for the
+The latest builds are `bin/PortableShell-0.12.0.exe` (portable primitives) and
+`bin/PortableShell-libc-0.12.0.exe` (host C runtime). Launch with `--controls` for the
 PCController-style tabs, grouped tables, toggles, PWM sliders, inline values and
 draft/confirmation dialogs. See [PCController controls](PCCONTROLLER-DESIGN.md)
 for provider callbacks and source provenance. Red framed tables, shared column
@@ -44,19 +44,19 @@ for the donor audit and future firmware integration. The unversioned 0.2.0 binar
 is retained to preserve an existing running user session. Current builds
 still default to the violet PortableShell workbench.
 
-Open `bin/PortableShell-0.11.0.exe`. Use **F2** for the workspace, **F1** for the command registry,
+Open `bin/PortableShell-0.12.0.exe`. Use **F2** for the workspace, **F1** for the command registry,
 and **Tab** at the prompt for completion. The program has no startup tutorial.
 
 ```text
-bin/PortableShell-0.11.0.exe --controls
-bin/PortableShell-0.11.0.exe --board
-bin/PortableShell-0.11.0.exe --ascii --no-color
-bin/PortableShell-0.11.0.exe --history history.txt
-bin/PortableShell-0.11.0.exe --command "calc 21 * 2"
-bin/PortableShell-0.11.0.exe -- args "a b" --name=value
-bin/PortableShell-0.11.0.exe --batch
-bin/PortableShell-0.11.0.exe --listen 2323
-bin/PortableShell-0.11.0.exe --serial COM9 --baud 115200
+bin/PortableShell-0.12.0.exe --controls
+bin/PortableShell-0.12.0.exe --board
+bin/PortableShell-0.12.0.exe --ascii --no-color
+bin/PortableShell-0.12.0.exe --history history.txt
+bin/PortableShell-0.12.0.exe --command "calc 21 * 2"
+bin/PortableShell-0.12.0.exe -- args "a b" --name=value
+bin/PortableShell-0.12.0.exe --batch
+bin/PortableShell-0.12.0.exe --listen 2323
+bin/PortableShell-0.12.0.exe --serial COM9 --baud 115200
 ```
 
 `--batch` reads commands from stdin, including a final line without a newline.

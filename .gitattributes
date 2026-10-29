@@ -1,0 +1,2 @@
+# Terminal captures are binary protocol evidence, including exact CR/LF bytes.
+*.ansi binary

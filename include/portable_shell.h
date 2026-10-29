@@ -24,7 +24,7 @@ extern "C" {
 #endif
 #define PS_ARGS 32
 #define PS_VALUE 128
-#define PS_VERSION "0.11.0"
+#define PS_VERSION "0.12.0"
 #ifndef PS_WORKSPACE_INLINE_EDIT
 #define PS_WORKSPACE_INLINE_EDIT 1
 #endif
