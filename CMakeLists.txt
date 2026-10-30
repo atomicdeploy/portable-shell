@@ -24,7 +24,7 @@ include(GNUInstallDirs)
 install(TARGETS portable_shell ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES include/portable_shell.h include/portable_shell_device.h include/portable_remote.h
   include/portable_terminal.h include/portable_editor.h
-  include/portable_segments.h include/portable_meter.h include/portable_parse.h include/portable_probe.h
+  include/portable_segments.h include/portable_meter.h include/portable_monitor.h include/portable_parse.h include/portable_probe.h
   include/portable_shell_editor.hpp include/portable_device_view.hpp
   include/portable_device_table.hpp include/portable_style.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -156,6 +156,15 @@ endif()
 if(PORTABLE_SHELL_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
   enable_testing()
   enable_language(CXX)
+  add_executable(monitor_checks tests/monitor_checks.c tests/render.c)
+  target_compile_definitions(monitor_checks PRIVATE PS_REPLAY_ONLY)
+  target_link_libraries(monitor_checks PRIVATE portable_shell)
+  if(MSVC)
+    target_compile_options(monitor_checks PRIVATE /UNDEBUG)
+  else()
+    target_compile_options(monitor_checks PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+  endif()
+  add_test(NAME monitor_checks COMMAND monitor_checks)
   add_executable(list_checks tests/list_checks.c tests/render.c)
   target_compile_definitions(list_checks PRIVATE PS_REPLAY_ONLY)
   target_link_libraries(list_checks PRIVATE portable_shell)
@@ -353,4 +362,12 @@ if(PORTABLE_SHELL_AUDIT_SYMBOLS)
       "-DUSE_LIBC=${PORTABLE_SHELL_USE_LIBC}" "-DPROVIDE_MEMORY=${PORTABLE_SHELL_PROVIDE_MEMORY}"
       -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-symbols.cmake"
     DEPENDS portable_shell VERBATIM)
+endif()
+
+option(PORTABLE_SHELL_MONITOR_EXAMPLE "Build portable stdin event-monitor adapter" OFF)
+if(PORTABLE_SHELL_MONITOR_EXAMPLE)
+  add_executable(portable_shell_monitor examples/monitor.c)
+  target_include_directories(portable_shell_monitor PRIVATE include)
+  target_compile_features(portable_shell_monitor PRIVATE c_std_11)
+  set_target_properties(portable_shell_monitor PROPERTIES OUTPUT_NAME PortableShellMonitor)
 endif()

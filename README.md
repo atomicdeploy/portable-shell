@@ -10,6 +10,12 @@ console, TCP/Telnet, and serial I/O. No third-party runtime is linked into the c
 [🛡️ CodeQL](https://github.com/atomicdeploy/portable-shell/actions/workflows/codeql.yml) ·
 [🔐 Security](SECURITY.md)
 
+## Live monitoring and logging
+
+Optional task progress, timestamped severity logs, bounded history, pause/follow and filtering. Includes a stdin event adapter and plain pipeline output. [API and commands](https://github.com/atomicdeploy/portable-shell/wiki/Monitoring). These previews use simulated events rendered by the actual component.
+
+![Live monitor](previews/monitor-live.png)
+
 ## Filterable lists
 
 Run menu --list for two-line entries, filtering, pagination and contextual help. [List](previews/menu-list.png) · [Filter](previews/menu-filtered.png) · [API](https://github.com/atomicdeploy/portable-shell/wiki/Menus#filterable-list-mode)

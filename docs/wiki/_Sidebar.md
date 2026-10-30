@@ -18,3 +18,4 @@
 - [🧪 Verification](Verification.md)
 * [Progress and values](Meters.md)
 * [File tree picker](File-picker.md)
+- [Live monitoring and logging](Monitoring.md)
