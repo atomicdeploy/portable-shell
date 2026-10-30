@@ -186,6 +186,9 @@ static int server(unsigned port, const char *host, unsigned flags) {
                     sessions[i] = ps_init(memory[i].data, sizeof memory[i].data, &cfg);
                     if (use_device_commands)
                         ps_device_attach(sessions[i], &profiles[i], 0, 0);
+#ifdef PS_HOST_SESSION_READY
+                    PS_HOST_SESSION_READY(sessions[i]);
+#endif
                     ps_start(sessions[i]);
                 }
             }
