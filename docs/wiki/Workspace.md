@@ -32,3 +32,21 @@ control panel. [Inline editing preview](https://raw.githubusercontent.com/atomic
 The workspace uses the alternate screen and restores the prompt on exit. Minimum
 workspace size is 42×14; smaller terminals receive a compact size indicator.
 
+
+## Table with command prompt
+
+Run `board --prompt` to keep the editable table above a command prompt and a
+small command-output area. F4 switches between table navigation and command
+editing; Esc in the prompt returns focus to the table, and Esc in the table
+closes the view. Clicking the lower panel focuses the prompt. History, completion
+and inline table editing reuse the existing handlers. This mode is opt-in.
+
+Embedders enable `PS_TABLE_PROMPT` alongside their existing table style flags
+before opening a panel. The lower five rows are reserved; allow at least 19
+terminal rows for the normal table layout. The prompt uses the last line of a
+custom multiline prompt. Output uses a VT scrolling region in the lower panel;
+commands that take over the terminal or launch full-screen external programs
+should be run after closing the table. The renderer uses the table layout instead
+of the dashboard layout while this mode is enabled.
+
+![Table and prompt](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/table-prompt.png)

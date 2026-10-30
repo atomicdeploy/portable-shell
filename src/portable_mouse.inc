@@ -1,18 +1,24 @@
 /* Byte-protocol mouse routing. Coordinates share the renderer's cell geometry. */
 static void table_mouse(ps_session *s,const ps_mouse_event *e) {
     unsigned x=e->column,y=e->row,b=e->button,button=b&3,drag=b&32;
-    unsigned inside=!!(s->table_style&PS_TABLE_TABS_INSIDE)&&s->io.rows>=15;
+    unsigned inside=!!(s->table_style&PS_TABLE_TABS_INSIDE)&&table_height(s)>=15;
     unsigned body=7+inside,slots=table_slots(s),i,index,total,focus;
     unsigned short items[512];
     Grid g;
+    if(table_prompt(s)&&!s->editing&&!e->release&&!drag&&button==0&&!(b&~3U)&&x<=s->io.columns&&y<=s->io.rows){
+        s->table_prompt_focus=y>table_height(s);
+        s->dirty=1;
+        if(s->table_prompt_focus){render(s);return;}
+    }
     if(!s->board||!(s->io.flags&PS_INTERACTIVE)||s->io.columns<42||s->io.rows<14)return;
 #if PS_DASHBOARD
-    if(s->control_view&&s->dashboard&&!s->editing){dashboard_mouse(s,e);return;}
+    if(s->control_view&&s->dashboard&&!table_prompt(s)&&!s->editing){dashboard_mouse(s,e);return;}
 #endif
     if(e->release){s->mouse_drag=0;return;}
     if(x>s->io.columns||y>s->io.rows||b&~127U)return;
     if(b&28U)return; /* Let terminal selection/modifier gestures remain non-mutating. */
     if(b&64U){
+        if(table_prompt(s)){if(y>table_height(s))return;s->table_prompt_focus=0;}
         if(!s->editing && button<2)for(i=0;i<3;++i)ps_key(s,button?PS_KEY_DOWN:PS_KEY_UP);
         return;
     }
@@ -85,7 +91,8 @@ static void table_mouse(ps_session *s,const ps_mouse_event *e) {
 static void workspace_mouse(ps_session *s,const ps_mouse_event *e){
     unsigned b=e->button,y=e->row,x=e->column;
     if(e->release||b&60U||x>s->io.columns||y>s->io.rows)return;
-    if(b&64U){if((b&3)<2)ps_key(s,(b&1)?PS_KEY_DOWN:PS_KEY_UP);return;}
+    if(b&64U){
+        if(table_prompt(s)){if(y>table_height(s))return;s->table_prompt_focus=0;}if((b&3)<2)ps_key(s,(b&1)?PS_KEY_DOWN:PS_KEY_UP);return;}
     if((b&3)!=0)return;
 #if PS_FORM && PS_MOUSE
     if(s->form){form_mouse(s,x,y);return;}

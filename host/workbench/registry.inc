@@ -1,7 +1,7 @@
 static const ps_command builtins[] = {
     {"controls", "[open [page]|dashboard|list|get ID|set ID VALUE]", "Workspace", builtin, 0, 0},
     {"help", "[--headings|--compact] [command]", "Shell", builtin, 0, 0},
-    {"board", "[tasks|variables|jobs|session]", "Workspace", builtin, 0, 0},
+    {"board", "[--prompt|--no-prompt|tasks|variables|jobs|session]", "Workspace", builtin, 0, 0},
     {"edit", "[--framed]", "Workspace", builtin, 0, 0},
     {"menu", "[--plain|--list|--no-numbers|--details] [NUMBER ...]", "Workspace", builtin, 0, 0},
     {"files", "", "Workspace", builtin, 0, 0},

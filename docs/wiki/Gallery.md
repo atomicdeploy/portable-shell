@@ -131,3 +131,11 @@ build/previews/native/bin/plain_device_preview previews/device-plain.svg
 Windows adds `.exe` to the last command. To rebuild both SVG and antialiased PNG
 with pinned Agave, use the gallery rebuild command above. CI includes this profile
 and checks that its preview remains current, including its inline-edit regression.
+
+### Table and prompt together
+
+`board --prompt` keeps command input below the table; F4 switches focus.
+`board --no-prompt` restores the table-only layout. Consumers opt in with
+`PS_TABLE_PROMPT`. This actual-output replay includes a task created from the prompt.
+
+![Table with command prompt](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/table-prompt.png)
