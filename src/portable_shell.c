@@ -827,7 +827,6 @@ PS_API void ps_start(ps_session *s) {
         ps_telnet_greet(&s->telnet, telnet_write, s);
     if (s->io.flags & PS_INTERACTIVE) {
         ansi(s, "\033[?2004h");
-        if(!s->table_prompt_focus)ansi(s,"\0337");
         prompt(s);
         if(!s->table_prompt_focus){ansi(s,"\0338");if(s->editing)ansi(s,"\033[?25h");}
     }
@@ -1267,9 +1266,9 @@ static void render(ps_session *s) {
     (void)inner;
     frame_end(s);
     if(table_prompt(s)) {
+        if(!s->table_prompt_focus)ansi(s,"\0337");
         at(s,h+1,1);reset(s);ansi(s,"\033[2K");
         out(s,s->table_prompt_focus?"  F4 table  |  Command prompt":"  F4 prompt |  Table navigation");
-        if(!s->table_prompt_focus)ansi(s,"\0337");
         prompt(s);
         if(!s->table_prompt_focus){ansi(s,"\0338");if(s->editing)ansi(s,"\033[?25h");}
     }
