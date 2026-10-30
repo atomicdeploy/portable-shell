@@ -5,7 +5,7 @@ OS calls or required runtime library. Presentation and input permissions are ind
 
 | Option | Values | Suggested default |
 | --- | --- | --- |
-| Track | `PS_METER_LINE`, `PS_METER_BLOCKS` | Line |
+| Track | PS_METER_LINE, PS_METER_BLOCKS, PS_METER_TICKS, PS_METER_CHEVRONS | Line |
 | Text | `PS_METER_TEXT_ABOVE`, `PS_METER_TEXT_INSIDE`, `PS_METER_TEXT_NONE` | Above |
 | Panel | `panel = 0` or `1` | Off |
 | Title / subtitle | Borrowed strings or NULL | Optional |
@@ -47,8 +47,29 @@ The host supplies viewport space and positions the cursor before drawing. No hea
 render scratch storage is approximately 820 bytes, so tiny-stack consumers can use
 `ps_meter_cell` and `ps_meter_fraction` directly for a single-row display.
 
-Device table `Row::meterStyle` selects LINE or BLOCKS (LINE remains default).
+Device table `Row::meterStyle` selects LINE, BLOCKS, TICKS or CHEVRONS (LINE remains default).
 `Row::meter`, `Row::editable`, pending/readback protection and inline editing retain
 their existing meanings. Panels and multiline labels use the standalone renderer;
 they do not silently expand the existing fixed-height table rows. This does not
 change the shell's existing Jobs page layout.
+
+## Segmented bars and value controls
+
+PS_METER_TICKS draws spaced solid and dotted Unicode strokes (┃ / ┊).
+PS_METER_CHEVRONS draws a centered « value » field; ASCII mode uses << value >>.
+The chevron field always includes its value, even when text is TEXT_NONE.
+These styles change presentation only; adjustable, callback rejection and independent
+observed/requested values retain their existing semantics.
+
+Device-table rows select the same styles through Row::meterStyle. Pending and hidden
+values retain their protective display instead of rendering a meter. Both full and
+reduced consumers can enable PS_DEVICE_VIEW_WIDGETS; no host or MCU detection is used.
+
+Tables already scroll to keep the focused row visible, with ↑/↓, Home/End,
+Page Up/Page Down and mouse wheel input. The dedicated Unicode scrollbar is the
+default; setCompactScrollbar(true) places it on the border instead. Header and footer
+stay visible while body rows move. Navigation does not generate a write action.
+
+![Segmented and value styles, simulated byte replay](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/meters-segmented.png)
+
+![Scrolled to the final row with both styles](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/table-scrolled.png)

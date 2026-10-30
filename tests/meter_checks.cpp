@@ -16,7 +16,7 @@ int main(){
     assert(m.observed==UINT32_MAX/2);
     m.adjustable=0;assert(!ps_meter_position(&m,0,240,0,0));m.adjustable=1;
     ps_meter_style s={48,PS_METER_LINE,PS_METER_TEXT_ABOVE,1,0,0,"Download","Observed / target"};
-    for(unsigned style=0;style<2;++style)for(unsigned text=0;text<3;++text)
+    for(unsigned style=0;style<4;++style)for(unsigned text=0;text<3;++text)
     for(unsigned panel=0;panel<2;++panel)for(unsigned w=8;w<=240;++w){
         s.style=style;s.text=text;s.panel=panel;s.width=w;std::string out;
         unsigned rows=ps_meter_render(&m,&s,output,&out),lines=0;size_t pos=0,end;
@@ -25,5 +25,12 @@ int main(){
     }
     s.width=48;s.unicode=1;s.color=1;s.style=PS_METER_BLOCKS;s.text=PS_METER_TEXT_INSIDE;
     std::string out;ps_meter_render(&m,&s,output,&out);assert(out.find("█")!=std::string::npos);
+    s.style=PS_METER_TICKS;s.text=PS_METER_TEXT_NONE;
+    out.clear();ps_meter_render(&m,&s,output,&out);assert(out.find("┃")!=std::string::npos);
+    s.style=PS_METER_CHEVRONS;out.clear();ps_meter_render(&m,&s,output,&out);
+    assert(out.find("« ")!=std::string::npos&&out.find(" »")!=std::string::npos);
+    char field[244];assert(!ps_meter_value_field(field,4,8,"80",1));
+    assert(ps_meter_value_field(field,sizeof field,8,"80",1));
+    assert(std::string(field)==" « 80 » ");
     m.maximum=0;out.clear();assert(!ps_meter_render(&m,&s,output,&out)&&out.empty());
 }

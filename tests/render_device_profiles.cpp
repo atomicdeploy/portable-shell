@@ -14,7 +14,7 @@ static int save(const char *path){
 }
 int main(int argc,char **argv){
     using V=PortableShell::DeviceView;
-    if(argc!=(PS_PREVIEW_REDUCED?2:8))return 2;
+    if(argc!=(PS_PREVIEW_REDUCED?2:9))return 2;
     V view;V::Snapshot s;V::Action a;
     V::Row rows[]={ {"Output","output","on",true},{"Brightness","brightness","160",true},
         {"Effect","effect","breathe",true},{"Hostname","hostname","workbench",true},
@@ -49,6 +49,12 @@ int main(int argc,char **argv){
     auto capture=[&](){ps_replay_reset();comparison.render(list,[](const uint8_t *p,size_t n){ps_replay_feed(p,unsigned(n));},true);};
     capture();if(save(argv[6]))return 8;
     comparison.setCompactScrollbar(true);capture();if(save(argv[7]))return 9;
+    comparison.setCompactScrollbar(false);
+    entries[30]=rows[1];entries[30].label="Segmented level";entries[30].meterStyle=PS_METER_TICKS;
+    entries[31]=rows[1];entries[31].label="Adjustable limit";entries[31].meterStyle=PS_METER_CHEVRONS;
+    entries[30].category=entries[31].category="Connection";
+    comparison.feed(27,list,a);comparison.feed('[',list,a);comparison.feed('F',list,a);
+    capture();if(save(argv[8]))return 10;
 #endif
     return 0;
 }
