@@ -30,8 +30,20 @@ int main(int argc,char **argv){
     uint8_t states[80];for(unsigned i=0;i<80;++i)states[i]=uint8_t(i%4);
     s.cellStates=states;s.cellStaggered=true;
     view.begin();
+#if PS_DEVICE_VIEW_PLAIN_ROWS
+    view.setTheme(V::Red);
+    view.setTabsInsideTable(true);
+#endif
     auto render=[&](){ps_replay_reset();view.render(s,[](const uint8_t *p,size_t n){ps_replay_feed(p,unsigned(n));},true);};
     render();if(save(argv[1]))return 3;
+#if PS_DEVICE_VIEW_PLAIN_ROWS
+    // The headerless layout retains shared navigation and inline edit requests.
+    view.feed(27,s,a);view.feed('[',s,a);view.feed('B',s,a);
+    view.feed('\r',s,a);view.feed(21,s,a);
+    view.feed('2',s,a);view.feed('0',s,a);view.feed('0',s,a);view.feed('\r',s,a);
+    if(a.type!=V::Action::Set || !ps_text_equal(a.key,"brightness") ||
+       !ps_text_equal(a.value,"200") || !ps_text_equal(rows[1].value,"160"))return 11;
+#endif
     std::printf("DeviceView state: %u bytes; retained_rows=%d widgets=%d dialogs=%d matrix=%d\n",unsigned(sizeof(view)),PS_DEVICE_VIEW_RETAIN_ROWS,PS_DEVICE_VIEW_WIDGETS,PS_DEVICE_VIEW_DIALOGS,PS_DEVICE_VIEW_MATRIX);
 #if !PS_PREVIEW_REDUCED
     view.setTabsInsideTable(true);render();if(save(argv[5]))return 7;
