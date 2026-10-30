@@ -105,9 +105,9 @@ The historical device command vocabulary is also optional application code, in
 `compat/device_profile.c`. It is not included in the framework archive. Set
 `PORTABLE_SHELL_DEVICE_PROFILE=ON` and link `portable_shell_device_profile` to use
 that explicit compatibility template with the framework. The native workbench
-already includes it for its device demonstration option. The old
-`src/portable_shell_device.c` path remains a forwarding source for existing builds;
-compile only one of those two source paths. New consumers should define their own
+already includes it for its device demonstration option. Direct-source consumers
+must compile `compat/device_profile.c` explicitly; no forwarding source is
+provided. New consumers should define their own
 commands and typed settings rather than inherit this fixed compatibility vocabulary.
 
 ## Measured separation

@@ -25,11 +25,24 @@ UTF-8 input bytes. Monochrome uses reverse-video selection; batch output has no 
 Direct GCC portable core build, with no linker libraries:
 
 ```text
-gcc -std=c99 -Os -ffreestanding -fno-builtin -fno-stack-protector -Iinclude -c src/portable_shell.c src/portable_shell_device.c
+gcc -std=c99 -Os -ffreestanding -fno-builtin -fno-stack-protector -Iinclude -c src/portable_shell.c
 gcc -std=c99 -Os -ffreestanding -fno-builtin -fno-lto -fno-tree-loop-distribute-patterns -fno-stack-protector -c ports/memory_runtime.c
-ar rcs libportable_shell.a portable_shell.o portable_shell_device.o memory_runtime.o
+ar rcs libportable_shell.a portable_shell.o memory_runtime.o
 cmake -DNM=nm -DARCHIVE=libportable_shell.a -DUSE_LIBC=OFF -DPROVIDE_MEMORY=ON -P cmake/check-symbols.cmake
 ```
+
+The optional device command catalogue is a separate consumer module. With CMake,
+set `PORTABLE_SHELL_DEVICE_PROFILE=ON` and link `portable_shell_device_profile`.
+For a direct GCC build, compile it explicitly and link its object before the core
+archive (using the same feature and capacity definitions as the core):
+
+```text
+gcc -std=c99 -Os -ffreestanding -fno-builtin -fno-stack-protector -Iinclude -c compat/device_profile.c
+```
+
+The resulting `device_profile.o` belongs in the consumer link, not in
+`libportable_shell.a`. The forwarding source has been removed; source lists must
+use `compat/device_profile.c` directly.
 
 On Windows x86_64 add `-mno-stack-arg-probe` to avoid compiler-generated CRT stack
 probe references. Use sufficient stack space. ARM Cortex-M4/Thumb build:
