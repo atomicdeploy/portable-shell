@@ -83,7 +83,7 @@ static void file_render(ps_session *s){
     at(s,s->io.rows-1,1);
     if(s->file_notice)field(s,s->file_notice,w);
     else {out(s,split?(s->file_pane?"Listing  ":"Tree  "):listing?"Listing  ":"Tree  ");ps_number(s,listing||split?ln:count);out(s," entries  ");if(s->file_directory<s->file_count)field(s,s->file_nodes[s->file_directory].name,w>24?w-24:0);}
-    at(s,s->io.rows,1);footer_field(s,split?"Tab Pane  ↑/↓ Select  ←/→ Fold  Enter Open  Esc Cancel":listing?"↑/↓ Select  Backspace Parent  Enter Open  Esc Cancel":"↑/↓ Select  ←/→ Fold  Enter Open  Esc Cancel",w,0);
+    at(s,s->io.rows,1);footer_field(s,split?"Tab Panel  ↑/↓ Select  ←/→ Fold  Enter Open  Esc Cancel":listing?"↑/↓ Select  Backspace Parent  Enter Open  Esc Cancel":"↑/↓ Select  ←/→ Fold  Enter Open  Esc Cancel",w,0);
 }
 PS_API void ps_file_picker_style(ps_session *s,unsigned layout,unsigned icons){if(s){s->file_layout=layout<=PS_FILE_SPLIT?layout:PS_FILE_TREE;s->file_icons=icons<=PS_FILE_ICONS_ASCII?icons:PS_FILE_ICONS_UNICODE;if(s->file_count)file_render(s);}}
 PS_API int ps_file_browser_open(ps_session *s,const char *title,const ps_file_node *nodes,unsigned count,ps_file_pick_fn fn,ps_file_load_fn load,void *ctx){

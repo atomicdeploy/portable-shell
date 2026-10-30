@@ -6,6 +6,7 @@
 #include "portable_editor.h"
 #include "portable_parse.h"
 #include "portable_probe.h"
+#include "portable_style.h"
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
@@ -16,6 +17,17 @@ static void write_bytes(void *ctx, const unsigned char *p, size_t n) {
     memcpy(output + used, p, n); used += n; output[used] = 0;
 }
 int main(void) {
+    {
+        char grid[128],tiny[3]={'a','b','c'};
+        ps_style_footer_format(grid,sizeof grid,"Enter apply  Esc cancel  Tab panel",80,1);
+        assert(!strncmp(grid+20,"Esc cancel",10)&&!strcmp(grid+40,"Tab panel"));
+        ps_style_footer_format(grid,sizeof grid,"Enter apply  Esc cancel",25,1);
+        assert(!strcmp(grid,"Enter apply  Esc cancel"));
+        ps_style_footer_format(grid,sizeof grid,"Enter apply  Esc cancel",80,0);
+        assert(!strcmp(grid,"Enter apply  Esc cancel"));
+        ps_style_footer_format(tiny,2,"Enter apply",80,1);
+        assert(tiny[0]=='E'&&!tiny[1]&&tiny[2]=='c');
+    }
     char buffer[80] = "cmd 'a b' \"\" a\\ b # comment";
     char *args[8]; ps_parse_result r; ps_terminal_probe probe;
     ps_editor editor; unsigned i; int event = 0;

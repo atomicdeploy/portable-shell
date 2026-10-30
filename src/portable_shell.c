@@ -327,7 +327,10 @@ static void field(ps_session *s, const char *p, unsigned cap) {
     spaces(s, cap - w);
 }
 static void footer_field(ps_session *s,const char *p,unsigned cap,unsigned status){
-    unsigned used=0;
+    char layout[384];unsigned used=0,first=1;
+    (void)status;
+    ps_style_footer_format(layout,sizeof layout,p,cap,PS_FOOTER_GRID&&!(s->table_style&PS_TABLE_COMPACT_FOOTER));p=layout;
+    reset(s);ink(s,0);
     while(*p&&used<cap){
         char token[96];unsigned n=0,w,styled;
         if(*p==' '){out(s," ");++p;++used;continue;}
@@ -335,9 +338,9 @@ static void footer_field(ps_session *s,const char *p,unsigned cap,unsigned statu
         token[n]=0;
         w=min(cells(token,n,s->io.flags),cap-used);
         styled=PS_FOOTER_KEYCAPS&&!(s->table_style&PS_TABLE_PLAIN_KEYS)&&ps_style_key_token(token,n);
-        if(styled)ansi(s,PS_KEYCAP_STYLE);
+        if(styled)ansi(s,!(s->io.flags&PS_COLOR)?"\033[1;7m":first&&(s->table_style&PS_TABLE_PROMINENT_KEYS)?PS_KEYCAP_PROMINENT_STYLE:PS_KEYCAP_STYLE);
         field(s,token,w);
-        if(styled){ansi(s,"\033[0m");reset(s);if(status)surface(s,0);ink(s,0);}
+        if(styled){ansi(s,"\033[0m");reset(s);ink(s,0);first=0;}
         used+=w;p+=n;
     }
     spaces(s,cap-used);
@@ -643,7 +646,7 @@ PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsi
     return width - left;
 }
 PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
-    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS;
+    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER;
     if (s->editing)
         flags = (flags & ~layout) | (s->table_style & layout);
     if ((s->table_style ^ flags) & layout)
@@ -1187,7 +1190,7 @@ static void render(ps_session *s) {
     reset(s);
     at(s, h, 1);
     ansi(s, "\033[2K");
-    surface(s, 0);
+    reset(s);
     ink(s,0);
     out(s, "  ");
     footer_field(
