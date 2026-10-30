@@ -1,7 +1,9 @@
 /* Small, purpose-built ANSI replay renderer for verification. No dependencies.
    This is a test utility, not the shell's terminal renderer. GDB exports SVG. */
+#ifndef PS_REPLAY_ONLY
 #include "portable_shell.h"
 #include "portable_shell_device.h"
+#endif
 #ifndef W
 #define W 96
 #endif
@@ -17,6 +19,7 @@ static unsigned row, col, fg = 0xf1e7ff, bg = 0x17131f, escape, used;
 static unsigned default_fg = 0xf1e7ff, default_bg = 0x17131f;
 static char sequence[64], utf[5];
 static unsigned utf_n, utf_left;
+#ifndef PS_REPLAY_ONLY
 static union {
     void *align;
     unsigned char bytes[40000];
@@ -36,12 +39,15 @@ unsigned preview_controls_n, preview_control_settings_n, preview_control_inline_
 unsigned preview_device_commands_n;
 unsigned preview_tasks_n, preview_variables_n, preview_jobs_n, preview_session_n, preview_edit_n,
     preview_ascii_n, preview_red_n, preview_lumen_n;
+#endif
+#ifndef PS_REPLAY_ONLY
 static unsigned len(const char *p) {
     unsigned n = 0;
     while (p[n])
         ++n;
     return n;
 }
+#endif
 static void blank(unsigned r, unsigned c) {
     screen[r][c].text[0] = ' ';
     screen[r][c].text[1] = 0;
@@ -136,7 +142,7 @@ static void put(const char *p) {
     }
     ++col;
 }
-static void sink(void *ctx, const ps_byte *p, unsigned count) {
+static void sink(void *ctx, const unsigned char *p, unsigned count) {
     (void)ctx;
     while (count--) {
         unsigned c = *p++;
@@ -336,9 +342,11 @@ static unsigned svg(char *p) {
     add("</svg>");
     return size;
 }
+#ifndef PS_REPLAY_ONLY
 static void feed(ps_session *s, const char *p) {
     ps_feed(s, p, len(p));
 }
+#endif
 /* Shared ANSI replay surface for the optional device-view regression pictures. */
 void ps_replay_reset(void) {
     unsigned r,c;
@@ -347,6 +355,7 @@ void ps_replay_reset(void) {
 }
 void ps_replay_feed(const unsigned char *bytes,unsigned count) { sink(0,bytes,count); }
 unsigned ps_replay_svg(char *buffer) { return svg(buffer); }
+#ifndef PS_REPLAY_ONLY
 __attribute__((noinline, noipa)) int render_complete(void) {
     return 0;
 }
@@ -460,3 +469,4 @@ int render_entry(void) {
     }
     return render_complete();
 }
+#endif
