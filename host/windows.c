@@ -519,12 +519,14 @@ int host_main(void) {
             flags |= PS_CASE_INSENSITIVE | PS_NO_BUILTINS | PS_LEGACY_KEYS;
         } else if (equal(argv[i], "--board"))
             board = 1;
+        else if (equal(argv[i], "--edit"))
+            board = 4;
         else if (equal(argv[i], "--menu"))
             board = 3;
         else if (equal(argv[i], "--controls"))
             board = 2;
         else if (equal(argv[i], "--help")) {
-            say("PortableShell [--device-commands] [--board|--controls|--menu] [--ascii] [--no-color] [--no-bell] [--no-suggestions] [--history "
+            say("PortableShell [--device-commands] [--board|--controls|--menu|--edit] [--ascii] [--no-color] [--no-bell] [--no-suggestions] [--history "
                 "FILE]\r\n     "
                 " "
                 "[--command TEXT "
@@ -634,7 +636,7 @@ int host_main(void) {
                                   ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS | (PS_MOUSE?ENABLE_MOUSE_INPUT:0));
     ps_start(s);
     if (board)
-        ps_execute(s, board == 3 ? "menu" : board == 2 ? "controls" : "board");
+        ps_execute(s, board == 4 ? "edit" : board == 3 ? "menu" : board == 2 ? "controls" : "board");
     start = GetTickCount();
     for (;;) {
         if (ps_exited(s) || channels[0].failed)

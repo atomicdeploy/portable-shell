@@ -124,6 +124,14 @@ typedef struct {
     ps_u32 hash;
 } Job;
 struct ps_session {
+    char document[PS_EDITOR ? PS_EDITOR_CAPACITY : 1], document_undo[PS_EDITOR ? PS_EDITOR_CAPACITY : 1], scratch[PS_EDITOR ? PS_EDITOR_CAPACITY : 1];
+    const char *document_title;
+    ps_editor_save_fn document_save;
+    void *document_context;
+    unsigned document_open, document_length, document_pos, document_top;
+    unsigned document_dirty, document_dialog, document_undo_valid, document_undo_pos;
+    unsigned document_undo_dirty;
+    const char *document_notice;
     const ps_menu *menu_stack[PS_MENU_DEPTH];
     unsigned menu_depth, menu_length, menu_bad;
     char menu_input[4];
@@ -559,6 +567,7 @@ static const ps_command builtins[] = {
     {"controls", "[open [page]|list|get ID|set ID VALUE]", "Workspace", builtin, 0, 0},
     {"help", "[--headings|--compact] [command]", "Shell", builtin, 0, 0},
     {"board", "[tasks|variables|jobs|session]", "Workspace", builtin, 0, 0},
+    {"edit", "", "Workspace", builtin, 0, 0},
     {"menu", "[NUMBER ...]", "Workspace", builtin, 0, 0},
     {"task", "add TITLE | done ID | remove ID | rename ID TITLE | list", "Workspace", builtin, 0,
      0},
@@ -756,6 +765,7 @@ static void grid_border(ps_session *s, const Grid *g, unsigned kind, int joined)
     reset(s);
 }
 static void table_open(ps_session *s, unsigned tab) {
+    if(s->document_open)return;
     ps_menu_close(s);
     s->tab = tab;
     s->selected = s->scroll = 0;
@@ -783,6 +793,7 @@ static void table_close(ps_session *s) {
     prompt(s);
 }
 #include "portable_menu.inc"
+#include "portable_editor.inc"
 static void enter_edit(ps_session *, unsigned, const char *);
 static void edit_insert(char *, unsigned *, unsigned *, unsigned, unsigned);
 static void edit_delete(char *, unsigned *, unsigned *, int);
@@ -1254,7 +1265,7 @@ static void prompt(ps_session *s) {
     unsigned start = 0,
              avail = s->io.columns > prompt_width + 2 ? s->io.columns - prompt_width - 2 : 8;
     const char *hint;
-    if (!(s->io.flags & PS_INTERACTIVE) || s->board || s->menu_depth || s->exit)
+    if (!(s->io.flags & PS_INTERACTIVE) || s->board || s->menu_depth || s->document_open || s->exit)
         return;
     ansi(s, "\r\033[2K");
     if (s->custom_prompt) {
@@ -1684,6 +1695,7 @@ PS_API void ps_key(ps_session *s, unsigned key) {
     unsigned i;
     if (s->exit)
         return;
+    if(s->document_open){document_key(s,key);return;}
     if(s->menu_depth){menu_key(s,key);return;}
     if (s->board) {
         table_key(s, key);
@@ -1944,6 +1956,10 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     unsigned i, j;
     const char *cmd = a[0];
     (void)ctx;
+    if(equal(cmd,"edit")){
+        if(argc!=1)return fail(s,"edit");
+        return ps_editor_open(s,"Session notes (memory)",s->scratch,document_save_scratch,s)?0:fail(s,"editor unavailable (interactive terminal required)");
+    }
     if(equal(cmd,"menu")){
         int result=0;
         ps_menu_open(s,&default_menu);
@@ -2413,6 +2429,7 @@ static void escape_key(ps_session *s) {
     else if (equal(p, "[1;5C"))
         key = PS_KEY_WORDRIGHT;
     else if (equal(p, "[200~")) {
+        if(s->document_open&&!s->document_dialog)document_snapshot(s);
         s->paste = 1;
         s->paste_match = 0;
     }
@@ -2432,6 +2449,7 @@ static void input_byte(ps_session *s, unsigned c) {
         }
         if (s->paste_match)
             s->paste_match = 0;
+        if(s->document_open){document_paste(s,c);return;}
         if(s->menu_depth)return; /* Pasted newlines must never activate menu actions. */
         if (c == '\r' || c == '\n' || c == '\t')
             c = ' ';
@@ -2511,7 +2529,7 @@ static void input_byte(ps_session *s, unsigned c) {
     s->suppress_lf = c == '\r';
     if (c == '\n')
         c = 13;
-    if(s->menu_depth){ps_key(s,c);return;}
+    if(s->menu_depth||s->document_open){ps_key(s,c);return;}
     if (!(s->io.flags & PS_INTERACTIVE)) {
         if (c == 13) {
             if (s->overflow) {
@@ -2597,6 +2615,7 @@ PS_API void ps_resize(ps_session *s, unsigned columns, unsigned rows) {
     s->io.columns = columns < 8 ? 8 : min(columns, 240);
     s->io.rows = rows < 4 ? 4 : min(rows, 80);
     s->dirty = 1;
+    if(s->document_open){document_render(s);return;}
     if (s->board) {
         ansi(s, "\033[2J");
         render(s);
@@ -2616,6 +2635,7 @@ PS_API void ps_finish(ps_session *s) {
         ps_tick(s, s->now + 1);
 }
 PS_API void ps_close(ps_session *s) {
+    if(s->document_open)document_close(s);
     ps_menu_close(s);
     if(PS_MOUSE && s->board)ansi(s,"\033[?1002l\033[?1006l");
     if (s->board) {

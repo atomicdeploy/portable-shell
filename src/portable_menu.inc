@@ -30,7 +30,7 @@ PS_API void ps_menu_close(ps_session *s){
     s->menu_depth=s->menu_length=s->menu_bad=0;
 }
 PS_API int ps_menu_open(ps_session *s,const ps_menu *menu){
-    if(!s||s->exit||!menu_valid(menu))return 0;
+    if(!s||s->exit||s->document_open||!menu_valid(menu))return 0;
     if(s->board)table_close(s);
     s->search=0;s->menu_stack[0]=menu;s->menu_depth=1;
     ps_menu_refresh(s);return 1;

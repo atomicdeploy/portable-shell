@@ -282,6 +282,8 @@ int main(int argc, char **argv) {
             flags |= PS_CASE_INSENSITIVE | PS_NO_BUILTINS | PS_LEGACY_KEYS;
         } else if (equal(argv[i], "--board"))
             board = 1;
+        else if (equal(argv[i], "--edit"))
+            board = 4;
         else if (equal(argv[i], "--menu"))
             board = 3;
         else if (equal(argv[i], "--controls"))
@@ -290,7 +292,7 @@ int main(int argc, char **argv) {
             command_at = i + 1;
             break;
         } else if (equal(argv[i], "--help")) {
-            say("PortableShell [--device-commands] [--board|--controls|--menu] [--ascii] [--no-color] [--no-bell] [--no-suggestions] [--history FILE]\n      "
+            say("PortableShell [--device-commands] [--board|--controls|--menu|--edit] [--ascii] [--no-color] [--no-bell] [--no-suggestions] [--history FILE]\n      "
                 "[--command TEXT | "
                 "-- ARGV...] [--batch | --interactive]\n      [--listen PORT [--bind IPv4]] "
                 "[--serial PATH [--baud N]]\n");
@@ -380,7 +382,7 @@ int main(int argc, char **argv) {
         resize(s, outfd);
     ps_start(s);
     if (board)
-        ps_execute(s, board == 3 ? "menu" : board == 2 ? "controls" : "board");
+        ps_execute(s, board == 4 ? "edit" : board == 3 ? "menu" : board == 2 ? "controls" : "board");
     start = clock_ms();
     while (!stopping && !ps_exited(s) && !channels[0].failed) {
         struct pollfd p = {fd, POLLIN, 0};

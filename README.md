@@ -343,3 +343,12 @@ UTF-8 editing is code-point based with common combining/CJK width rules. Complet
 is prefix-based, not fuzzy. Telnet BINARY/CHARSET and authentication are not implemented.
 Task/variable persistence, physical serial operation, actual ARM hardware execution,
 and exhaustive terminal compatibility remain outside this first brief pass.
+
+### Text editor
+
+Run `edit` or launch with `--edit` for wrapped, multiline session notes. Ctrl-S
+saves in memory; Esc/Ctrl-Q offers Save, Discard, or Cancel for modified text.
+The reusable callback API supports application-provided persistence. Includes
+UTF-8 cursor movement, viewport scrolling, multiline paste, and single-step undo.
+
+![Text editor — emitted-byte replay with Agave](previews/document.png)
