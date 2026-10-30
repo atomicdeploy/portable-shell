@@ -64,7 +64,27 @@ Emitted-byte replay fixture with simulated observations; [configuration](Meters.
 
 ## Custom prompts
 
+### Rounded two-line prompt with ❯
+
 ![Multiline prompt](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/prompt-multiline.png)
+
+Use this configuration to reproduce the pictured prompt, including its rounded
+line-drawing characters and custom `❯` symbol:
+
+```text
+prompt success "╭─ operator@workbench" muted "  /configuration\n" command "╰─❯ "
+```
+
+The simpler two-line variant keeps `❯` without the connecting lines:
+
+```text
+prompt success "operator@workbench " muted "/configuration\n" command "❯ "
+```
+
+To restore the default prompt afterwards, run `prompt reset` separately.
+These are runtime prompt settings; no special build profile is required. The
+rounded variant uses Unicode and color output. Its source fixture is rebuilt by
+the gallery pipeline, preserving `╭─`, `╰─` and `❯` in the rendered preview.
 
 [Colored single line](https://github.com/atomicdeploy/portable-shell/blob/main/previews/prompt-colored.png) ·
 [ASCII monochrome](https://github.com/atomicdeploy/portable-shell/blob/main/previews/prompt-ascii.png) ·

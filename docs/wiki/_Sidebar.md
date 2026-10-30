@@ -30,3 +30,4 @@
 - [Local shell language](Local-shell.md)
 - [Terminal OSC integration](OSC.md)
 - [Consumer commands and typed settings](Commands.md)
+- [Consumer-owned feature selection](Feature-selection.md)
