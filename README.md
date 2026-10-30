@@ -10,6 +10,12 @@ console, TCP/Telnet, and serial I/O. No third-party runtime is linked into the c
 [🛡️ CodeQL](https://github.com/atomicdeploy/portable-shell/actions/workflows/codeql.yml) ·
 [🔐 Security](SECURITY.md)
 
+## Terminal interaction
+
+Shared bounded undo/redo, protected bracketed paste, and an opt-in retained screen with clipped windows, scrolling pads and changed-cell repainting. [API and compatibility boundaries](https://github.com/atomicdeploy/portable-shell/wiki/Terminal-interaction).
+
+![Actual retained-screen output replay](previews/retained-screen.png)
+
 ## Rich text output
 
 Optional color conversion, ANSI styles, UTF-8 text, wrapping and alignment, bounded markup, document blocks and lexical highlighting. [Capabilities and limits](https://github.com/atomicdeploy/portable-shell/wiki/Rich-text).
