@@ -298,6 +298,9 @@ static void keyboard(ps_session *s) {
         case VK_F4:
             seq = "\033OS";
             break;
+        case VK_F7:
+            seq = "\033[18~";
+            break;
         case VK_TAB:
             seq = (k->dwControlKeyState & SHIFT_PRESSED) ? "\033[Z" : "\t";
             break;
@@ -654,13 +657,14 @@ int host_main(void) {
     if (history)
         history_load(s, history);
     if (console_out && (flags & PS_INTERACTIVE)) {
-        ps_set_title(s,"PortableShell");
+
         old_cp = GetConsoleOutputCP();
         SetConsoleOutputCP(CP_UTF8);
         if (!SetConsoleMode(output, output_mode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
             say("VT output unavailable; use --batch\r\n");
             return 1;
         }
+        ps_set_title(s,"PortableShell");
         resize(s);
     }
     if (console_in && (flags & PS_INTERACTIVE))

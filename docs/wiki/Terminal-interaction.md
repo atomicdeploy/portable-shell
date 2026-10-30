@@ -74,3 +74,24 @@ Native adapters can query `ps_terminal_state()` and check
 screen ownership; alternate screen ownership does not require mouse capture.
 The Windows host follows this state when configuring `ENABLE_MOUSE_INPUT` and
 restores the original console mode on exit.
+
+### Interactive history
+
+Press **F7** for the numbered command-history dialog. Use ↑/↓ or Home/End to
+select, **Enter** to run, **Tab** to load the command into the normal editable
+prompt, and **Esc** to cancel without changing your draft. The dialog scrolls
+with selection and adapts to terminal resizing.
+
+Submit `!!` to run the latest stored command, or `!n` to run entry n (one-based,
+oldest first, matching the dialog). Numbers refer to the currently retained
+history; they shift when its bounded buffer evicts old entries. Invalid numbers
+leave the input editable and execute nothing. Only complete interactive lines
+expand: quoted, embedded, and scripted exclamation marks remain literal.
+
+Consumers can disable these independently with `PS_HISTORY_DIALOG=0` and
+`PS_HISTORY_EXPANSION=0`. Bindings can override F7. Recalled commands use the
+normal registered command system and do not bypass host execution policy.
+
+The Windows adapter enables `ENABLE_PROCESSED_OUTPUT` and
+`ENABLE_VIRTUAL_TERMINAL_PROCESSING` using `SetConsoleMode` before its initial
+title and interactive output; it restores the original console mode on exit.
