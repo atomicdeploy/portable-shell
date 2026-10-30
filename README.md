@@ -10,6 +10,12 @@ console, TCP/Telnet, and serial I/O. No third-party runtime is linked into the c
 [🛡️ CodeQL](https://github.com/atomicdeploy/portable-shell/actions/workflows/codeql.yml) ·
 [🔐 Security](SECURITY.md)
 
+## Rich text output
+
+Optional color conversion, ANSI styles, UTF-8 text, wrapping and alignment, bounded markup, document blocks and lexical highlighting. [Capabilities and limits](https://github.com/atomicdeploy/portable-shell/wiki/Rich-text).
+
+![Actual rich-text output replay](previews/rich-text.png)
+
 ## Live monitoring and logging
 
 Optional task progress, timestamped severity logs, bounded history, pause/follow and filtering. Includes a stdin event adapter and plain pipeline output. [API and commands](https://github.com/atomicdeploy/portable-shell/wiki/Monitoring). These previews use simulated events rendered by the actual component.

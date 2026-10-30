@@ -53,3 +53,7 @@ set(emoji_url "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4
 set(emoji_sha de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551)
 set(emoji_license_url "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notoemoji/OFL.txt")
 set(emoji_license_sha 500bb1ccf43df7bbb522112f9133a52b16e1c35e809632f5d8609b179152de5b)
+set(cjk_url "https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf")
+set(cjk_sha 68a3fc98800b2a27b371f2fb79991daf3633bd89309d4ffaa6946fd587f375b5)
+set(cjk_license_url "https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Sans/LICENSE")
+set(cjk_license_sha 6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2)

@@ -1,3 +1,7 @@
+#ifdef PS_RICH_REPLAY
+#include "portable_rich.h"
+static unsigned attributes;
+#endif
 /* Small, purpose-built ANSI replay renderer for verification. No dependencies.
    This is a test utility, not the shell's terminal renderer. GDB exports SVG. */
 #ifndef PS_REPLAY_ONLY
@@ -13,6 +17,9 @@
 typedef struct {
     char text[5];
     unsigned fg, bg, span;
+#ifdef PS_RICH_REPLAY
+    unsigned attributes;
+#endif
 } Cell;
 static Cell screen[H][W];
 static unsigned row, col, fg = 0xf1e7ff, bg = 0x17131f, escape, used;
@@ -118,12 +125,21 @@ static void csi(char end) {
     } else if (end == 'm') {
         for (i = 0; i <= n; ++i) {
             if (a[i] == 0) {
+#ifdef PS_RICH_REPLAY
+                attributes=0;
+#endif
                 fg = default_fg;
                 bg = default_bg;
             } else if (a[i] == 7) {
                 unsigned t = fg;
                 fg = bg;
                 bg = t;
+            } else if (a[i] >= 100 && a[i] <= 107) {
+                bg=palette(a[i]-100+8);
+#ifdef PS_RICH_REPLAY
+            } else if(a[i]==1||a[i]==2||a[i]==3||a[i]==4||a[i]==9){
+                attributes|=1u<<a[i];
+#endif
             } else if (a[i] >= 90 && a[i] <= 97) {
                 fg = palette(a[i] - 90 + 8);
             } else if (a[i] >= 30 && a[i] <= 37) {
@@ -149,7 +165,13 @@ static void csi(char end) {
 }
 static void put(const char *p) {
     unsigned i, span = (unsigned char)p[0] == 0xf0 && (unsigned char)p[1] == 0x9f ? 2 : 1;
+    #ifdef PS_RICH_REPLAY
+    uint32_t cp;ps_rich_decode(p,ps_text_length(p),&cp);span=ps_rich_cell_width(cp);if(!span)return;
+#endif
     if (row < H && col < W) {
+#ifdef PS_RICH_REPLAY
+        screen[row][col].attributes=attributes;
+#endif
         for (i = 0; p[i] && i < 4; ++i)
             screen[row][col].text[i] = p[i];
         screen[row][col].text[i] = 0;
@@ -335,6 +357,14 @@ static unsigned svg(char *p) {
                 continue;
             if (v->text[0] && v->text[0] != ' ') {
                 add("<text ");
+#ifdef PS_RICH_REPLAY
+                if(v->attributes&(1u<<1))add("font-weight=\"bold\" ");
+                if(v->attributes&(1u<<2))add("opacity=\"0.6\" ");
+                if(v->attributes&(1u<<3))add("font-style=\"italic\" ");
+                if(v->attributes&(1u<<4))add("text-decoration=\"underline\" ");
+                else if(v->attributes&(1u<<9))add("text-decoration=\"line-through\" ");
+                if((unsigned char)v->text[0]>=0xe1&&(unsigned char)v->text[0]<=0xef)add("font-family=\"Noto Sans CJK JP\" ");
+#endif
                 if((unsigned char)v->text[0]==0xef && ((unsigned char)v->text[1]&0xc0)==0x80)add("font-family=\"Agave Nerd Font Mono\" ");
                 if((unsigned char)v->text[0]==0xf0)add("font-family=\"Noto Emoji\" ");
                 add("x=\"");
@@ -372,6 +402,9 @@ static void feed(ps_session *s, const char *p) {
 #endif
 /* Shared ANSI replay surface for the optional device-view regression pictures. */
 void ps_replay_reset(void) {
+#ifdef PS_RICH_REPLAY
+    attributes=0;
+#endif
     unsigned r,c;
     row=col=saved_row=saved_col=escape=used=utf_n=utf_left=0;fg=default_fg=0xabb2bf;bg=default_bg=0x282c34;
     for(r=0;r<H;++r)for(c=0;c<W;++c)blank(r,c);
