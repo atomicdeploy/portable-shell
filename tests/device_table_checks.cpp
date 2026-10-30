@@ -5,10 +5,18 @@
 using V=PortableShell::DeviceView;
 #if PS_DEVICE_VIEW_TABLE && PS_DEVICE_VIEW_WIDGETS && PS_DEVICE_VIEW_DIALOGS && PS_STYLE_THEMES
 static void widths(const std::string &output,unsigned maximum){
-    unsigned column=0;bool escape=false;
+    unsigned column=0;bool escape=false;std::string sequence;
     for(unsigned char c:output){
-        if(c==27){escape=true;continue;}
-        if(escape){if(c>=0x40&&c<=0x7e&&c!='[')escape=false;continue;}
+        if(c==27){escape=true;sequence.clear();continue;}
+        if(escape){
+            if(c>=0x40&&c<=0x7e&&c!='['){
+                unsigned row=1,col=1;
+                if(c=='H'){std::sscanf(sequence.c_str(),"[%u;%u",&row,&col);column=col-1;}
+                if(c=='G'){std::sscanf(sequence.c_str(),"[%u",&col);column=col-1;}
+                escape=false;
+            }else sequence+=char(c);
+            continue;
+        }
         if(c=='\r')column=0;else if(c=='\n')assert(column<=maximum);
         else if((c&0xc0)!=0x80){++column;assert(column<=maximum);}
     }
