@@ -50,7 +50,7 @@ add_executable(dashboard_preview "${root}/tests/dashboard_checks.c" "${root}/tes
 target_compile_definitions(dashboard_preview PRIVATE PS_REPLAY_ONLY)
 target_compile_options(dashboard_preview PRIVATE -UNDEBUG)
 add_executable(snake_preview "${root}/tests/snake_checks.c" "${root}/tests/render.c")
-target_compile_definitions(snake_preview PRIVATE PS_REPLAY_ONLY PS_RICH_REPLAY W=80)
+target_compile_definitions(snake_preview PRIVATE PS_REPLAY_ONLY PS_RICH_REPLAY W=120 H=40)
 target_compile_options(snake_preview PRIVATE -UNDEBUG)
 foreach(target plain_device_preview snake_preview interaction_preview rich_preview monitor_preview list_preview dashboard_preview form_preview report_preview help_preview segment_preview prompt_preview workspace_preview full_preview reduced_preview meter_preview layout_preview filesystem_preview)
   target_include_directories(${target} PRIVATE "${root}/include")

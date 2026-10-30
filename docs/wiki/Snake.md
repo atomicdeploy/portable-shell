@@ -19,6 +19,8 @@ The host needs an interactive terminal at least 80 columns by 25 rows. A smaller
 | M | Toggle bell |
 | Q / Ctrl-C | Quit |
 
+Edges wrap by default: crossing an edge continues at the opposite edge. Self-collisions still end the round. Use `--no-wrap` for solid walls.
+
 Options: --paused starts waiting for input; --ascii replaces Unicode artwork; --no-color, --16 and --256 select output capabilities; --no-bell mutes feedback. Truecolor and Unicode are default. No Nerd Font is required, although the chosen terminal font must contain the displayed symbols.
 
 A bite adds 10 points and one segment. The game accelerates every 30 points. Filling the entire arena wins. BEL (byte 7) is emitted once on each bite or collision, never continuously on a game-over screen. Terminal settings determine audible versus visual feedback; the program cannot force a speaker.
@@ -36,3 +38,20 @@ This is a deterministic replay fixture showing a longer curved snake, not a scre
 ![Chromatic Snake](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/snake.png)
 
 Tests exercise fragmented arrows, reverse-turn rejection, bounded movement, pause/restart, food, self/wall collisions, full-arena victory, clock wrap, mute/BEL bytes and unchanged-frame output. Native Windows input was also exercised with console key events. Linux/macOS host source is supplied; local runtime verification was on Windows.
+
+## Viewport sizing
+
+The host resizes its retained canvas to the terminal viewport (one bottom row is
+reserved to prevent scrolling), up to the canvas API limit of 512 columns by 256
+rows. Arena width is `(canvas columns - 16) / 2`, and height is `canvas rows - 8`.
+The scoreboard stays on the right and navigation stays at the bottom. The preview
+shows a 120 by 40 canvas and 52 by 32 arena.
+
+Growing preserves the current round. Shrinking preserves it when the snake still
+fits; otherwise a new round begins, retaining best score, bell, wrap and pause
+preferences. A window below 80 by 25 suspends movement until it is large enough.
+
+Native screen buffers are allocated only by the C host adapter. The game model
+remains allocation-free. `PS_SNAKE_CAPACITY` defaults to 65536 segment slots to
+cover the supported canvas range; consumers with smaller viewports may lower it
+(minimum 512), and `snake_resize` rejects arenas exceeding that capacity.
