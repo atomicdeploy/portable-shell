@@ -27,7 +27,9 @@ int main(void){
     clear();ps_key(s,8);frame(0);assert(strstr(output,"ab "));
     ps_key(s,27);ps_key(s,'d');
 #endif
-    ps_execute(s,"controls");ps_tick(s,1000);clear();ps_key(s,PS_KEY_DOWN);ps_tick(s,1100);frame(0);ps_close(s);
+    ps_execute(s,"controls");ps_tick(s,1000);clear();ps_key(s,PS_KEY_DOWN);ps_tick(s,1100);frame(0);    clear();ps_set_selection_marker(s,"* ");ps_tick(s,1200);assert(strstr(output,"* "));
+    clear();ps_set_selection_marker(s,"");ps_tick(s,1300);assert(!strstr(output,"* "));
+    ps_close(s);
     config.flags=PS_INTERACTIVE|PS_NO_SYNC_OUTPUT;s=ps_init(memory.bytes,sizeof memory.bytes,&config);
     clear();ps_execute(s,"menu");ps_key(s,PS_KEY_DOWN);assert(!strstr(output,"2026"));ps_close(s);
     config.flags=0;s=ps_init(memory.bytes,sizeof memory.bytes,&config);clear();ps_execute(s,"echo plain");assert(!strchr(output,27));

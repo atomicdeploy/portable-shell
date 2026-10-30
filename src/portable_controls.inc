@@ -175,8 +175,11 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
         grid_divide(s);
     }
     ink(s, 4);
-    out(s, !s->control_header && s->selected == index ? ((s->io.flags & PS_UNICODE) ? "▸ " : "> ") : "  ");
-    grid_text(s, c->label, g->widths[col++] - 2);
+    {
+        unsigned marker=min(cells(s->selection_marker,length(s->selection_marker),s->io.flags),g->widths[col]);
+        field(s,!s->control_header && s->selected==index?s->selection_marker:"",marker);
+        grid_text(s,c->label,g->widths[col++]-marker);
+    }
     grid_divide(s);
     w = g->widths[col];
     ink(s, !(v.flags & PS_CONTROL_VALID)  ? 0

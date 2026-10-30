@@ -11,7 +11,7 @@ static int save(const char *path){
 }
 int main(int argc,char **argv){
     using V=PortableShell::DeviceView;
-    if(argc!=(PS_DEVICE_VIEW_TABLE?6:2))return 2;
+    if(argc!=(PS_DEVICE_VIEW_TABLE?8:2))return 2;
     V view;V::Snapshot s;V::Action a;
     V::Row rows[]={ {"Output","output","on",true},{"Brightness","brightness","160",true},
         {"Effect","effect","breathe",true},{"Hostname","hostname","workbench",true},
@@ -40,6 +40,12 @@ int main(int argc,char **argv){
     view.feed(27,s,a);view.feed('[',s,a);view.feed('B',s,a);
     view.feed('\r',s,a);view.feed(21,s,a);view.feed('2',s,a);view.feed('0',s,a);view.feed('0',s,a);
     render();if(save(argv[4]))return 6;
+    V comparison;V::Snapshot list=s;V::Row entries[32];
+    for(unsigned i=0;i<32;++i){entries[i]=rows[i%6];entries[i].category=i<16?"Lighting":"Connection";}
+    list.rows=entries;list.rowCount=32;comparison.begin();
+    auto capture=[&](){ps_replay_reset();comparison.render(list,[](const uint8_t *p,size_t n){ps_replay_feed(p,unsigned(n));},true);};
+    capture();if(save(argv[6]))return 8;
+    comparison.setCompactScrollbar(true);capture();if(save(argv[7]))return 9;
 #endif
     return 0;
 }

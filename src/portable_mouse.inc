@@ -47,6 +47,7 @@ static void table_mouse(ps_session *s,const ps_mouse_event *e) {
         while(s->control_view&&index<total&&(items[index]&0x6000))++index;
         if(index>=total)return;
     }
+    if(x>=s->io.columns-table_gutter(s)-1&&x<s->io.columns-1)return;
     if(index>=total)return;
     if(s->control_view){
         if(items[index]&0x6000)return;

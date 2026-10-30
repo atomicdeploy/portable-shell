@@ -152,6 +152,7 @@ struct ps_session {
     ps_config io;
     unsigned theme; /* Legacy palette IDs 0..3; semantic roles are the default (4). */
     unsigned table_style;
+    char selection_marker[32];
     const ps_panel *panel;
     ps_panel local_panel;
     unsigned control_view, dialog, dialog_focus;
@@ -658,12 +659,17 @@ PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsi
     } while (left && changed);
     return width - left;
 }
+PS_API void ps_set_selection_marker(ps_session *s,const char *marker) {
+    str(s->selection_marker,marker?marker:"",sizeof s->selection_marker);
+    s->dirty=1;
+}
 PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
-    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER;
+    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER|PS_TABLE_COMPACT_SCROLLBAR;
     if (s->editing)
         flags = (flags & ~layout) | (s->table_style & layout);
     if ((s->table_style ^ flags) & layout)
         s->control_header = s->scroll = 0;
+    s->canvas_kind=0;
     s->table_style = flags & (PS_TABLE_GRID | PS_TABLE_RED_BORDER | PS_TABLE_TITLE_BAR | layout);
     s->dirty = 1;
 }
@@ -736,6 +742,9 @@ typedef struct {
     const ps_column *columns;
     unsigned count, widths[3];
 } Grid;
+static unsigned table_gutter(const ps_session *s) {
+    return s->io.columns>=64 && !(s->table_style&PS_TABLE_COMPACT_SCROLLBAR)?2:0;
+}
 static Grid grid_for(ps_session *s) {
     static const ps_column tasks[] = {{"ID", 4, 4, 0}, {"State", 8, 8, 0}, {"Task", 12, 0, 1}};
     static const ps_column pairs[] = {{"Key", 10, 24, 1}, {"Value", 14, 0, 3}};
@@ -753,7 +762,7 @@ static Grid grid_for(ps_session *s) {
         g.columns = category ? controls : compact;
         g.count = category ? 3 : 2;
     }
-    ps_layout_columns(s->io.columns - 2, g.columns, g.count, g.widths);
+    ps_layout_columns(s->io.columns - 2 - table_gutter(s), g.columns, g.count, g.widths);
     return g;
 }
 static void grid_vertical(ps_session *s) {
@@ -918,7 +927,8 @@ static void progress_bar(ps_session *s, unsigned width_) {
     out(s, "%");
 }
 static void render(ps_session *s) {
-    unsigned w = s->io.columns, h = s->io.rows, i, count, slots, ids[PS_ROWS], inner;
+    unsigned gutter=table_gutter(s);
+    unsigned w = s->io.columns-gutter, h = s->io.rows, i, count, slots, ids[PS_ROWS], inner;
     unsigned inside = !!(s->table_style & PS_TABLE_TABS_INSIDE) && h>=15;
     unsigned body = 7+inside, tabUsed = 1;
     unsigned displayCount, focus;
@@ -940,7 +950,7 @@ static void render(ps_session *s) {
         ansi(s, "\033[J");
         ink(s, 1);
         out(s, "PortableShell  ");
-        ps_number(s, w);
+        ps_number(s, s->io.columns);
         out(s, (s->io.flags & PS_UNICODE) ? " \xc3\x97 " : " x ");
         ps_number(s, h);
         at(s, 3, 1);
@@ -1127,6 +1137,7 @@ static void render(ps_session *s) {
         out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
         reset(s);
     }
+    if(gutter)for(i=0;i<slots;++i){at(s,body+i,w);reset(s);spaces(s,gutter);}
     if (displayCount > slots) {
         unsigned thumb = slots * slots / displayCount;
         if (!thumb) thumb=1;
@@ -1134,8 +1145,8 @@ static void render(ps_session *s) {
         for(i=0;i<slots;++i){
             unsigned active = i>=top && i<top+thumb;
             unsigned rule = s->control_view && s->scroll+i<displayCount && (controlItems[s->scroll+i]&0x6000);
-            at(s,body+i,w-1);ink(s,active?1:7);
-            out(s,(s->io.flags&PS_UNICODE)?(rule?(active?"┫":"┤"):(active?"┃":"│")):(active?"#":rule?"+":"|"));
+            at(s,body+i,w-1+gutter);ink(s,active?1:7);
+            out(s,(s->io.flags&PS_UNICODE)?(!gutter&&rule?(active?"┫":"┤"):(active?"┃":"│")):(active?"#":!gutter&&rule?"+":"|"));
         }
         reset(s);
     }
@@ -1224,7 +1235,7 @@ static void render(ps_session *s) {
     if (w >= 76) {
         at(s, h, w - 23);
         surface(s, 0);
-        ps_number(s, w);
+        ps_number(s, s->io.columns);
         out(s, (s->io.flags & PS_UNICODE) ? "×" : "x");
         ps_number(s, h);
         out(s, "  ");

@@ -81,7 +81,7 @@ bool mouse(const ps_mouse_event &e,const Snapshot &s,Action &a){
     if(!drag)mouseDrag_=true;
     const unsigned width=s.columns>(PS_DEVICE_VIEW_TABLE?240:100)?(PS_DEVICE_VIEW_TABLE?240:100):s.columns;
     const unsigned offset=PS_DEVICE_VIEW_TABLE&&PS_DEVICE_VIEW_VERTICAL_TABS&&tabs_==VerticalTabs&&width>=64?22:0;
-    const unsigned w=width-1-offset,shift=tabsInsideTable_?0:1,body=PS_DEVICE_VIEW_TABLE?6+shift:4;
+    const unsigned w=width-1-offset-(ansi_&&!compactScrollbar_&&width-offset>=64&&PS_DEVICE_VIEW_TABLE?2:0),shift=tabsInsideTable_?0:1,body=PS_DEVICE_VIEW_TABLE?6+shift:4;
     if(editing_){
         if(button==2&&!drag){clearDraft();dirty_=full_=true;return false;}
         if(y==editRow_&&x>=editColumn_&&x<editColumn_+editWidth_){
@@ -121,14 +121,15 @@ bool mouse(const ps_mouse_event &e,const Snapshot &s,Action &a){
     if(x<=offset+1||y<body||y>=body+mouseVisible_)return false;
     uint16_t items[PS_DEVICE_VIEW_MAX_ROWS*4];unsigned focus;
     const unsigned total=sectionItems(s,items,focus,PS_DEVICE_VIEW_TABLE!=0);
+    if(x>=offset+w&&x<width-1)return false;
     unsigned line=mouseStart_+y-body;
-    if(x==offset+w&&total>mouseVisible_){
+    if(x==width-1&&total>mouseVisible_){
         line=(y-body)*(total-1)/(mouseVisible_>1?mouseVisible_-1:1);
         while(line<total&&(items[line]&0x6000))++line;
     }
     if(line>=total||(items[line]&0x6000))return false;
     selected_=uint8_t(items[line]&0x1fff);sectionFocus_=!!(items[line]&0x8000);dirty_=true;
-    if(x==offset+w)return false;
+    if(x>=offset+w)return false;
     if(sectionFocus_){if(!drag)toggleSection(s,0);return false;}
     const Row *r=currentRow(s);if(!r)return false;
     if(button==2&&!drag)return startDialog(s,a);
@@ -342,7 +343,8 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     if(width<40||s.lines<16){out.raw(s.unicode?"Resize terminal to 40 \xc3\x97 16\r\n":"Resize terminal to 40 x 16\r\n");return true;}
     // Leave the physical terminal's last column free to avoid delayed autowrap.
     const unsigned offset=PS_DEVICE_VIEW_VERTICAL_TABS&&tabs_==VerticalTabs&&ansi_&&width>=64?22:0;
-    const unsigned w=width-1-offset;
+    const unsigned gutter=ansi_&&!compactScrollbar_&&width-offset>=64?2:0;
+    const unsigned w=width-1-offset-gutter;
     const unsigned shift=tabsInsideTable_?0:1,body=6+shift;
     if(offset){sidebar(out,s,s.lines-3);out.indent(offset);out.position(1);}
     base(out);ink(out,7);if(!shift)out.raw(s.unicode?"\xe2\x95\xad\xe2\x94\x80 ":"+- ");
@@ -414,8 +416,11 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
         edge(out,s,"\xe2\x94\x82 ","| ");
         if(category)cell(r&&(i==0||!ps_text_equal(r->category,s.rows[at-1].category))?r->category:"",groupWidth);
         if(selected&&ansi_)out.raw(ps_style_surface(theme_,trueColor_,2));
-        ink(out,selected&&theme_!=Semantic?1:4);out.raw(selected?(s.unicode?"\xe2\x96\xb8 ":"> "):"  ");
-        out.field(r?r->label:"",labelWidth-2);edge(out,s," \xe2\x94\x82 "," | ");
+        ink(out,selected&&theme_!=Semantic?1:4);
+        char markerText[241];const unsigned marker=unsigned(terminalText(markerText,sizeof markerText,selectionMarker_));
+        const unsigned markerWidth=marker<labelWidth?marker:labelWidth;
+        out.field(selected?markerText:"",markerWidth);
+        out.field(r?r->label:"",labelWidth-markerWidth);edge(out,s," \xe2\x94\x82 "," | ");
         if(selected&&editing_&&(!dialog_||!ansi_)){editValue(out,valueWidth);editRow_=body+i;editColumn_=offset+labelWidth+6+(category?groupWidth+3:0);editWidth_=valueWidth;}
         else if(r)value(out,s,*r,valueWidth);else out.field("",valueWidth);
         edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");
@@ -423,6 +428,7 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     paintedSelection_=selected_;paintedGrid_=grid_;
     if(ansi_){
         if(paintAll)blankRows(out,s,body+visible,s.lines-4-diagnostics,w,groupWidth,labelWidth);
+        if(gutter){base(out);for(unsigned i=0;i<s.lines-9-shift-diagnostics;++i){out.position(body+i,w+1);out.field("",gutter);}}
         if(total>visible){
             const unsigned height=s.lines-9-shift-diagnostics;
             const unsigned thumb=height*visible/total?height*visible/total:1;
@@ -431,9 +437,9 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
             for(unsigned i=0;i<height;++i){
                 const bool active=i>=top&&i<top+thumb;
                 const bool border=i<visible&&(logical[start+i]&0x6000);
-                out.position(body+i,w);
+                out.position(body+i,w+gutter);
                 if(previous!=int(active)){ink(out,active?1:7);previous=int(active);}
-                out.raw(s.unicode?(border?(active?"┫":"┤"):(active?"┃":"│")):(active?"#":border?"+":"|"));
+                out.raw(s.unicode?(!gutter&&border?(active?"┫":"┤"):(active?"┃":"│")):(active?"#":!gutter&&border?"+":"|"));
             }
         }
         out.position(s.lines-3-diagnostics);
