@@ -232,6 +232,7 @@ struct ps_session {
 #endif
     Job job;
     unsigned tab, selected, scroll, board, dirty, exit, started;
+    unsigned table_prompt_focus;
     unsigned canvas_kind, canvas_key, canvas_columns, canvas_rows;
     int status;
     unsigned esc, esc_len;
@@ -427,6 +428,22 @@ static void notice(ps_session *s, const char *p) {
 }
 static void prompt(ps_session *s);
 static void render(ps_session *s);
+/* Reserve three output rows, a focus hint and a single-line prompt. */
+enum { TABLE_PROMPT_ROWS = 5 };
+static int table_prompt(const ps_session *s) {
+    return s->board && (s->table_style & PS_TABLE_PROMPT);
+}
+static unsigned table_height(const ps_session *s) {
+    return table_prompt(s)
+        ? (s->io.rows > TABLE_PROMPT_ROWS ? s->io.rows - TABLE_PROMPT_ROWS : 1)
+        : s->io.rows;
+}
+static void table_prompt_region(ps_session *s) {
+    if(table_prompt(s)) {
+        ansi(s,"\033[");ps_number(s,table_height(s)+2);out(s,";");
+        ps_number(s,s->io.rows);out(s,"r");
+    }
+}
 #if PS_WORKBENCH
 static int builtin(ps_session *s, int argc, const char *const *argv, void *ctx);
 #endif
@@ -744,12 +761,13 @@ PS_API void ps_set_selection_marker(ps_session *s,const char *marker) {
     s->dirty=1;
 }
 PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
-    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER|PS_TABLE_COMPACT_SCROLLBAR|PS_TABLE_SECTION_BOTTOM|PS_TABLE_STATIC_SECTIONS|PS_TABLE_SECTION_PLUS_MINUS|PS_TABLE_SECTION_NO_ICONS|PS_TABLE_RESERVE_SCROLLBAR;
+    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER|PS_TABLE_COMPACT_SCROLLBAR|PS_TABLE_SECTION_BOTTOM|PS_TABLE_STATIC_SECTIONS|PS_TABLE_SECTION_PLUS_MINUS|PS_TABLE_SECTION_NO_ICONS|PS_TABLE_RESERVE_SCROLLBAR|PS_TABLE_PROMPT;
     if (s->editing)
         flags = (flags & ~layout) | (s->table_style & layout);
     if ((s->table_style ^ flags) & layout)
         s->control_header = s->scroll = 0;
     s->canvas_kind=0;
+    if((s->table_style & PS_TABLE_PROMPT) && !(flags & PS_TABLE_PROMPT))ansi(s,"\033[r");
     s->table_style = flags & (PS_TABLE_GRID | PS_TABLE_RED_BORDER | PS_TABLE_TITLE_BAR | layout);
     s->dirty = 1;
 }
@@ -809,7 +827,9 @@ PS_API void ps_start(ps_session *s) {
         ps_telnet_greet(&s->telnet, telnet_write, s);
     if (s->io.flags & PS_INTERACTIVE) {
         ansi(s, "\033[?2004h");
+        if(!s->table_prompt_focus)ansi(s,"\0337");
         prompt(s);
+        if(!s->table_prompt_focus){ansi(s,"\0338");if(s->editing)ansi(s,"\033[?25h");}
     }
 }
 #if PS_WORKBENCH
@@ -858,8 +878,9 @@ static void grid_vertical(ps_session *s) {
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
 }
 static unsigned table_slots(const ps_session *s) {
-    unsigned reserved=13+((s->table_style&PS_TABLE_TABS_INSIDE)&&s->io.rows>=15?1:0);
-    return s->io.rows>reserved?s->io.rows-reserved:1;
+    unsigned height=table_height(s);
+    unsigned reserved=13+((s->table_style&PS_TABLE_TABS_INSIDE)&&height>=15?1:0);
+    return height>reserved?height-reserved:1;
 }
 static void grid_divide(ps_session *s) {
     out(s, " ");
@@ -908,6 +929,7 @@ static void table_open(ps_session *s, unsigned tab) {
     }
     if (!s->board) {
         s->board = 1;
+        s->table_prompt_focus = !!(s->table_style & PS_TABLE_PROMPT);
         reset(s);
         s->canvas_kind=0;
         ansi(s, "\033[?1049h\033[?25l");
@@ -922,7 +944,7 @@ static void table_close(ps_session *s) {
     s->dialog = s->control_view = 0;
     s->board = 0;
     s->filter[0] = 0;
-    ansi(s, "\033[0m\033[?25h\033[?1049l");
+    ansi(s, "\033[r\033[0m\033[?25h\033[?1049l");
     prompt(s);
 }
 static void edit_insert(char *, unsigned *, unsigned *, unsigned, unsigned);
@@ -947,7 +969,7 @@ static unsigned table_gutter(ps_session *s) {
 #endif
 static void render(ps_session *s) {
     unsigned gutter=table_gutter(s);
-    unsigned w = s->io.columns-gutter, h = s->io.rows, i, count, slots, inner;
+    unsigned w = s->io.columns-gutter, h = table_height(s), i, count, slots, inner;
 #if PS_WORKBENCH
     unsigned ids[PS_ROWS];
 #endif
@@ -963,7 +985,7 @@ static void render(ps_session *s) {
         return;
     s->dirty = 0;
 #if PS_DASHBOARD
-    if(s->control_view&&s->dashboard&&w>=42&&h>=14){dashboard_render(s);return;}
+    if(s->control_view&&s->dashboard&&!table_prompt(s)&&w>=42&&h>=14){dashboard_render(s);return;}
 #endif
     s->mouse_edit_width=0;
     zero(s->mouse_tab_left,sizeof s->mouse_tab_left);
@@ -983,6 +1005,7 @@ static void render(ps_session *s) {
         at(s, 3, 1);
         out(s, (s->io.flags & PS_UNICODE) ? "42 \xc3\x97 14 minimum | Esc shell" : "42 x 14 minimum | Esc shell");
         frame_end(s);
+        if(table_prompt(s))prompt(s);
         return;
     }
     inner = w - 6;
@@ -1243,6 +1266,13 @@ static void render(ps_session *s) {
 #endif
     (void)inner;
     frame_end(s);
+    if(table_prompt(s)) {
+        at(s,h+1,1);reset(s);ansi(s,"\033[2K");
+        out(s,s->table_prompt_focus?"  F4 table  |  Command prompt":"  F4 prompt |  Table navigation");
+        if(!s->table_prompt_focus)ansi(s,"\0337");
+        prompt(s);
+        if(!s->table_prompt_focus){ansi(s,"\0338");if(s->editing)ansi(s,"\033[?25h");}
+    }
 }
 static unsigned collect_completions(ps_session *, unsigned *, unsigned *, const char **);
 static unsigned encode_completion(const char *, unsigned, char *);
@@ -1296,8 +1326,12 @@ static void prompt(ps_session *s) {
     unsigned start = 0,
              avail = s->io.columns > prompt_width + 2 ? s->io.columns - prompt_width - 2 : 8;
     const char *hint;
-    if (!(s->io.flags & PS_INTERACTIVE) || s->board || s->menu_depth || s->file_count || s->document_open || s->exit)
+    if (!(s->io.flags & PS_INTERACTIVE) || (s->board && !table_prompt(s)) || s->menu_depth || s->file_count || s->document_open || s->exit)
         return;
+    if(table_prompt(s)) {
+        shown=0;skip=lines;s->prompt_rows_drawn=0;
+        table_prompt_region(s);at(s,s->io.rows,1);
+    }
     frame_begin(s);
     ansi(s, "\r");
     old=min(s->prompt_rows_drawn,s->io.rows-1);
@@ -1367,6 +1401,7 @@ static void prompt(ps_session *s) {
         reset(s);
         ansi(s,"\033[K");
     }
+    if(table_prompt(s))ansi(s,s->table_prompt_focus?"\033[?25h":"\033[?25l");
     frame_end(s);
 }
 static void edit_insert(char *buf, unsigned *len, unsigned *pos, unsigned cap, unsigned c) {
@@ -1603,9 +1638,17 @@ static void shell_key(ps_session *s, unsigned key) {
     if(s->file_count){file_key(s,key);return;}
     if(s->document_open){document_key(s,key);return;}
     if(s->menu_depth){menu_key(s,key);return;}
-    if (s->board) {
+    if(table_prompt(s) && key==PS_KEY_F4 && !s->editing) {
+        s->table_prompt_focus=!s->table_prompt_focus;s->dirty=1;render(s);return;
+    }
+    if (s->board && (!table_prompt(s)||!s->table_prompt_focus)) {
         table_key(s, key);
         return;
+    }
+    if(table_prompt(s)) {
+        if(key==27){s->table_prompt_focus=0;s->dirty=1;render(s);return;}
+        table_prompt_region(s);at(s,s->io.rows,1);
+        if(key==13||key==3||key==12)s->dirty=1;
     }
     if (s->search) {
         if (key == 27 || key == 3) {
@@ -1796,7 +1839,7 @@ PS_API void ps_key(ps_session *s,unsigned key){
 #if PS_UNDO_DEPTH
     unsigned binding,bound=0;
     for(binding=0;binding<s->binding_count;++binding)if(s->bindings[binding].key==key){bound=1;break;}
-    if(!s->board&&!s->document_open&&!s->menu_depth&&!s->file_count&&!form_is_active(s)){
+    if((!s->board||(table_prompt(s)&&s->table_prompt_focus))&&!s->document_open&&!s->menu_depth&&!s->file_count&&!form_is_active(s)){
         if(!s->undo.frames)ps_undo_bind(&s->undo,&s->undo_frames[0][0],s->undo_positions,PS_LINE,PS_UNDO_DEPTH+1);
         if(!bound&&!s->search&&(key==31||key==PS_KEY_UNDO||key==PS_KEY_REDO)){
             ps_undo_record(&s->undo,s->line,s->pos);
@@ -1983,7 +2026,7 @@ static void escape_key(ps_session *s) {
     else if (equal(p, "[200~")) {
         if(s->document_open&&!s->document_dialog)document_snapshot(s);
 #if PS_UNDO_DEPTH
-        if(!s->board&&!form_is_active(s)&&!s->document_open&&!s->menu_depth&&!s->file_count){
+        if((!s->board||(table_prompt(s)&&s->table_prompt_focus))&&!form_is_active(s)&&!s->document_open&&!s->menu_depth&&!s->file_count){
             if(!s->undo.frames)ps_undo_bind(&s->undo,&s->undo_frames[0][0],s->undo_positions,PS_LINE,PS_UNDO_DEPTH+1);
             ps_undo_record(&s->undo,s->line,s->pos);
         }
@@ -2002,7 +2045,7 @@ static void input_byte(ps_session *s, unsigned c) {
                 s->paste = 0;
                 s->paste_match = 0;
 #if PS_UNDO_DEPTH
-                if(s->undo.frames&&!s->board&&!form_is_active(s)&&!s->document_open&&!s->menu_depth&&!s->file_count)ps_undo_record(&s->undo,s->line,s->pos);
+                if(s->undo.frames&&(!s->board||(table_prompt(s)&&s->table_prompt_focus))&&!form_is_active(s)&&!s->document_open&&!s->menu_depth&&!s->file_count)ps_undo_record(&s->undo,s->line,s->pos);
 #endif
                 prompt(s);
             }
@@ -2021,7 +2064,7 @@ static void input_byte(ps_session *s, unsigned c) {
             if (s->board && s->editing && (!s->control_view || !s->dialog_focus)) {
                 edit_insert(s->edit, &s->editlen, &s->editpos, s->control_view ? 64 : PS_VALUE, c);
                 s->dirty = 1;
-            } else if (!s->board) {
+            } else if (!s->board || (table_prompt(s)&&s->table_prompt_focus)) {
                 if (s->len + 1 >= PS_LINE)
                     s->overflow = 1;
                 else
@@ -2200,7 +2243,7 @@ PS_API void ps_close(ps_session *s) {
     ps_menu_close(s);
     if(PS_MOUSE && s->board)ansi(s,"\033[?1002l\033[?1006l");
     if (s->board) {
-        ansi(s, "\033[?1049l");
+        ansi(s, "\033[r\033[?1049l");
         s->board = 0;
     }
     ansi(s, "\033[0m\033[?25h\033[?2004l");
