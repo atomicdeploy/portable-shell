@@ -10,6 +10,10 @@ console, TCP/Telnet, and serial I/O. No third-party runtime is linked into the c
 [🛡️ CodeQL](https://github.com/atomicdeploy/portable-shell/actions/workflows/codeql.yml) ·
 [🔐 Security](SECURITY.md)
 
+## Forms
+
+Framed text input, validation messages, radio choices and sequential steps share the existing byte editor. [Validation](previews/form-validation.png) · [Choices](previews/form-choice.png) · [Completed and active steps](previews/form-steps.png) · [API](https://github.com/atomicdeploy/portable-shell/wiki/Shell#framed-forms)
+
 ## Reports
 
 Borderless dotted-leader reports support sections, muted annotations and right-aligned values. Run status --report or supply application rows through ps_print_report. [Actual-output preview](previews/report-leaders.png) · [Live session](previews/report-status.png)

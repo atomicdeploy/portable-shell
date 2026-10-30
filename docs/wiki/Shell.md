@@ -162,3 +162,46 @@ Help and reports share text-flow, UTF-8 and semantic-color primitives.
 and [live session report](https://github.com/atomicdeploy/portable-shell/blob/main/previews/report-status.png)
 are rendered from actual emitted bytes with Agave. Schema rows are demonstration
 data, not a database connection.
+
+## Framed forms
+
+The optional ps_form API provides framed text questions, radio-style choices,
+validation and sequential steps. Call ps_form_open with a ps_form descriptor.
+Each ps_form_field supplies a label, kind, writable value buffer and capacity.
+Text fields support minimum/maximum Unicode code-point counts; choice fields
+supply borrowed strings. A validator may return a borrowed error message or
+NULL to accept. The done callback receives accepted=1 after the last step, or
+accepted=0 on cancellation.
+
+All descriptors, choices, buffers and callback context must remain alive until
+the form closes. Enter validates before changing a value. Accepted steps write
+their caller buffers immediately; cancel leaves earlier accepted steps intact,
+so applications requiring atomic updates should use draft buffers and commit
+only in the successful done callback. Rejected/current drafts never overwrite
+the caller's value. The active input uses the existing PS_VALUE editor buffer.
+This is not a password-input API.
+
+Text supports insert/delete, Home/End, Ctrl-U and horizontal scrolling. Choices
+support Up/Down and Home/End, with a viewport for longer lists. Mouse clicks
+position the text cursor or select choices; wheel events navigate choices.
+Pasted newlines cannot accept a step. Esc or Ctrl-C cancels. The preceding
+accepted answer is displayed above the next question when height allows;
+all accepted answers remain in the caller buffers.
+
+Forms use an alternate screen and require an interactive terminal at least
+20 columns by 8 rows. Smaller resize events retain state until the viewport
+becomes usable again. Non-interactive open returns zero immediately; consumers
+should supply arguments or another input provider in batch mode. A competing
+workspace cannot take over the form's shared editor. Close restores cursor,
+mouse reporting and the original screen.
+
+PS_FORM=0 removes form state and rendering; public entry points become inert.
+PS_MOUSE=0 independently removes mouse support. Existing semantic color,
+ASCII/Unicode and synchronized-output settings apply. No allocation or OS API
+is introduced. tests/form_checks.c is a complete descriptor/callback example
+and drives the same public byte-input API used by a host.
+
+Actual-output Agave previews:
+[validation](https://github.com/atomicdeploy/portable-shell/blob/main/previews/form-validation.png),
+[choices](https://github.com/atomicdeploy/portable-shell/blob/main/previews/form-choice.png),
+[steps](https://github.com/atomicdeploy/portable-shell/blob/main/previews/form-steps.png).

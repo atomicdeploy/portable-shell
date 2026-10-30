@@ -84,6 +84,9 @@ static void workspace_mouse(ps_session *s,const ps_mouse_event *e){
     if(e->release||b&60U||x>s->io.columns||y>s->io.rows)return;
     if(b&64U){if((b&3)<2)ps_key(s,(b&1)?PS_KEY_DOWN:PS_KEY_UP);return;}
     if((b&3)!=0)return;
+#if PS_FORM && PS_MOUSE
+    if(s->form){form_mouse(s,x,y);return;}
+#endif
     if(s->file_count&&s->io.rows>=7&&y>=3&&y<s->io.rows-3&&x>1&&x<s->io.columns-1){
         file_mouse(s,x,y);
     }else if(s->menu_depth&&menu_framed(s)&&y>=4&&y<4+s->menu_slots&&x>s->menu_x&&x<s->menu_x+s->menu_width-1){

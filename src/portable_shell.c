@@ -125,6 +125,11 @@ typedef struct {
     ps_u32 hash;
 } Job;
 struct ps_session {
+#if PS_FORM
+    const ps_form *form;
+    unsigned form_index, form_choice, form_top;
+    const char *form_error;
+#endif
     char document[PS_EDITOR ? PS_EDITOR_CAPACITY : 1], document_undo[PS_EDITOR ? PS_EDITOR_CAPACITY : 1], scratch[PS_EDITOR ? PS_EDITOR_CAPACITY : 1];
     const char *document_title;
     ps_editor_save_fn document_save;
@@ -828,7 +833,7 @@ static void grid_border(ps_session *s, const Grid *g, unsigned kind, int joined)
     reset(s);
 }
 static void table_open(ps_session *s, unsigned tab) {
-    if(s->document_open)return;
+    if(s->document_open||ps_form_active(s))return;
     ps_file_picker_close(s);
     ps_menu_close(s);
     s->tab = tab;
@@ -1327,7 +1332,13 @@ static const char *suggest(ps_session *s, char *buffer) {
     }
     return 0;
 }
+#if PS_FORM
+static void form_render(ps_session *s);
+#endif
 static void prompt(ps_session *s) {
+#if PS_FORM
+    if(s->form){form_render(s);return;}
+#endif
     char display[PS_LINE>256?PS_LINE:256];
     unsigned i,last=0,lines=0,shown,skip,old;
     for(i=0;s->custom_prompt&&s->prompt_text[i];++i)
@@ -1791,10 +1802,14 @@ static void history_search(ps_session *s) {
     ps_ring_bell(s);
     notice(s, "No older match");
 }
+#include "portable_form.inc"
 PS_API void ps_key(ps_session *s, unsigned key) {
     unsigned i;
     if (s->exit)
         return;
+#if PS_FORM
+    if(s->form){form_key(s,key);return;}
+#endif
     if(s->file_count){file_key(s,key);return;}
     if(s->document_open){document_key(s,key);return;}
     if(s->menu_depth){menu_key(s,key);return;}
@@ -2550,7 +2565,7 @@ static void escape_key(ps_session *s) {
     if(p[0]=='['&&p[1]=='<'){
         ps_mouse_event event;
         if(PS_MOUSE&&ps_mouse_parse(p+1,&event)){
-            if(s->file_count||s->menu_depth)workspace_mouse(s,&event);else table_mouse(s,&event);
+            if(s->file_count||s->menu_depth||ps_form_active(s))workspace_mouse(s,&event);else table_mouse(s,&event);
         }
         return;
     }
@@ -2607,6 +2622,9 @@ static void input_byte(ps_session *s, unsigned c) {
         }
         if (s->paste_match)
             s->paste_match = 0;
+#if PS_FORM
+        if(s->form){if(c>=32&&c!=127)form_key(s,c);return;}
+#endif
         if(s->document_open){document_paste(s,c);return;}
         if(s->menu_depth||s->file_count)return; /* Pasted newlines must never activate menu actions. */
         if (c == '\r' || c == '\n' || c == '\t')
@@ -2777,6 +2795,9 @@ PS_API void ps_resize(ps_session *s, unsigned columns, unsigned rows) {
     s->io.columns = columns < 8 ? 8 : min(columns, 240);
     s->io.rows = rows < 4 ? 4 : min(rows, 80);
     s->dirty = 1;
+#if PS_FORM
+    if(s->form){form_render(s);return;}
+#endif
     if(s->document_open){document_render(s);return;}
     if(s->file_count){file_render(s);return;}
     if(s->menu_depth){ps_menu_refresh(s);return;}
@@ -2798,6 +2819,7 @@ PS_API void ps_finish(ps_session *s) {
         ps_tick(s, s->now + 1);
 }
 PS_API void ps_close(ps_session *s) {
+    ps_form_close(s);
     ps_file_picker_close(s);
     if(s->document_open)document_close(s);
     ps_menu_close(s);
