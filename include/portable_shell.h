@@ -178,13 +178,15 @@ enum { PS_TABLE_GRID = 1, PS_TABLE_RED_BORDER = 2, PS_TABLE_TITLE_BAR = 4,
        PS_TABLE_CATEGORY_COLUMN = 8, PS_TABLE_COMPACT_SECTIONS = 16,
        PS_TABLE_TABS_INSIDE = 32, PS_TABLE_PLAIN_KEYS = 64,
        PS_TABLE_TAB_BRACKETS = 128, PS_TABLE_PROMINENT_KEYS = 256,
-       PS_TABLE_COMPACT_FOOTER = 512, PS_TABLE_COMPACT_SCROLLBAR = 1024, PS_TABLE_SECTION_BOTTOM = 2048, PS_TABLE_DEFAULT = 5 };
+       PS_TABLE_COMPACT_FOOTER = 512, PS_TABLE_COMPACT_SCROLLBAR = 1024, PS_TABLE_SECTION_BOTTOM = 2048, PS_TABLE_STATIC_SECTIONS = 4096,
+       PS_TABLE_SECTION_PLUS_MINUS = 8192, PS_TABLE_SECTION_NO_ICONS = 16384, PS_TABLE_RESERVE_SCROLLBAR = 32768, PS_TABLE_DEFAULT = 5 };
 /* Fits 1..8 columns into a framed width (max 240), including padding/separators.
    Returns occupied width, or 0 if minima do not fit / definitions are invalid. */
 PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsigned count,
                                   unsigned *widths);
 PS_API void ps_set_table_style(ps_session *, unsigned flags);
 /* Marker is copied into session storage; empty removes its reserved label cells. */
+/* NULL restores automatic selection marker; empty string explicitly hides it. */
 PS_API void ps_set_selection_marker(ps_session *, const char *marker);
 typedef void (*ps_write_fn)(void *context, const ps_byte *bytes, unsigned count);
 typedef int (*ps_line_fn)(ps_session *, const char *line, void *context);

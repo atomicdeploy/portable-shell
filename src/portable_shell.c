@@ -1,3 +1,4 @@
+#include "portable_table_policy.h"
 #include "portable_osc.h"
 #include "portable_undo.h"
 #include "portable_style.h"
@@ -168,6 +169,7 @@ struct ps_session {
     unsigned theme; /* Legacy palette IDs 0..3; semantic roles are the default (4). */
     unsigned table_style;
     char selection_marker[32];
+    unsigned selection_marker_override;
     const ps_panel *panel;
     ps_panel local_panel;
     unsigned control_view, dialog, dialog_focus;
@@ -706,11 +708,12 @@ PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsi
     return width - left;
 }
 PS_API void ps_set_selection_marker(ps_session *s,const char *marker) {
+    s->selection_marker_override=marker!=0;
     str(s->selection_marker,marker?marker:"",sizeof s->selection_marker);
     s->dirty=1;
 }
 PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
-    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER|PS_TABLE_COMPACT_SCROLLBAR|PS_TABLE_SECTION_BOTTOM;
+    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER|PS_TABLE_COMPACT_SCROLLBAR|PS_TABLE_SECTION_BOTTOM|PS_TABLE_STATIC_SECTIONS|PS_TABLE_SECTION_PLUS_MINUS|PS_TABLE_SECTION_NO_ICONS|PS_TABLE_RESERVE_SCROLLBAR;
     if (s->editing)
         flags = (flags & ~layout) | (s->table_style & layout);
     if ((s->table_style ^ flags) & layout)
@@ -788,9 +791,7 @@ typedef struct {
     const ps_column *columns;
     unsigned count, widths[3];
 } Grid;
-static unsigned table_gutter(const ps_session *s) {
-    return s->io.columns>=64 && !(s->table_style&PS_TABLE_COMPACT_SCROLLBAR)?2:0;
-}
+static unsigned table_gutter(ps_session *s);
 static Grid grid_for(ps_session *s) {
     static const ps_column tasks[] = {{"ID", 4, 4, 0}, {"State", 8, 8, 0}, {"Task", 12, 0, 1}};
     static const ps_column pairs[] = {{"Key", 10, 24, 1}, {"Value", 14, 0, 3}};
@@ -892,6 +893,13 @@ static void enter_edit(ps_session *, unsigned, const char *);
 static void edit_insert(char *, unsigned *, unsigned *, unsigned, unsigned);
 static void edit_delete(char *, unsigned *, unsigned *, int);
 #include "portable_controls.inc"
+static unsigned table_gutter(ps_session *s) {
+    unsigned total,focus;unsigned short items[512];
+    if(s->io.columns<64||(s->table_style&PS_TABLE_COMPACT_SCROLLBAR))return 0;
+    if(s->table_style&PS_TABLE_RESERVE_SCROLLBAR)return 2;
+    total=s->control_view?control_items(s,items,&focus,1):tab_count(s);
+    return total>table_slots(s)?2:0;
+}
 #include "portable_dashboard.inc"
 static void task_row(ps_session *s, unsigned index, const Grid *g) {
     Task *t = &s->tasks[index];

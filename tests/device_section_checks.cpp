@@ -12,6 +12,22 @@ int main(){
     view.begin();view.setGroupLayout(V::SectionRows);
     auto keys=[&](const char *text){while(*text){assert(!view.feed(uint8_t(*text++),s,a));assert(a.type==V::Action::None);}};
     auto frame=[&](){std::string out;view.render(s,[&](const uint8_t*p,size_t n){out.append((const char*)p,n);},true);return out;};
+    // Automatic marker follows disclosure semantics; explicit values win.
+    assert(frame().find("▸ First")==std::string::npos);
+    view.setSectionIndicators(1);assert(frame().find("▸ First")!=std::string::npos);
+    view.setSelectionMarker("");assert(frame().find("▸ First")==std::string::npos);
+    view.setSelectionMarker("* ");assert(frame().find("* First")!=std::string::npos);
+    view.setSelectionMarker(nullptr);view.setSectionIndicators(2);
+    assert(frame().find("▸ First")!=std::string::npos);
+    view.setSectionIndicators(0);view.setSectionsCollapsible(false);
+    assert(frame().find("▸ First")!=std::string::npos);
+    keys("\x1b[A ");assert(frame().find("First")!=std::string::npos);
+    keys("\x1b[B");view.setSectionsCollapsible(true);
+    rows[0].category=rows[1].category=rows[2].category="";
+    assert(frame().find("▸ First")!=std::string::npos);
+    rows[0].category=rows[1].category="Alpha";rows[2].category="Beta";
+    s.unicode=false;assert(frame().find("> First")!=std::string::npos);
+    s.unicode=true;
     assert(!view.sectionBottomBorder());
     const std::string without=frame();assert(without.find("ALPHA")!=std::string::npos);
     view.setSectionBottomBorder(true);const std::string with=frame();

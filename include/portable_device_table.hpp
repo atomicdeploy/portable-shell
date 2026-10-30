@@ -1,3 +1,19 @@
+unsigned tableCapacity(const Snapshot &s,unsigned w) const {
+    const unsigned shift=tabsInsideTable_?0:1;
+    const unsigned diagnostics=page_==Led&&!PS_DEVICE_VIEW_MATRIX?(s.lines<24?5:9):page_==Game?3:page_==Pixel?2:0;
+    unsigned visible=s.lines>9+shift+diagnostics?s.lines-9-shift-diagnostics:1;
+    if(visible>PS_DEVICE_VIEW_MAX_ROWS)visible=PS_DEVICE_VIEW_MAX_ROWS;
+    const unsigned reserve=8192U+unsigned(s.lines)*110U;
+    const unsigned budget=(PS_DEVICE_VIEW_FRAME_BYTES>reserve?PS_DEVICE_VIEW_FRAME_BYTES-reserve:1)/(w+450U);
+    if(visible>budget)visible=budget?budget:1;
+    return visible;
+}
+unsigned tableGutter(const Snapshot &s,unsigned width,unsigned offset) const {
+    if(!ansi_||compactScrollbar_||width-offset<64)return 0;
+    if(reserveScrollbar_)return 2;
+    uint16_t items[PS_DEVICE_VIEW_MAX_ROWS*4];unsigned focus;
+    return sectionItems(s,items,focus,true)>tableCapacity(s,width-1-offset)?2:0;
+}
 /* DeviceView members. Shared device presentation, independent of CPU/transport.
  * Typed controls and palettes follow portable_controls.inc; applications retain
  * validators, authorization, pending state and all physical side effects. */
@@ -80,7 +96,7 @@ bool mouse(const ps_mouse_event &e,const Snapshot &s,Action &a){
     if(!drag)mouseDrag_=true;
     const unsigned width=s.columns>240?240:s.columns;
     const unsigned offset=PS_DEVICE_VIEW_VERTICAL_TABS&&tabs_==VerticalTabs&&width>=64?22:0;
-    const unsigned w=width-1-offset-(ansi_&&!compactScrollbar_&&width-offset>=64?2:0),shift=tabsInsideTable_?0:1,body=6+shift;
+    const unsigned w=width-1-offset-tableGutter(s,width,offset),shift=tabsInsideTable_?0:1,body=6+shift;
     if(editing_){
         if(button==2&&!drag){clearDraft();dirty_=full_=true;return false;}
         if(y==editRow_&&x>=editColumn_&&x<editColumn_+editWidth_){
@@ -214,6 +230,7 @@ template<class W> void footer(Writer<W> &out,const Snapshot &s,unsigned w) const
         ps_style_footer_append(line,sizeof line,w>=60?"  W idle  R lost  O off":"  W/R/O state");
     }else if(grid_&&page_==Pixel){ps_style_footer_append(line,sizeof line,s.unicode?"\xe2\x86\x90/\xe2\x86\x92 test  G group  W/R/O color":"Left/Right test G group W/R/O color");}
     else if(page_==Game&&grid_){ps_style_footer_append(line,sizeof line,s.gameReady?"1-9 press  R reset":"AVR unavailable");}
+    else if(sectionFocus_&&!sectionsCollapsible_){ps_style_footer_append(line,sizeof line,s.unicode?"↑/↓ select":"Up/Down select");}
     else if(sectionFocus_){ps_style_footer_append(line,sizeof line,w<60?"Enter/Space toggle":s.unicode?"Enter/Space toggle  \xe2\x86\x90 collapse  \xe2\x86\x92 expand":"Enter/Space toggle  Left close Right open");}
     else {ps_style_footer_append(line,sizeof line,s.unicode?"\xe2\x86\x91/\xe2\x86\x93 select":"Up/Down select");
         if(r&&r->editable&&!r->pending){
@@ -334,7 +351,8 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     if(width<40||s.lines<16){out.raw(s.unicode?"Resize terminal to 40 \xc3\x97 16\r\n":"Resize terminal to 40 x 16\r\n");return true;}
     // Leave the physical terminal's last column free to avoid delayed autowrap.
     const unsigned offset=PS_DEVICE_VIEW_VERTICAL_TABS&&tabs_==VerticalTabs&&ansi_&&width>=64?22:0;
-    const unsigned gutter=ansi_&&!compactScrollbar_&&width-offset>=64?2:0;
+    const unsigned gutter=tableGutter(s,width,offset);
+    if(gutter!=paintedGutter_){paintAll=true;paintedGutter_=gutter;if(ansi_)out.raw("\x1b[H\x1b[2J");}
     const unsigned w=width-1-offset-gutter;
     const unsigned shift=tabsInsideTable_?0:1,body=6+shift;
     if(offset){sidebar(out,s,s.lines-3);out.indent(offset);out.position(1);}
@@ -366,12 +384,7 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     ink(out,theme_==Default?PS_INK_HEADING:0);out.field("Value",valueWidth);edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");
     const unsigned count=rowCount(s);if(selected_>=count)selected_=count?uint8_t(count-1):0;
     const unsigned diagnostics=page_==Led&&!PS_DEVICE_VIEW_MATRIX?(s.lines<24?5:9):page_==Game?3:page_==Pixel?2:0;
-    unsigned visible=s.lines>9+shift+diagnostics?s.lines-9-shift-diagnostics:1;
-    if(visible>PS_DEVICE_VIEW_MAX_ROWS)visible=PS_DEVICE_VIEW_MAX_ROWS;
-    // Bound complete frames rather than silently dropping their final border.
-    const unsigned reserve=8192U+unsigned(s.lines)*110U;
-    const unsigned budgetRows=(PS_DEVICE_VIEW_FRAME_BYTES > reserve ? PS_DEVICE_VIEW_FRAME_BYTES-reserve : 1)/(w+450U);
-    if(visible>budgetRows)visible=budgetRows?budgetRows:1;
+    unsigned visible=tableCapacity(s,w);
     // Separate logical rows from section headings without heap storage.
     uint16_t logical[PS_DEVICE_VIEW_MAX_ROWS*4];unsigned selectedLine;
     const unsigned total=sectionItems(s,logical,selectedLine,true);
@@ -401,16 +414,20 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
             for(unsigned j=0;label[j];++j)if(label[j]>='a'&&label[j]<='z')label[j]=char(label[j]-'a'+'A');
             edge(out,s,"\xe2\x94\x82","|");
             if(ansi_)out.raw(PS_STYLE_THEMES?ps_style_surface(theme_,trueColor_,selected?1:0):selected?"\x1b[7m":"\x1b[1m");
-            out.raw(" ");out.raw(s.unicode?(sectionClosed(at)?"\xe2\x96\xb8 ":"\xe2\x96\xbe "):(sectionClosed(at)?"+ ":"- "));
+            out.raw(" ");out.raw(!sectionsCollapsible_||sectionIndicators_==2?"  ":s.unicode&&sectionIndicators_==0?(sectionClosed(at)?"\xe2\x96\xb8 ":"\xe2\x96\xbe "):(sectionClosed(at)?"+ ":"- "));
             out.field(label,w-6);out.raw(" ");edge(out,s,"\xe2\x94\x82","|");out.raw("\r\n");continue;
         }
         edge(out,s,"\xe2\x94\x82 ","| ");
         if(category)cell(r&&(i==0||!ps_text_equal(r->category,s.rows[at-1].category))?r->category:"",groupWidth);
         if(selected&&ansi_)out.raw(ps_style_surface(theme_,trueColor_,2));
         ink(out,selected&&theme_!=Default?1:4);
-        char markerText[241];const unsigned marker=unsigned(terminalText(markerText,sizeof markerText,selectionMarker_));
+        bool categories=false;
+        if(sections())for(unsigned j=0;j<count;++j)if(s.rows[j].category&&*s.rows[j].category){categories=true;break;}
+        const char *mark=ps_table_marker(selectionMarker_,s.unicode,categories,sectionsCollapsible_,s.unicode&&sectionIndicators_==0);
+        char markerText[241];const unsigned marker=selectionMarker_?unsigned(terminalText(markerText,sizeof markerText,mark)):(*mark?2:0);
         const unsigned markerWidth=marker<labelWidth?marker:labelWidth;
-        out.field(selected?markerText:"",markerWidth);
+        if(!selectionMarker_&&selected&&markerWidth==2)out.raw(mark);
+        else out.field(selected&&selectionMarker_?markerText:"",markerWidth);
         out.field(r?r->label:"",labelWidth-markerWidth);edge(out,s," \xe2\x94\x82 "," | ");
         if(PS_DEVICE_VIEW_INLINE_EDIT&&selected&&editing_&&(!dialog_||!ansi_)){editValue(out,valueWidth);editRow_=body+i;editColumn_=offset+labelWidth+6+(category?groupWidth+3:0);editWidth_=valueWidth;}
         else if(r)value(out,s,*r,valueWidth);else out.field("",valueWidth);

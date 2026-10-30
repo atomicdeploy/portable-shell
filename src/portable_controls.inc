@@ -14,7 +14,7 @@ static unsigned control_items(ps_session *s, unsigned short *items, unsigned *fo
         const char *group = p->controls[i].group;
         if (control_sections(s) && (!i || !equal(group,p->controls[i-1].group))) {
             start = i;
-            closed = *group && (s->control_closed[s->tab][i/8] & (1U << (i%8)));
+            closed = !(s->table_style&PS_TABLE_STATIC_SECTIONS) && *group && (s->control_closed[s->tab][i/8] & (1U << (i%8)));
             if (*group) {
                 /* Reuse an adjacent rule (column header or closed section). */
                 if (frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS) && n && !(items[n-1]&0x2000)) items[n++] = (unsigned short)(i | 0x4000);
@@ -37,7 +37,7 @@ static int control_navigate(ps_session *s, unsigned key, unsigned step) {
     if (!control_sections(s)) return 0;
     n = control_items(s,items,&focus,0);
     if (!n) return 0;
-    if (s->control_header && (key == 13 || key == ' ' || key == PS_KEY_LEFT || key == PS_KEY_RIGHT)) {
+    if (!(s->table_style&PS_TABLE_STATIC_SECTIONS) && s->control_header && (key == 13 || key == ' ' || key == PS_KEY_LEFT || key == PS_KEY_RIGHT)) {
         ps_byte *bits = &s->control_closed[s->tab][s->selected/8];
         unsigned mask = 1U << (s->selected%8);
         if (key == PS_KEY_LEFT) *bits |= (ps_byte)mask;
@@ -62,7 +62,8 @@ static void control_section_row(ps_session *s, unsigned index, unsigned width) {
         label[i] = name[i]>='a' && name[i]<='z' ? (char)(name[i]-'a'+'A') : name[i];
     label[i]=0;
     surface(s, s->control_header && s->selected == index ? 1 : 0);
-    out(s,(s->io.flags & PS_UNICODE) ? (closed ? "▸ " : "▾ ") : (closed ? "+ " : "- "));
+    out(s,(s->table_style&(PS_TABLE_STATIC_SECTIONS|PS_TABLE_SECTION_NO_ICONS))?"  ":
+        (s->io.flags&PS_UNICODE)&&!(s->table_style&PS_TABLE_SECTION_PLUS_MINUS)?(closed?"▸ ":"▾ "):(closed?"+ ":"- "));
     grid_text(s,label,width-2);
 }
 static const ps_control *control_selected(ps_session *s) {
@@ -179,8 +180,13 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
     }
     ink(s, 4);
     {
-        unsigned marker=min(cells(s->selection_marker,length(s->selection_marker),s->io.flags),g->widths[col]);
-        field(s,!s->control_header && s->selected==index?s->selection_marker:"",marker);
+        const ps_control_page *page=&s->panel->pages[s->tab];unsigned j,categories=0;
+        if(control_sections(s))for(j=0;j<page->count;++j)if(*page->controls[j].group){categories=1;break;}
+        const char *text=ps_table_marker(s->selection_marker_override?s->selection_marker:0,
+            !!(s->io.flags&PS_UNICODE),categories,!(s->table_style&PS_TABLE_STATIC_SECTIONS),
+            (s->io.flags&PS_UNICODE)&&!(s->table_style&(PS_TABLE_SECTION_PLUS_MINUS|PS_TABLE_SECTION_NO_ICONS)));
+        unsigned marker=min(cells(text,length(text),s->io.flags),g->widths[col]);
+        field(s,!s->control_header && s->selected==index?text:"",marker);
         grid_text(s,c->label,g->widths[col++]-marker);
     }
     grid_divide(s);
@@ -232,6 +238,7 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
 static const char *control_hint(ps_session *s) {
     const ps_control *c = control_selected(s);
     ps_control_value v;
+    if (s->control_header && (s->table_style&PS_TABLE_STATIC_SECTIONS)) return "";
     if (s->control_header)
         return (s->io.flags & PS_UNICODE) ? "Enter/Space toggle  ← collapse  → expand"
                                          : "Enter/Space toggle  Left close Right open";
