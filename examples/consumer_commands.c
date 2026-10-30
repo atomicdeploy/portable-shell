@@ -28,7 +28,7 @@ int main(int argc,char **argv){
     level.name="brightness";level.description="Output level";level.group="Lighting";
     level.type=PS_SETTING_UINT;level.unsigned_maximum=100;level.read=read_level;level.write=write_level;level.context=&brightness;
     if(ps_settings_register(&settings,&level))return 1;
-    for(i=0;i<sizeof commands/sizeof commands[0];++i)if(ps_register_definition(session,commands+i))return 1;
+    for(i=0;i<PS_COUNT_OF(commands);++i)if(ps_register_definition(session,commands+i))return 1;
     if(argc>1)status=ps_execute_argv(session,argc-1,(const char *const *)(argv+1));
     else {while((c=getchar())!=EOF){ps_byte b=(ps_byte)c;ps_feed(session,&b,1);}ps_finish(session);status=ps_status(session);}
     ps_destroy_session(session);return status;

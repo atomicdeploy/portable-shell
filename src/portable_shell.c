@@ -202,7 +202,7 @@ struct ps_session {
     ps_raw_command_fn raw_commands[PS_COMMANDS];
     char prompt_text[256];
     unsigned prompt_part_count, prompt_rows_drawn;
-    struct { unsigned end, style; } prompt_parts[16];
+    struct { unsigned end, style; } prompt_parts[PS_PROMPT_PARTS];
     unsigned custom_prompt, uppercase_echo, executing;
     unsigned command_count;
     ps_line_fn line_executor;
@@ -319,9 +319,9 @@ static void reset(ps_session *s) {
     if (s->board) {
         if(s->theme==PS_THEME_DEFAULT){color(s,ps_style_base(s->theme,(s->io.flags&PS_TRUECOLOR)!=0));return;}
         if (s->io.flags & PS_TRUECOLOR)
-            color(s, s->theme == 3   ? "\033[38;2;171;178;191m\033[48;2;40;44;52m"
-                     : s->theme == 2 ? "\033[38;2;220;228;238m\033[48;2;12;18;29m"
-                     : s->theme == 1 ? "\033[38;2;255;226;232m\033[48;2;30;20;25m"
+            color(s, s->theme == PS_THEME_ONE_DARK   ? "\033[38;2;171;178;191m\033[48;2;40;44;52m"
+                     : s->theme == PS_THEME_CYAN ? "\033[38;2;220;228;238m\033[48;2;12;18;29m"
+                     : s->theme == PS_THEME_RED ? "\033[38;2;255;226;232m\033[48;2;30;20;25m"
                                      : "\033[38;2;241;231;255m\033[48;2;23;19;31m");
         else
             color(s, "\033[38;5;255;48;5;234m");
@@ -457,12 +457,12 @@ static void style(ps_session *s, unsigned value) {
 }
 PS_API int ps_set_prompt_parts(ps_session *s,const ps_prompt_part *parts,unsigned count) {
     unsigned i,j,n=0,lines=1;
-    if(!s || count>16 || (count&&!parts))return -1;
+    if(!s || count>PS_COUNT_OF(s->prompt_parts) || (count&&!parts))return -1;
     for(i=0;i<count;++i){
         if(!parts[i].text || parts[i].style>PS_STYLE_BLUE)return -1;
         for(j=0;parts[i].text[j];++j){
             unsigned c=(unsigned char)parts[i].text[j];
-            if(c=='\n'){if(++lines>4)return -1;}
+            if(c=='\n'){if(++lines>PS_PROMPT_LINES)return -1;}
             else if(c<32||c==127)return -1;
             if(++n>=sizeof s->prompt_text)return -1;
         }
@@ -790,7 +790,7 @@ PS_API ps_session *ps_init(void *memory, unsigned bytes, const ps_config *c) {
     str(s->telnet.terminal, "byte stream", sizeof s->telnet.terminal);
 #if PS_WORKBENCH
     if (!(c->flags & PS_NO_BUILTINS))
-        for (i = 0; i < sizeof builtins / sizeof builtins[0]; ++i)
+        for (i = 0; i < PS_COUNT_OF(builtins); ++i)
             ps_register(s, &builtins[i]);
 #else
     (void)i;

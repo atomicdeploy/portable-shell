@@ -45,3 +45,26 @@ the caller-owned session buffer; allow 8 KiB plus your callback's own requiremen
 
 
 Check ps_sizeof_session() for the exact storage requirement of your build; custom capacities may exceed the example buffer.
+
+## Counts, capacities and naming
+
+Include `portable_util.h` for `PS_COUNT_OF(array)` and
+`PS_LITERAL_LENGTH("text")`. Counts are elements; `sizeof buffer` is bytes.
+Neither helper accepts a runtime string pointer: C callers must supply real
+arrays, and C++ array counting uses a `constexpr` array-reference template that
+rejects pointers. Runtime strings still require a bounded length operation.
+
+Use named enum values for selectors and protocol states. Derive bounds from the
+actual array instead of repeating its declared capacity. Retain literal numbers
+when they express an obvious operation (zero initialization, increment by one)
+or a documented physical/protocol value.
+
+`PS_PROMPT_PARTS` (16) and `PS_PROMPT_LINES` (4) configure prompt limits; use the
+same definitions in the library and consumer build. Named palette IDs are
+`PS_THEME_VIOLET`, `PS_THEME_RED`, `PS_THEME_CYAN`, `PS_THEME_ONE_DARK`, and
+`PS_THEME_DEFAULT`. Their numeric ABI values are unchanged.
+
+Host command names and options use lowercase; setting paths use dotted lowercase
+names. Descriptions use sentence case, and usage metavariables use uppercase.
+User-provided strings and third-party registered commands retain their casing.
+The C core supports C99; the optional C++ facade uses C++11 without a runtime dependency.

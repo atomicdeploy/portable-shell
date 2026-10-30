@@ -27,7 +27,7 @@ static const char *help_description(ps_session *s,const ps_command *c){
     if(d&&d->description)return d->description;
 #if PS_WORKBENCH
     unsigned i;
-    if(c->run==builtin)for(i=0;i<sizeof(builtins)/sizeof(builtins[0]);++i)
+    if(c->run==builtin)for(i=0;i<PS_COUNT_OF(builtins);++i)
         if(equal(c->name,builtins[i].name))return help_summaries[i];
 #endif
     return c->usage;

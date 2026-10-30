@@ -18,10 +18,14 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
             ps_report_directory(s,a[2],a[3]);return 0;
         }
         if((argc==3||argc==4)&&equal(a[1],"progress")){
-            const char *states[]={"clear","normal","error","busy","paused"};int percent=0;
-            for(i=0;i<5;++i)if(equal(a[2],states[i]))break;
-            if(i==5||(argc==4&&(!integer(a[3],&percent)||percent<0||percent>100)))return fail(s,"invalid progress");
-            ps_terminal_report_progress(s,i,(unsigned)percent);return 0;
+            static const struct { const char *name; unsigned state; } states[]={
+                {"clear",PS_OSC_PROGRESS_CLEAR}, {"normal",PS_OSC_PROGRESS_NORMAL},
+                {"error",PS_OSC_PROGRESS_ERROR}, {"busy",PS_OSC_PROGRESS_BUSY},
+                {"paused",PS_OSC_PROGRESS_PAUSED}
+            };int percent=0;
+            for(i=0;i<PS_COUNT_OF(states);++i)if(equal(a[2],states[i].name))break;
+            if(i==PS_COUNT_OF(states)||(argc==4&&(!integer(a[3],&percent)||percent<0||percent>100)))return fail(s,"invalid progress");
+            ps_terminal_report_progress(s,states[i].state,(unsigned)percent);return 0;
         }
         return fail(s,"osc progress clear|normal|error|busy|paused [0..100] | path HOST /PATH");
     }
@@ -183,7 +187,7 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
         for (i = 0; i < s->var_count && !equal(s->vars[i].key, a[1]); ++i) {
         }
         if (set) {
-            if (!*a[1] || length(a[1]) >= 32 || length(a[2]) >= PS_VALUE)
+            if (!*a[1] || length(a[1]) >= sizeof s->vars[0].key || length(a[2]) >= PS_VALUE)
                 return fail(s, "key/value too long or empty key");
             for (j = 0; a[1][j]; ++j)
                 if (!((a[1][j] >= 'a' && a[1][j] <= 'z') || (a[1][j] >= 'A' && a[1][j] <= 'Z') ||
@@ -194,7 +198,7 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
                 return fail(s, "variable capacity reached");
             if (i == s->var_count)
                 ++s->var_count;
-            str(s->vars[i].key, a[1], 32);
+            str(s->vars[i].key, a[1], sizeof s->vars[i].key);
             str(s->vars[i].value, a[2], PS_VALUE);
             return 0;
         }
@@ -226,9 +230,9 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
         for (i = start; i < end && n + 1 < PS_LINE; ++i) {
             unsigned char c = (unsigned char)a[2][i];
             if (equal(a[1], "upper") && c >= 'a' && c <= 'z')
-                c -= 32;
+                c -= ('a' - 'A');
             else if ((equal(a[1], "lower") || equal(a[1], "slug")) && c >= 'A' && c <= 'Z')
-                c += 32;
+                c += ('a' - 'A');
             if (equal(a[1], "slug")) {
                 if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))) {
                     sep = n ? 1 : 0;
@@ -372,14 +376,19 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
         frame_end(s);s->prompt_rows_drawn=0;return 0;
     }
     if(equal(cmd,"prompt")){
-        static const char *const names[]={"default","heading","success","warning","error","green","muted","command","blue"};
-        ps_prompt_part parts[16];unsigned n=0,j;
+        static const struct { const char *name; unsigned style; } styles[]={
+            {"default",PS_STYLE_DEFAULT}, {"heading",PS_STYLE_PROMPT},
+            {"success",PS_STYLE_SUCCESS}, {"warning",PS_STYLE_WARNING},
+            {"error",PS_STYLE_ERROR}, {"green",PS_STYLE_GREEN},
+            {"muted",PS_STYLE_MUTED}, {"command",PS_STYLE_COMMAND}, {"blue",PS_STYLE_BLUE}
+        };
+        ps_prompt_part parts[PS_PROMPT_PARTS];unsigned n=0,j;
         if(argc==2&&equal(a[1],"reset"))return ps_set_prompt_parts(s,0,0);
         if(argc<3 || !(argc&1))return fail(s,"prompt reset | STYLE TEXT [STYLE TEXT ...]");
         for(i=1;i<(unsigned)argc;i+=2){
-            for(j=0;j<9&&!equal(a[i],names[j]);++j){}
-            if(j==9||n==16)return fail(s,"unknown prompt style");
-            parts[n].text=a[i+1];parts[n++].style=j;
+            for(j=0;j<PS_COUNT_OF(styles)&&!equal(a[i],styles[j].name);++j){}
+            if(j==PS_COUNT_OF(styles)||n==PS_COUNT_OF(parts))return fail(s,"unknown prompt style");
+            parts[n].text=a[i+1];parts[n++].style=styles[j].style;
         }
         return ps_set_prompt_parts(s,parts,n)?fail(s,"prompt exceeds limits or contains controls"):0;
     }
@@ -403,10 +412,10 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
 #endif
         if (equal(choice, "violet") || equal(choice, "red") || equal(choice, "cyan") ||
             equal(choice, "onedark") || equal(choice, "default")) {
-            s->theme = equal(choice, "default") ? PS_THEME_DEFAULT : equal(choice, "onedark") ? 3
-                       : equal(choice, "cyan") ? 2
-                       : equal(choice, "red")   ? 1
-                                              : 0;
+            s->theme = equal(choice, "default") ? PS_THEME_DEFAULT : equal(choice, "onedark") ? PS_THEME_ONE_DARK
+                       : equal(choice, "cyan") ? PS_THEME_CYAN
+                       : equal(choice, "red")   ? PS_THEME_RED
+                                              : PS_THEME_VIOLET;
         } else if (equal(choice, "color"))
             s->io.flags |= PS_COLOR | PS_TRUECOLOR;
         else if (equal(choice, "ansi")) {
@@ -449,7 +458,7 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
             };
             dec(storage,sizeof *s);dec(executions,s->executions);dec(tasks,s->task_count);
             dec(received,s->bytes_in);dec(sent,s->bytes_out);
-            ps_print_report(s,rows,sizeof rows/sizeof rows[0],PS_REPORT_DOTS);
+            ps_print_report(s,rows,PS_COUNT_OF(rows),PS_REPORT_DOTS);
             return 0;
         }
 #endif

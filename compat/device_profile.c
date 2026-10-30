@@ -109,7 +109,7 @@ int ps_device_attach(ps_session *s, ps_device_profile *p, ps_device_call_fn call
         return -1;
     p->call = call;
     p->context = context;
-    for (i = 0; i < sizeof names / sizeof names[0]; ++i) {
+    for (i = 0; i < PS_COUNT_OF(names); ++i) {
         ps_command command;
         p->slots[i].owner = p;
         p->slots[i].command = i;

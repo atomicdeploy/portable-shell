@@ -4,6 +4,9 @@
 #include <string>
 #include <vector>
 
+static_assert(PS_COUNT_OF("abc")==4, "Array counts include the terminator");
+static_assert(PS_LITERAL_LENGTH("abc")==3, "Literal length excludes the terminator");
+
 // Compare terminal cells, not UTF-8 byte counts or a hand-drawn screenshot.
 static std::vector<std::vector<std::string> > lines(const std::string &bytes) {
     std::vector<std::vector<std::string> > result(1);
@@ -47,7 +50,7 @@ int main(){
                 assert(selected.size()==1);
                 std::string label;for(const auto &cell:selected[0])label+=cell;
                 const char *names[]={"Device","Network","Matrix","Pixels","Game","Terminal","Cloud","Notifications","Clock"};
-                assert(unsigned(view.page())<sizeof(names)/sizeof(names[0]));
+                assert(unsigned(view.page())<PS_COUNT_OF(names));
                 assert(label==std::string(PS_TAB_BRACKETS?"[":" ")+names[view.page()]+(PS_TAB_BRACKETS?"]":" "));
             }
 #endif

@@ -1,5 +1,6 @@
 #ifndef PORTABLE_STYLE_H
 #define PORTABLE_STYLE_H
+#include "portable_util.h"
 #ifndef PS_SYNC_OUTPUT
 #define PS_SYNC_OUTPUT 1
 #endif
@@ -52,7 +53,7 @@ static inline int ps_style_key_token(const char *text,unsigned length) {
         "Left","Right","Enter/Space","W/R/O","+/-","1-9","n","d","c","/","W","R","O","F","G",
         "^S","^Q/Esc","^Z","^A/^E","S","D","Backspace","0","Ctrl-C"};
     unsigned i,j;
-    for(i=0;i<sizeof(keys)/sizeof(keys[0]);++i){
+    for(i=0;i<PS_COUNT_OF(keys);++i){
         for(j=0;j<length&&keys[i][j]&&keys[i][j]==text[j];++j){}
         if(j==length&&!keys[i][j])return 1;
     }
@@ -65,7 +66,8 @@ static inline int ps_style_key_token(const char *text,unsigned length) {
 /* Stable role IDs: color follows meaning, never the target architecture. */
 
 
-enum { PS_THEME_DEFAULT=4, PS_INK_MUTED=0, PS_INK_COMMAND=1,
+enum { PS_THEME_VIOLET, PS_THEME_RED, PS_THEME_CYAN, PS_THEME_ONE_DARK, PS_THEME_DEFAULT };
+enum { PS_INK_MUTED=0, PS_INK_COMMAND=1,
        PS_INK_WARNING=2, PS_INK_ERROR=3, PS_INK_TEXT=4, PS_INK_SUCCESS=5,
        PS_INK_HEADING=6, PS_INK_BORDER=7, PS_INK_STRING=8,
        PS_INK_NUMBER=9, PS_INK_INACTIVE=10, PS_INK_ACTION=11 };
@@ -114,12 +116,12 @@ static inline const char *ps_style_ink(unsigned theme, int rgb, int red_border, 
                                            "\033[38;2;229;192;123m", "\033[38;2;224;108;117m",
                                            "\033[38;2;220;223;228m", "\033[38;2;152;195;121m",
                                            "\033[38;2;198;120;221m", "\033[38;2;92;99;112m"};
-    if (kind == 7 && theme != 2 && red_border) {
+    if (kind == PS_INK_BORDER && theme != PS_THEME_CYAN && red_border) {
         return rgb ? "\033[38;2;255;95;115m" : "\033[38;5;203m";
     }
-    return theme == 2                  ? original[kind % 8]
-             : rgb ? (theme == 3   ? one_dark[kind % 8]
-                                               : theme == 1 ? red[kind % 8]
+    return theme == PS_THEME_CYAN                  ? original[kind % 8]
+             : rgb ? (theme == PS_THEME_ONE_DARK   ? one_dark[kind % 8]
+                                               : theme == PS_THEME_RED ? red[kind % 8]
                                                                : violet[kind % 8])
                                             : fallback[kind % 8];
 }
@@ -129,7 +131,7 @@ static inline const char *ps_style_surface(unsigned theme, int rgb, unsigned act
         if(!rgb)return active==1?"\033[48;5;252;38;5;234m":active==2?"\033[48;5;237m":"\033[48;5;236;38;5;255m";
         return active==1?"\033[48;2;211;218;230m\033[38;2;24;26;31m":active==2?"\033[48;2;48;55;67m":"\033[48;2;36;41;50m\033[38;2;230;233;239m";
     }
-    if (theme == 2)
+    if (theme == PS_THEME_CYAN)
         return active == 1   ? "\033[48;5;23;38;5;159;1m"
                  : active == 2 ? "\033[48;5;236m"
                                : "\033[48;5;23;38;5;159m";
@@ -137,11 +139,11 @@ static inline const char *ps_style_surface(unsigned theme, int rgb, unsigned act
         return active == 1   ? "\033[48;5;171;38;5;16m"
                  : active == 2 ? "\033[48;5;53m"
                                : "\033[48;5;53;38;5;225m";
-    else if (theme == 3)
+    else if (theme == PS_THEME_ONE_DARK)
         return active == 1   ? "\033[48;2;198;120;221m\033[38;2;33;37;43m"
                  : active == 2 ? "\033[48;2;62;68;81m"
                                : "\033[48;2;33;37;43m\033[38;2;171;178;191m";
-    else if (theme == 1)
+    else if (theme == PS_THEME_RED)
         return active == 1   ? "\033[48;2;251;113;133m\033[38;2;42;16;24m"
                  : active == 2 ? "\033[48;2;72;35;47m"
                                : "\033[48;2;55;29;39m\033[38;2;253;194;205m";
