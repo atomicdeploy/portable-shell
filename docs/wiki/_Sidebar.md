@@ -21,3 +21,5 @@
 - [Live monitoring and logging](Monitoring.md)
 - [Rich text output](Rich-text.md)
 - [Terminal interaction and compatibility](Terminal-interaction.md)
+
+- [Callbacks and async](Async.md)

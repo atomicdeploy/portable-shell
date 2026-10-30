@@ -24,7 +24,7 @@ include(GNUInstallDirs)
 install(TARGETS portable_shell ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES include/portable_shell.h include/portable_shell_device.h include/portable_remote.h
   include/portable_terminal.h include/portable_editor.h
-  include/portable_segments.h include/portable_meter.h include/portable_monitor.h include/portable_rich.h include/portable_undo.h include/portable_screen.h include/portable_parse.h include/portable_probe.h
+  include/portable_segments.h include/portable_meter.h include/portable_monitor.h include/portable_rich.h include/portable_undo.h include/portable_screen.h include/portable_async.h include/portable_parse.h include/portable_probe.h
   include/portable_shell_editor.hpp include/portable_device_view.hpp
   include/portable_device_table.hpp include/portable_style.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -156,6 +156,14 @@ endif()
 if(PORTABLE_SHELL_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
   enable_testing()
   enable_language(CXX)
+  add_executable(async_checks tests/async_checks.c)
+  target_link_libraries(async_checks PRIVATE portable_shell)
+  if(MSVC)
+    target_compile_options(async_checks PRIVATE /UNDEBUG)
+  else()
+    target_compile_options(async_checks PRIVATE -UNDEBUG -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME async_checks COMMAND async_checks)
   add_executable(interaction_checks tests/interaction_checks.c tests/render.c)
   target_compile_definitions(interaction_checks PRIVATE PS_REPLAY_ONLY PS_RICH_REPLAY)
   target_link_libraries(interaction_checks PRIVATE portable_shell)
