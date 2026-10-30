@@ -1,6 +1,7 @@
 ## 🐚 PortableShell
 
 - [Home](Home.md)
+- [🧭 Architecture and source maps](Architecture.md)
 - [🚀 Getting started](Getting-started.md)
 - [🛠️ Building](Building.md)
 - [🖼️ Gallery](Gallery.md)
