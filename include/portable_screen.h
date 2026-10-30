@@ -89,11 +89,14 @@ static inline void ps_window_scroll(ps_window *w,int lines,ps_cell blank){
 static inline int ps_window_blit(ps_window *dst,const ps_window *src){
     unsigned x,y,width=dst->width<src->width?dst->width:src->width,height=dst->height<src->height?dst->height:src->height;
     if(dst->screen==src->screen)return 0;
-    for(y=0;y<height;++y)for(x=0;x<width;++x){
-        const ps_cell *c=src->screen->cells+(size_t)(src->y+y)*src->screen->columns+src->x+x;
-        if(c->span&&c->span<=width-x)ps_window_put(dst,x,y,c->glyph,*c);
-        else if(x==0||c->span==2)ps_window_put(dst,x,y," ",*c);
-    }return 1;
+    for(y=0;y<height;++y){
+        for(x=0;x<width;++x){
+            const ps_cell *c=src->screen->cells+(size_t)(src->y+y)*src->screen->columns+src->x+x;
+            if(c->span&&c->span<=width-x)ps_window_put(dst,x,y,c->glyph,*c);
+            else if(x==0||c->span==2)ps_window_put(dst,x,y," ",*c);
+        }
+    }
+    return 1;
 }
 /* Present only changed cells; unchanged frames emit zero bytes. Caller owns
  * alternate screen/cursor lifecycle. Output callback must accept all bytes.

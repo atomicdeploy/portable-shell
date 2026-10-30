@@ -107,9 +107,11 @@ static int document_save(ps_session *s){
     }
     s->document_dirty=0;s->document_undo_valid=0;s->document_notice="Saved";return 1;
 }
+#if PS_WORKBENCH
 static int document_save_scratch(void *ctx,const char *text,unsigned n){
     ps_session *s=ctx;copy(s->scratch,text,n);s->scratch[n]=0;return 1;
 }
+#endif
 static void document_vertical(ps_session *s,int delta){
     unsigned start,row=document_location(s,&start),col=document_column(s,start,s->document_pos),a=0,r=0,end,b,cx=0;
     unsigned target=delta<0?(row<(unsigned)-delta?0:row-(unsigned)-delta):row+(unsigned)delta;
@@ -163,5 +165,7 @@ static void document_close(ps_session *s){(void)s;}
 static void document_snapshot(ps_session *s){(void)s;}
 static void document_key(ps_session *s,unsigned k){(void)s;(void)k;}
 static void document_paste(ps_session *s,unsigned k){(void)s;(void)k;}
+#if PS_WORKBENCH
 static int document_save_scratch(void *ctx,const char *p,unsigned n){(void)ctx;(void)p;(void)n;return 0;}
+#endif
 #endif

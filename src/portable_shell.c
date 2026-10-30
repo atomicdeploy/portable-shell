@@ -1,3 +1,6 @@
+#ifndef PS_WORKBENCH
+#define PS_WORKBENCH 0
+#endif
 #include "portable_table_policy.h"
 #include "portable_osc.h"
 #include "portable_undo.h"
@@ -26,6 +29,7 @@ static unsigned dec(char *p, ps_u32 v) {
     p[n] = 0;
     return n;
 }
+#if PS_WORKBENCH
 static int integer(const char *p, int *v) {
     unsigned n = 0, lim = 2147483647u;
     int neg = 0;
@@ -46,6 +50,7 @@ static int integer(const char *p, int *v) {
     *v = neg ? (n == 2147483648u ? (-2147483647 - 1) : -(int)n) : (int)n;
     return 1;
 }
+#endif
 static unsigned prev(const char *p, unsigned i) {
     if (i) {
         --i;
@@ -128,6 +133,9 @@ typedef struct {
     ps_u32 hash;
 } Job;
 struct ps_session {
+    const char *application_title;
+    const ps_help_labels *help_labels;
+    const ps_help_document *command_help[PS_COMMANDS];
 #if PS_DASHBOARD
     unsigned dashboard;
 #endif
@@ -136,7 +144,10 @@ struct ps_session {
     unsigned form_index, form_choice, form_top;
     const char *form_error;
 #endif
-    char document[PS_EDITOR ? PS_EDITOR_CAPACITY : 1], document_undo[PS_EDITOR ? PS_EDITOR_CAPACITY : 1], scratch[PS_EDITOR ? PS_EDITOR_CAPACITY : 1];
+    char document[PS_EDITOR ? PS_EDITOR_CAPACITY : 1], document_undo[PS_EDITOR ? PS_EDITOR_CAPACITY : 1];
+#if PS_WORKBENCH
+    char scratch[PS_EDITOR ? PS_EDITOR_CAPACITY : 1];
+#endif
     const char *document_title;
     ps_editor_save_fn document_save;
     void *document_context;
@@ -171,13 +182,18 @@ struct ps_session {
     char selection_marker[32];
     unsigned selection_marker_override;
     const ps_panel *panel;
+#if PS_WORKBENCH
     ps_panel local_panel;
+#endif
     unsigned control_view, dialog, dialog_focus;
     unsigned control_header, control_edit_row;
     ps_byte control_closed[PS_CONTROL_SECTION_ROWS ? 8 : 1][PS_CONTROL_SECTION_ROWS ? 16 : 1];
-    ps_u32 draft_revision, local_revision;
+    ps_u32 draft_revision;
+#if PS_WORKBENCH
+    ps_u32 local_revision;
     unsigned local_values[7];
     char local_label[64];
+#endif
 #if PS_HELP_DETAILS
     const ps_help_document *help_documents;
     unsigned help_document_count;
@@ -208,10 +224,12 @@ struct ps_session {
     void *history_context;
     char notice[128], filter[64], edit[PS_VALUE];
     unsigned editing, editlen, editpos;
+#if PS_WORKBENCH
     Task tasks[PS_ROWS];
     unsigned task_count, next_id;
     Variable vars[PS_ROWS];
     unsigned var_count;
+#endif
     Job job;
     unsigned tab, selected, scroll, board, dirty, exit, started;
     unsigned canvas_kind, canvas_key, canvas_columns, canvas_rows;
@@ -230,10 +248,21 @@ struct ps_session {
     unsigned match_count, match_index, completion, start, end;
     ps_telnet telnet;
     unsigned bytes_in, bytes_out, executions;
+#if PS_WORKBENCH
     ps_u32 hash_work;
     char job_data[PS_LINE];
     unsigned job_length;
+#endif
 };
+#if PS_UNDO_DEPTH
+static int form_is_active(const ps_session *s) {
+#if PS_FORM
+    return s->form != 0;
+#else
+    (void)s;return 0;
+#endif
+}
+#endif
 static void raw(ps_session *s, const char *p, unsigned n) {
     if (!n)
         return;
@@ -314,6 +343,7 @@ PS_API void ps_number(ps_session *s, ps_u32 n) {
     dec(b, n);
     out(s, b);
 }
+#if PS_WORKBENCH
 static void signed_number(ps_session *s, int n) {
     if (n < 0) {
         out(s, "-");
@@ -321,6 +351,7 @@ static void signed_number(ps_session *s, int n) {
     } else
         ps_number(s, (unsigned)n);
 }
+#endif
 PS_API void ps_write(ps_session *s, const char *text) {
     unsigned i = 0, n, c;
     while (text[i]) {
@@ -396,7 +427,9 @@ static void notice(ps_session *s, const char *p) {
 }
 static void prompt(ps_session *s);
 static void render(ps_session *s);
+#if PS_WORKBENCH
 static int builtin(ps_session *s, int argc, const char *const *argv, void *ctx);
+#endif
 static unsigned fold(unsigned c) {
     return c >= 'A' && c <= 'Z' ? c + 32 : c;
 }
@@ -424,7 +457,7 @@ static void style(ps_session *s, unsigned value) {
 }
 PS_API int ps_set_prompt_parts(ps_session *s,const ps_prompt_part *parts,unsigned count) {
     unsigned i,j,n=0,lines=1;
-    if(count>16 || (count&&!parts))return -1;
+    if(!s || count>16 || (count&&!parts))return -1;
     for(i=0;i<count;++i){
         if(!parts[i].text || parts[i].style>PS_STYLE_BLUE)return -1;
         for(j=0;parts[i].text[j];++j){
@@ -434,6 +467,9 @@ PS_API int ps_set_prompt_parts(ps_session *s,const ps_prompt_part *parts,unsigne
             if(++n>=sizeof s->prompt_text)return -1;
         }
     }
+#if !PS_WORKBENCH
+    if(!count){ps_prompt_part fallback={"> ",PS_STYLE_PROMPT};return ps_set_prompt_parts(s,&fallback,1);}
+#endif
     n=0;
     for(i=0;i<count;++i){
         for(j=0;parts[i].text[j];++j)s->prompt_text[n++]=parts[i].text[j];
@@ -502,19 +538,39 @@ PS_API const char *ps_option(int argc, const char *const *argv, const char *name
 }
 PS_API int ps_register(ps_session *s, const ps_command *c) {
     unsigned i;
-    if (!c || !c->name || !*c->name || !c->run)
+    if (!s || !c || !c->name || !*c->name || !c->run)
         return -1;
     for (i = 0; i < s->command_count; ++i)
         if (name_match(s, c->name, s->commands[i].name, 0)) {
             s->commands[i] = *c;
+            if(!s->commands[i].usage)s->commands[i].usage="";
             s->raw_commands[i] = 0;
+            s->command_help[i] = 0;
+            s->completion=s->match_count=s->match_index=0;s->dirty=1;
             return 0;
         }
     if (s->command_count == PS_COMMANDS)
         return -1;
+    s->command_help[s->command_count] = 0;
     s->raw_commands[s->command_count] = 0;
-    s->commands[s->command_count++] = *c;
+    s->commands[s->command_count] = *c;
+    if(!s->commands[s->command_count].usage)s->commands[s->command_count].usage="";
+    ++s->command_count;
+    s->completion=s->match_count=s->match_index=0;s->dirty=1;
     return 0;
+}
+PS_API void ps_set_application_title(ps_session *s,const char *title){if(s){s->application_title=title?title:"";s->dirty=1;}}
+PS_API void ps_set_help_labels(ps_session *s,const ps_help_labels *labels){if(s)s->help_labels=labels;}
+PS_API int ps_register_definition(ps_session *s,const ps_command_definition *definition){
+    unsigned i;
+    if(!definition)return -1;
+    if(definition->help&&(!definition->help->name||!definition->command.name||
+       !equal(definition->help->name,definition->command.name)))return -1;
+    if(ps_register(s,&definition->command))return -1;
+    for(i=0;i<s->command_count;++i)if(name_match(s,definition->command.name,s->commands[i].name,0)){
+        s->command_help[i]=definition->help;return 0;
+    }
+    return -1;
 }
 PS_API unsigned ps_command_count(const ps_session *s) {
     return s ? s->command_count : 0;
@@ -531,6 +587,7 @@ PS_API int ps_unregister(ps_session *s, const char *name) {
             for (; i + 1 < s->command_count; ++i) {
                 s->commands[i] = s->commands[i + 1];
                 s->raw_commands[i] = s->raw_commands[i + 1];
+                s->command_help[i] = s->command_help[i + 1];
             }
             --s->command_count;
             s->completion = s->match_count = s->match_index = 0;
@@ -637,38 +694,9 @@ PS_API unsigned ps_history_limit(ps_session *s, unsigned limit) {
     s->history_nav = 0;
     return s->history_limit;
 }
-static const ps_command builtins[] = {
-    {"controls", "[open [page]|dashboard|list|get ID|set ID VALUE]", "Workspace", builtin, 0, 0},
-    {"help", "[--headings|--compact] [command]", "Shell", builtin, 0, 0},
-    {"board", "[tasks|variables|jobs|session]", "Workspace", builtin, 0, 0},
-    {"edit", "[--framed]", "Workspace", builtin, 0, 0},
-    {"menu", "[--plain|--list|--no-numbers|--details] [NUMBER ...]", "Workspace", builtin, 0, 0},
-    {"files", "", "Workspace", builtin, 0, 0},
-    {"task", "add TITLE | done ID | remove ID | rename ID TITLE | list", "Workspace", builtin, 0,
-     0},
-    {"set", "KEY VALUE", "Workspace", builtin, 0, 0},
-    {"get", "[KEY]", "Workspace", builtin, 0, 0},
-    {"unset", "KEY", "Workspace", builtin, 0, 0},
-    {"text", "upper|lower|trim|slug TEXT", "Tools", builtin, 0, 0},
-    {"calc", "INTEGER +|-|*|/|% INTEGER", "Tools", builtin, 0, 0},
-    {"hash", "TEXT [--rounds N]", "Tools", builtin, 0, 0},
-    {"jobs", "[cancel]", "Tools", builtin, 0, 0},
-#if PS_OSC
-    {"title", "[TEXT ...]", "Terminal", builtin, 0, 0},
-    {"osc", "progress clear|normal|error|busy|paused [0..100] | path HOST /PATH", "Terminal", builtin, 0, 0},
+#if PS_WORKBENCH
+#include "../host/workbench/registry.inc"
 #endif
-    {"bell", "", "Shell", builtin, 0, 0},
-    {"echo", "[TEXT ...]", "Shell", builtin, 0, 0},
-    {"args", "[ARGUMENT ...]", "Shell", builtin, 0, 0},
-    {"history", "[clear]", "Shell", builtin, 0, 0},
-    {"bind", "F1|F2|F3|F4 COMMAND", "Shell", builtin, 0, 0},
-    {"theme", "default|cyan|violet|red|onedark", "Appearance", builtin, 0, 0},
-    {"display", "color rgb|ansi|mono; glyphs unicode|ascii", "Terminal", builtin, 0, 0},
-    {"prompt", "reset | STYLE TEXT [STYLE TEXT ...]", "Terminal", builtin, 0, 0},
-    {"segments", "TEXT [--large] [--red] [--mono] [--ascii]", "Tools", builtin, 0, 0},
-    {"clear", "", "Terminal", builtin, 0, 0},
-    {"status", PS_REPORT?"[--report]":"", "Terminal", builtin, 0, 0},
-    {"exit", "", "Shell", builtin, 0, 0}};
 PS_API unsigned ps_sizeof_session(void) {
     return sizeof(ps_session);
 }
@@ -735,6 +763,10 @@ PS_API ps_session *ps_init(void *memory, unsigned bytes, const ps_config *c) {
     if (!s || !c || !c->write || bytes < sizeof *s)
         return 0;
     zero(s, sizeof *s);
+    s->application_title="";
+#if PS_WORKBENCH
+    s->application_title="PortableShell";
+#endif
     s->history_limit = PS_HISTORY;
     s->io = *c;
     s->table_style = PS_TABLE_DEFAULT;
@@ -745,12 +777,21 @@ PS_API ps_session *ps_init(void *memory, unsigned bytes, const ps_config *c) {
 #endif
     s->io.columns = c->columns ? (c->columns < 8 ? 8 : min(c->columns, 240)) : 80;
     s->io.rows = c->rows ? (c->rows < 4 ? 4 : min(c->rows, 80)) : 24;
+#if PS_WORKBENCH
     s->next_id = 1;
+#endif
+#if !PS_WORKBENCH
+    ps_set_prompt(s,"> ",PS_STYLE_PROMPT);
+#endif
     ps_telnet_init(&s->telnet, PS_TN_CONTROLS, s->io.columns, s->io.rows);
     str(s->telnet.terminal, "byte stream", sizeof s->telnet.terminal);
+#if PS_WORKBENCH
     if (!(c->flags & PS_NO_BUILTINS))
         for (i = 0; i < sizeof builtins / sizeof builtins[0]; ++i)
             ps_register(s, &builtins[i]);
+#else
+    (void)i;
+#endif
     return s;
 }
 static void telnet_write(void *context, const unsigned char *bytes, size_t count) {
@@ -768,24 +809,20 @@ PS_API void ps_start(ps_session *s) {
         prompt(s);
     }
 }
-static unsigned visible(ps_session *s, unsigned *indices) {
-    unsigned i, n = 0;
-    for (i = 0; i < s->task_count; ++i)
-        if (contains(s->tasks[i].title, s->filter))
-            indices[n++] = i;
-    return n;
-}
+#if PS_WORKBENCH
+#include "../host/workbench/visible.inc"
+#endif
 static unsigned tab_count(ps_session *s) {
+#if PS_WORKBENCH
     unsigned ids[PS_ROWS];
+#endif
     if (s->control_view && s->panel)
         return s->panel->pages[s->tab].count;
-    if (s->tab == 0)
-        return visible(s, ids);
-    if (s->tab == 1)
-        return s->var_count;
-    if (s->tab == 2)
-        return s->job.total ? 1 : 0;
-    return 10;
+#if PS_WORKBENCH
+#include "../host/workbench/tab_count.inc"
+#else
+    return 0;
+#endif
 }
 typedef struct {
     const ps_column *columns;
@@ -793,17 +830,18 @@ typedef struct {
 } Grid;
 static unsigned table_gutter(ps_session *s);
 static Grid grid_for(ps_session *s) {
-    static const ps_column tasks[] = {{"ID", 4, 4, 0}, {"State", 8, 8, 0}, {"Task", 12, 0, 1}};
-    static const ps_column pairs[] = {{"Key", 10, 24, 1}, {"Value", 14, 0, 3}};
-    static const ps_column jobs[] = {
-        {"Job", 10, 24, 1}, {"Progress", 12, 0, 3}, {"State", 8, 8, 0}};
-    static const ps_column stats[] = {{"Metric", 10, 24, 1}, {"Value", 14, 0, 3}};
+#if PS_WORKBENCH
+#include "../host/workbench/columns.inc"
+#endif
     static const ps_column controls[] = {
         {"Category", 10, 16, 1}, {"Control", 14, 26, 1}, {"Value", 16, 0, 3}};
     static const ps_column compact[] = {{"Control", 12, 20, 1}, {"Value", 16, 0, 3}};
     Grid g;
-    g.columns = s->tab == 0 ? tasks : s->tab == 1 ? pairs : s->tab == 2 ? jobs : stats;
-    g.count = (s->tab == 0 || s->tab == 2) ? 3 : 2;
+#if PS_WORKBENCH
+#include "../host/workbench/grid.inc"
+#else
+    g.columns=compact;g.count=2;
+#endif
     if (s->control_view) {
         unsigned category = (!PS_CONTROL_SECTION_ROWS || (s->table_style & PS_TABLE_CATEGORY_COLUMN)) && s->io.columns >= 64;
         g.columns = category ? controls : compact;
@@ -901,97 +939,23 @@ static unsigned table_gutter(ps_session *s) {
     return total>table_slots(s)?2:0;
 }
 #include "portable_dashboard.inc"
-static void task_row(ps_session *s, unsigned index, const Grid *g) {
-    Task *t = &s->tasks[index];
-    char b[20];
-    ink(s, 1);
-    str(b, t->selected ? ((s->io.flags & PS_UNICODE) ? "◆ " : "* ") : "  ", sizeof b);
-    dec(b + length(b), t->id);
-    field(s, b, g->widths[0]);
-    grid_divide(s);
-    ink(s, t->done ? 5 : 6);
-    field(s,
-          (s->io.flags & PS_UNICODE) ? (t->done ? "✓ Done" : "○ Open")
-                                     : (t->done ? "[x] Done" : "[ ] Open"),
-          g->widths[1]);
-    grid_divide(s);
-    ink(s, t->done ? 0 : 4);
-    grid_text(s, t->title, g->widths[2]);
-}
-static void pair_row(ps_session *s, const char *key, const char *value, const Grid *g) {
-    ink(s, 1);
-    grid_text(s, key, g->widths[0]);
-    grid_divide(s);
-    ink(s, s->theme==PS_THEME_DEFAULT?PS_INK_STRING:2);
-    grid_text(s, value, g->widths[1]);
-}
-static void stat_row(ps_session *s, unsigned i, const Grid *g) {
-    char b[32];
-    const char *key = "", *value = b;
-    b[0] = 0;
-    switch (i) {
-    case 0:
-        key = "Core";
-        value = "PortableShell " PS_VERSION;
-        break;
-    case 1:
-        key = "Session bytes";
-        dec(b, sizeof *s);
-        break;
-    case 2:
-        key = "Heap bytes";
-        value = "0";
-        break;
-    case 3:
-        key = "Input bytes";
-        dec(b, s->bytes_in);
-        break;
-    case 4:
-        key = "Commands run";
-        dec(b, s->executions);
-        break;
-    case 5:
-        key = "History entries";
-        dec(b, s->history_count);
-        break;
-    case 6:
-        key = "Transport";
-        value = (s->io.flags & PS_TELNET) ? "Telnet / byte callbacks" : "Raw / byte callbacks";
-        break;
-    case 7:
-        key = "Terminal";
-        value = s->telnet.terminal;
-        break;
-    case 8:
-        key = "Uptime seconds";
-        dec(b, s->now / 1000);
-        break;
-    case 9:
-        key = "Memory backend";
-        value = ps_memory_backend();
-        break;
-    }
-    pair_row(s, key, value, g);
-}
-static void progress_bar(ps_session *s, unsigned width_) {
-    unsigned i, pct = s->job.total ? (unsigned)((s->job.done * 100u) / s->job.total) : 0;
-    ink(s, 1);
-    for (i = 0; i < width_; ++i)
-        out(s, i * 100 / width_ < pct ? ((s->io.flags & PS_UNICODE) ? "━" : "#")
-                                      : ((s->io.flags & PS_UNICODE) ? "─" : "."));
-    out(s, " ");
-    ps_number(s, pct);
-    out(s, "%");
-}
+#if PS_WORKBENCH
+#include "../host/workbench/rows.inc"
+#endif
 static void render(ps_session *s) {
     unsigned gutter=table_gutter(s);
-    unsigned w = s->io.columns-gutter, h = s->io.rows, i, count, slots, ids[PS_ROWS], inner;
+    unsigned w = s->io.columns-gutter, h = s->io.rows, i, count, slots, inner;
+#if PS_WORKBENCH
+    unsigned ids[PS_ROWS];
+#endif
     unsigned inside = !!(s->table_style & PS_TABLE_TABS_INSIDE) && h>=15;
     unsigned body = 7+inside, tabUsed = 1;
     unsigned displayCount, focus;
     unsigned short controlItems[512];
     Grid grid;
-    static const char *const tabs[] = {"Tasks", "Variables", "Jobs", "Session"};
+#if PS_WORKBENCH
+#include "../host/workbench/tabs.inc"
+#endif
     if (!s->board || !(s->io.flags & PS_INTERACTIVE))
         return;
     s->dirty = 0;
@@ -1009,7 +973,7 @@ static void render(ps_session *s) {
         at(s, 1, 1);
         ansi(s, "\033[J");
         ink(s, 1);
-        out(s, "PortableShell  ");
+        ps_write(s,s->application_title);out(s,"  ");
         ps_number(s, s->io.columns);
         out(s, (s->io.flags & PS_UNICODE) ? " \xc3\x97 " : " x ");
         ps_number(s, h);
@@ -1040,7 +1004,7 @@ static void render(ps_session *s) {
     } else
         ink(s, 1);
     out(s, (s->io.flags & PS_UNICODE) ? "◆ " : "+ ");
-    out(s, "PortableShell");
+    ps_write(s, s->application_title);
     if (s->table_style & PS_TABLE_TITLE_BAR)
         out(s, " ");
     reset(s);
@@ -1049,31 +1013,29 @@ static void render(ps_session *s) {
     ink(s, 4);
     if (s->control_view)
         grid_text(s, s->panel->title, min(24, w - 24 - (w >= 60 ? 14 : 0)));
+#if PS_WORKBENCH
     else
         ps_write(s, tabs[s->tab]);
+#endif
     ink(s, 0);
     if (w >= 60) {
         out(s, "   ");
         ps_number(s, count);
         out(s, count == 1 ? " entry" : " entries");
     }
-    if (!s->control_view && s->tab == 0 && w >= 76) {
-        unsigned done = 0;
-        for (i = 0; i < s->task_count; ++i)
-            done += s->tasks[i].done != 0;
-        at(s, 1, w - 21);
-        ink(s, 5);
-        ps_number(s, done);
-        out(s, "/");
-        ps_number(s, s->task_count);
-        out(s, " complete");
-    }
+#if PS_WORKBENCH
+#include "../host/workbench/task_summary.inc"
+#endif
     reset(s);
     at(s, 3+inside, 1);
     ansi(s, "\033[2K");
     if(inside){out(s," ");grid_vertical(s);out(s," ");}else out(s,"  ");
     for (i = 0; i < (s->control_view ? s->panel->count : 4); ++i) {
-        const char *title = s->control_view ? s->panel->pages[i].title : w<60?(i==1?"Vars":i==3?"Info":tabs[i]):tabs[i];
+#if PS_WORKBENCH
+#include "../host/workbench/tab_title.inc"
+#else
+        const char *title=s->panel->pages[i].title;
+#endif
         unsigned titleWidth=s->control_view?min(16,w>=80?(w-3)/s->panel->count-6:w-12):length(title);
         unsigned segment=titleWidth+5+((i==s->tab&&(!(s->io.flags&PS_COLOR)||PS_TAB_BRACKETS||(s->table_style&PS_TABLE_TAB_BRACKETS)))?2:0);
         if (((s->control_view && w < 80) || (inside && w<60)) && i != s->tab)
@@ -1126,8 +1088,9 @@ static void render(ps_session *s) {
     reset(s);
     at(s, 6+inside, 2);
     grid_border(s, &grid, s->control_view && s->scroll<displayCount && (controlItems[s->scroll]&0xe000) ? 3 : 1, 1);
-    if (!s->control_view && s->tab == 0)
-        visible(s, ids);
+#if PS_WORKBENCH
+#include "../host/workbench/visible_rows.inc"
+#endif
     for (i = 0; i < slots; ++i) {
         unsigned idx = s->scroll + i;
         unsigned heading = 0, rule = 0;
@@ -1162,27 +1125,10 @@ static void render(ps_session *s) {
             if (s->control_view) {
                 if (idx == s->selected) s->control_edit_row = body+i;
                 control_row(s, idx, &grid);
-            } else if (s->tab == 0)
-                task_row(s, ids[idx], &grid);
-            else if (s->tab == 1)
-                pair_row(s, s->vars[idx].key, s->vars[idx].value, &grid);
-            else if (s->tab == 3)
-                stat_row(s, idx, &grid);
-            else {
-                ink(s, 4);
-                unsigned pct = s->job.total ? s->job.done * 100 / s->job.total : 0;
-                grid_text(s, s->job.name, grid.widths[0]);
-                grid_divide(s);
-                progress_bar(s, grid.widths[1] - 5);
-                spaces(s, pct >= 100 ? 0 : pct >= 10 ? 1 : 2);
-                grid_divide(s);
-                ink(s, s->job.cancelled ? 3 : s->job.done < s->job.total ? 2 : 5);
-                field(s,
-                      s->job.cancelled             ? "Stopped"
-                      : s->job.done < s->job.total ? "Running"
-                                                   : "Done",
-                      grid.widths[2]);
             }
+#if PS_WORKBENCH
+#include "../host/workbench/render_rows.inc"
+#endif
             reset(s);
         } else {
             unsigned j;
@@ -1224,38 +1170,20 @@ static void render(ps_session *s) {
         out(s, "Row ");ps_number(s, count ? s->selected + 1 : 0);
         out(s, "/");ps_number(s, count);
     }
-    if (!s->control_view && s->filter[0] && s->tab == 0)
-        out(s, " filtered");
-    if (!s->control_view && s->tab == 0) {
-        unsigned selected = 0;
-        for (i = 0; i < s->task_count; ++i)
-            selected += s->tasks[i].selected != 0;
-        at(s, h - 5, w - 18);
-        ink(s, 1);
-        ps_number(s, selected);
-        out(s, " selected");
-    }
+#if PS_WORKBENCH
+#include "../host/workbench/selection_summary.inc"
+#endif
     reset(s);
     at(s, h - 4, 2);
     grid_border(s, &grid, 2, 0);
     at(s, h - 3, 1);
     ansi(s, "\033[2K");
     out(s, "  ");
-    if (s->editing && !s->control_view &&
-        !(PS_WORKSPACE_INLINE_EDIT && (s->editing == 2 || s->editing == 3))) {
-        const char *label = s->editing == 1   ? "New task"
-                            : s->editing == 2 ? "Edit task"
-                            : s->editing == 3 ? "Value"
-                                              : "Filter";
-        ink(s, 1);
-        out(s, label);
-        out(s, "  ");
-        ink(s, 4);
-        field(s, s->edit, w - length(label) - 6);
-        reset(s);
-        at(s, h - 3, 5 + length(label) + cells(s->edit, s->editpos, s->io.flags));
-        ansi(s, "\033[?25h");
-    } else {
+#if PS_WORKBENCH
+#include "../host/workbench/edit_label.inc"
+#else
+    {
+#endif
         ink(s, 5);
         if(s->theme==PS_THEME_DEFAULT)ink(s,PS_INK_TEXT);
         field(s, s->notice, w - 4);
@@ -1266,13 +1194,11 @@ static void render(ps_session *s) {
     out(s, "  ");
     ink(s, 0);
     footer_field(s,
-          s->control_view ? control_hint(s)
-          : s->editing    ? "Enter save   Esc cancel"
-          : s->tab == 0   ? (w < 60 ? "n new  Enter edit  d done  / filter"
-                                    : "n new   Enter edit   d done   Space select   / filter")
-          : s->tab == 1   ? "Enter edit value   Del remove"
-          : s->tab == 2   ? "c cancel job"
-                          : "Live session counters",
+#if PS_WORKBENCH
+#include "../host/workbench/footer.inc"
+#else
+          control_hint(s),
+#endif
           w - 4,0);
     reset(s);
     at(s, h, 1);
@@ -1307,33 +1233,11 @@ static void render(ps_session *s) {
     }
     if (s->control_view)
         control_overlay(s, &grid);
-    else if (PS_WORKSPACE_INLINE_EDIT && (s->editing == 2 || s->editing == 3) && count) {
-        unsigned x = 4, start = 0, width = grid.widths[grid.count - 1];
-        for (i = 0; i + 1 < grid.count; ++i)
-            x += grid.widths[i] + 3;
-        while (cells(s->edit + start, s->editpos - start, s->io.flags) >= width)
-            start = next(s->edit, start);
-        s->mouse_edit_x=x;s->mouse_edit_y=body+s->selected-s->scroll;
-        s->mouse_edit_start=start;s->mouse_edit_width=width;
-        at(s, body + s->selected - s->scroll, x);
-        if (s->io.flags & PS_COLOR)
-            surface(s, 1);
-        else
-            ansi(s, "\033[7m");
-        field(s, s->edit + start, width);
-        reset(s);
-        at(s, body + s->selected - s->scroll,
-           x + cells(s->edit + start, s->editpos - start, s->io.flags));
-        ansi(s, "\033[?25h");
-    } else if (s->editing) {
-        const char *label = s->editing == 1   ? "New task"
-                            : s->editing == 2 ? "Edit task"
-                            : s->editing == 3 ? "Value"
-                                              : "Filter";
-        at(s, h - 3, min(w - 1, 5 + length(label) + cells(s->edit, s->editpos, s->io.flags)));
-    } else {
-        at(s, 3, 1);
-    }
+#if PS_WORKBENCH
+#include "../host/workbench/edit_cursor.inc"
+#else
+    else at(s,3,1);
+#endif
     (void)inner;
     frame_end(s);
 }
@@ -1381,7 +1285,11 @@ static void prompt(ps_session *s) {
     shown=min(lines,s->io.rows>2?s->io.rows-2:0);skip=lines-shown;
     unsigned prompt_width=s->custom_prompt
         ? min(cells(s->prompt_text+last,length(s->prompt_text+last),s->io.flags),s->io.columns-3)
+        #if PS_WORKBENCH
         : 20+(s->task_count>=10?1:0);
+#else
+        : 2;
+#endif
     unsigned start = 0,
              avail = s->io.columns > prompt_width + 2 ? s->io.columns - prompt_width - 2 : 8;
     const char *hint;
@@ -1416,14 +1324,11 @@ static void prompt(ps_session *s) {
             }
         }
     } else {
-        ink(s, 1);
-        out(s, "PortableShell");
-        ink(s, 0);
-        out(s, " [");
-        ps_number(s, s->task_count);
-        out(s, "] ");
-        ink(s, 5);
-        out(s, "> ");
+#if PS_WORKBENCH
+#include "../host/workbench/prompt.inc"
+#else
+        ink(s,5);out(s,"> ");
+#endif
     }
     reset(s);
     while (cells(s->line + start, s->pos - start, s->io.flags) > avail)
@@ -1495,131 +1400,11 @@ static void enter_edit(ps_session *s, unsigned mode, const char *p) {
     s->editpos = s->editlen = length(s->edit);
     s->dirty = 1;
 }
-static int add_task(ps_session *s, const char *p) {
-    Task *t;
-    if (!*p || length(p) >= PS_VALUE || s->task_count == PS_ROWS)
-        return 0;
-    t = &s->tasks[s->task_count++];
-    zero(t, sizeof *t);
-    str(t->title, p, PS_VALUE);
-    t->id = s->next_id++;
-    return 1;
-}
-static void table_key(ps_session *s, unsigned key) {
-    unsigned n = tab_count(s), ids[PS_ROWS], idx = 0, i, any = 0;
-    if (s->control_view) {
-        control_key(s, key);
-        return;
-    }
-    if (s->tab == 0) {
-        visible(s, ids);
-        if (n)
-            idx = ids[s->selected < n ? s->selected : 0];
-    }
-    if (s->editing) {
-        if (key == 27 || key == 3) {
-            s->editing = 0;
-            notice(s, "Cancelled");
-        } else if (key == 13) {
-            int ok = 1;
-            if (s->editing == 1)
-                ok = add_task(s, s->edit);
-            else if (s->editing == 2 && n)
-                str(s->tasks[idx].title, s->edit, PS_VALUE);
-            else if (s->editing == 3 && n)
-                str(s->vars[s->selected].value, s->edit, PS_VALUE);
-            else if (s->editing == 4)
-                str(s->filter, s->edit, sizeof s->filter);
-            s->editing = 0;
-            notice(s, ok ? "Saved" : "Task empty or capacity reached");
-        } else if (key == PS_KEY_LEFT)
-            s->editpos = prev(s->edit, s->editpos);
-        else if (key == PS_KEY_RIGHT)
-            s->editpos = next(s->edit, s->editpos);
-        else if (key == PS_KEY_HOME || key == 1)
-            s->editpos = 0;
-        else if (key == PS_KEY_END || key == 5)
-            s->editpos = s->editlen;
-        else if (key == 21) {
-            s->edit[0] = 0;
-            s->editpos = s->editlen = 0;
-        } else if (key == 8 || key == 127)
-            edit_delete(s->edit, &s->editlen, &s->editpos, 1);
-        else if (key == PS_KEY_DELETE)
-            edit_delete(s->edit, &s->editlen, &s->editpos, 0);
-        else if (key >= 32 && key < 256)
-            edit_insert(s->edit, &s->editlen, &s->editpos, PS_VALUE, key);
-        s->dirty = 1;
-        return;
-    }
-    if (key == 27 || key == 3 || key == 'q') {
-        table_close(s);
-        return;
-    }
-    if (key == 9 || key == PS_KEY_RIGHT) {
-        s->tab = (s->tab + 1) % 4;
-        s->selected = s->scroll = 0;
-    } else if (key == PS_KEY_BACKTAB || key == PS_KEY_LEFT) {
-        s->tab = (s->tab + 3) % 4;
-        s->selected = s->scroll = 0;
-    } else if (key >= '1' && key <= '4') {
-        s->tab = key - '1';
-        s->selected = s->scroll = 0;
-    } else if (key == PS_KEY_DOWN || key == 'j') {
-        if (s->selected + 1 < n)
-            ++s->selected;
-    } else if (key == PS_KEY_UP || key == 'k') {
-        if (s->selected)
-            --s->selected;
-    } else if (key == PS_KEY_HOME)
-        s->selected = 0;
-    else if (key == PS_KEY_END)
-        s->selected = n ? n - 1 : 0;
-    else if (key == PS_KEY_PAGEDOWN)
-        s->selected = min(s->selected + table_slots(s), n ? n - 1 : 0);
-    else if (key == PS_KEY_PAGEUP)
-        s->selected = s->selected > table_slots(s)
-                          ? s->selected - table_slots(s)
-                          : 0;
-    else if (s->tab == 0) {
-        if (key == 'n')
-            enter_edit(s, 1, "");
-        else if (key == '/')
-            enter_edit(s, 4, s->filter);
-        else if (key == 13 && n)
-            enter_edit(s, 2, s->tasks[idx].title);
-        else if (key == ' ' && n)
-            s->tasks[idx].selected ^= 1;
-        else if (key == 'd' && n) {
-            for (i = 0; i < s->task_count; ++i)
-                if (s->tasks[i].selected) {
-                    s->tasks[i].done ^= 1;
-                    any = 1;
-                }
-            if (!any)
-                s->tasks[idx].done ^= 1;
-            notice(s, "Task state updated");
-        } else if (key == PS_KEY_DELETE && n) {
-            move(&s->tasks[idx], &s->tasks[idx + 1], (s->task_count - idx - 1) * sizeof(Task));
-            --s->task_count;
-            notice(s, "Task removed");
-        }
-    } else if (s->tab == 1 && n) {
-        if (key == 13)
-            enter_edit(s, 3, s->vars[s->selected].value);
-        else if (key == PS_KEY_DELETE) {
-            move(&s->vars[s->selected], &s->vars[s->selected + 1],
-                 (s->var_count - s->selected - 1) * sizeof(Variable));
-            --s->var_count;
-            notice(s, "Variable removed");
-        }
-    } else if (s->tab == 2 && key == 'c') {
-        s->job.active = 0;
-        s->job.cancelled = 1;
-        notice(s, "Job cancelled");
-    }
-    s->dirty = 1;
-}
+#if PS_WORKBENCH
+#include "../host/workbench/table_input.inc"
+#else
+static void table_key(ps_session *s,unsigned key){control_key(s,key);}
+#endif
 static unsigned encode_completion(const char *value, unsigned n, char *encoded) {
     unsigned i, count = 0, quoted = 0;
     for (i = 0; i < n; ++i)
@@ -1730,15 +1515,9 @@ static unsigned collect_completions(ps_session *s, unsigned *start, unsigned *en
             if (name_match(s, s->commands[i].name, token, 1))
                 matches[match_count++] = s->commands[i].name;
     } else {
-        static const char *const task[] = {"add", "done", "remove", "rename", "list"};
-        static const char *const board[] = {"tasks", "variables", "jobs", "session"};
-        static const char *const controls[] = {"open", "list", "get", "set", "dashboard"};
-        static const char *const theme[] = {"default", "cyan", "violet", "red", "onedark"};
-        static const char *const display[] = {"color", "glyphs"}, *const colors[] = {"rgb", "ansi", "mono"}, *const glyphs[] = {"unicode", "ascii"};
-        static const char *const txt[] = {"upper", "lower", "trim", "slug"};
-        static const char *const hash_options[] = {"--rounds"};
-        const char *const *opts = 0;
-        unsigned count = 0;
+#if PS_WORKBENCH
+#include "../host/workbench/completion_data.inc"
+#endif
         char partial[PS_LINE];
         copy(partial, s->line, (*start));
         partial[(*start)] = 0;
@@ -1754,43 +1533,10 @@ static unsigned collect_completions(ps_session *s, unsigned *start, unsigned *en
                                                                  s->commands[i].context));
                     break;
                 }
-            if (!match_count) {
-                if (equal(args.argv[0], "task") && args.argc == 1) {
-                    opts = task;
-                    count = 5;
-                } else if (equal(args.argv[0], "board")) {
-                    opts = board;
-                    count = 4;
-                } else if (equal(args.argv[0], "controls") && args.argc == 1) {
-                    opts = controls;
-                    count = PS_DASHBOARD ? 5 : 4;
-                } else if (equal(args.argv[0], "theme")) {
-                    opts = theme;
-                    count = 5;
-                } else if (equal(args.argv[0], "display")) {
-                    if(args.argc==1){opts=display;count=2;}
-                    else if(equal(args.argv[1],"color")){opts=colors;count=3;}
-                    else if(equal(args.argv[1],"glyphs")){opts=glyphs;count=2;}
-                } else if (equal(args.argv[0], "text") && args.argc == 1) {
-                    opts = txt;
-                    count = 4;
-                } else if (equal(args.argv[0], "hash") && args.argc >= 2) {
-                    opts = hash_options;
-                    count = 1;
-                } else if (equal(args.argv[0], "get") || equal(args.argv[0], "set") ||
-                           equal(args.argv[0], "unset")) {
-                    for (i = 0; i < s->var_count && match_count < PS_COMMANDS; ++i)
-                        if (prefix(s->vars[i].key, token))
-                            matches[match_count++] = s->vars[i].key;
-                } else if (equal(args.argv[0], "help")) {
-                    for (i = 0; i < s->command_count; ++i)
-                        if (name_match(s, s->commands[i].name, token, 1))
-                            matches[match_count++] = s->commands[i].name;
-                }
-                for (i = 0; i < count; ++i)
-                    if (prefix(opts[i], token))
-                        matches[match_count++] = opts[i];
-            }
+#if PS_WORKBENCH
+#include "../host/workbench/completion.inc"
+#endif
+
         }
     }
     return match_count;
@@ -1894,22 +1640,10 @@ static void shell_key(ps_session *s, unsigned key) {
         }
     if (key != 9)
         s->completion = 0;
-    if (key == PS_KEY_F2) {
-        table_open(s, 0);
-        return;
-    }
-    if (key == PS_KEY_F3) {
-        table_open(s, 2);
-        return;
-    }
-    if (key == PS_KEY_F1) {
-        ps_newline(s);
-        ps_execute(s, "help");
-    } else if (key == PS_KEY_F4) {
-#ifndef PS_ASCII_ONLY
-        s->io.flags ^= PS_COLOR;
+#if PS_WORKBENCH
+#include "../host/workbench/shortcuts.inc"
 #endif
-    } else if (key == 13) {
+if (key == 13) {
         /* Discard the visible preview before submitting only the typed line. */
         if (*s->suggestion) ansi(s, "\033[K");
         ps_newline(s);
@@ -2059,7 +1793,7 @@ PS_API void ps_key(ps_session *s,unsigned key){
 #if PS_UNDO_DEPTH
     unsigned binding,bound=0;
     for(binding=0;binding<s->binding_count;++binding)if(s->bindings[binding].key==key){bound=1;break;}
-    if(!s->board&&!s->document_open&&!s->menu_depth&&!s->file_count&&!s->form){
+    if(!s->board&&!s->document_open&&!s->menu_depth&&!s->file_count&&!form_is_active(s)){
         if(!s->undo.frames)ps_undo_bind(&s->undo,&s->undo_frames[0][0],s->undo_positions,PS_LINE,PS_UNDO_DEPTH+1);
         if(!bound&&!s->search&&(key==31||key==PS_KEY_UNDO||key==PS_KEY_REDO)){
             ps_undo_record(&s->undo,s->line,s->pos);
@@ -2083,25 +1817,9 @@ static int fail(ps_session *s, const char *message) {
     ps_newline(s);
     return 2;
 }
-static void hex(ps_session *s, ps_u32 n) {
-    char b[9];
-    unsigned i;
-    for (i = 0; i < 8; ++i)
-        b[i] = "0123456789abcdef"[(n >> (28 - i * 4)) & 15];
-    b[8] = 0;
-    out(s, b);
-}
-static void job_report(ps_session *s) {
-    ps_write(s, s->job.name);
-    out(s, "  ");
-    ps_number(s, s->job.done);
-    out(s, "/");
-    ps_number(s, s->job.total);
-    out(s, s->job.cancelled ? " cancelled" : s->job.done < s->job.total ? " running" : " complete");
-    out(s, "  fnv1a=");
-    hex(s, s->job.hash);
-    ps_newline(s);
-}
+#if PS_WORKBENCH
+#include "../host/workbench/job_output.inc"
+#endif
 PS_API void ps_ring_bell(ps_session *s) {
     if (s && (s->io.flags & PS_INTERACTIVE) && !(s->io.flags & PS_NO_BELL))
         out(s, "\a");
@@ -2128,478 +1846,12 @@ PS_API int ps_report_directory(ps_session *s,const char *host,const char *path){
     return s&&(s->io.flags&PS_INTERACTIVE)&&!(s->io.flags&PS_NO_OSC)?
         ps_terminal_directory(segment_sink,s,host,path):0;
 }
-#if PS_OSC
+#if PS_OSC && PS_WORKBENCH
 static void osc_discard(void *ctx,const unsigned char *p,size_t n){(void)ctx;(void)p;(void)n;}
 #endif
-static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
-    unsigned i, j;
-    const char *cmd = a[0];
-    (void)ctx;
-#if PS_OSC
-    if(equal(cmd,"title")){
-        char title[PS_LINE];unsigned used=0,k;
-        for(i=1;i<(unsigned)argc;++i){
-            if(!ps_osc_text_valid(a[i]))return fail(s,"invalid title");
-            if(i>1){if(used+1>=sizeof title)return fail(s,"title too long");title[used++]=' ';}
-            for(k=0;a[i][k];++k){if(used+1>=sizeof title)return fail(s,"title too long");title[used++]=a[i][k];}
-        }
-        title[used]=0;ps_set_title(s,title);return 0;
-    }
-    if(equal(cmd,"osc")){
-        if(argc==4&&equal(a[1],"path")){
-            if(!ps_terminal_directory(osc_discard,0,a[2],a[3]))return fail(s,"invalid directory");
-            ps_report_directory(s,a[2],a[3]);return 0;
-        }
-        if((argc==3||argc==4)&&equal(a[1],"progress")){
-            const char *states[]={"clear","normal","error","busy","paused"};int percent=0;
-            for(i=0;i<5;++i)if(equal(a[2],states[i]))break;
-            if(i==5||(argc==4&&(!integer(a[3],&percent)||percent<0||percent>100)))return fail(s,"invalid progress");
-            ps_terminal_report_progress(s,i,(unsigned)percent);return 0;
-        }
-        return fail(s,"osc progress clear|normal|error|busy|paused [0..100] | path HOST /PATH");
-    }
+#if PS_WORKBENCH
+#include "../host/workbench/commands.inc"
 #endif
-    if(equal(cmd,"edit")){
-        if(argc>2||(argc==2&&!equal(a[1],"--framed")))return fail(s,"edit [--framed]");
-        if(argc==2)ps_editor_set_style(s,PS_EDITOR_HEADER|PS_EDITOR_BORDER);
-        return ps_editor_open(s,"Session notes (memory)",s->scratch,document_save_scratch,s)?0:fail(s,"editor unavailable (interactive terminal required)");
-    }
-    if(equal(cmd,"files")){
-        if(argc!=1)return fail(s,"files");
-        return ps_file_picker_open(s,"Session files (memory)",session_files,2,session_file_pick,0)?0:fail(s,"file picker requires interactive terminal");
-    }
-    if(equal(cmd,"menu")){
-        int result=0;unsigned first=1,style=PS_MENU_TABLE|PS_MENU_NUMBERS;
-        for(;first<(unsigned)argc;++first){if(equal(a[first],"--list")&&PS_MENU_LIST_VIEW)style=PS_MENU_LIST;else if(equal(a[first],"--plain"))style=0;else if(equal(a[first],"--no-numbers"))style&=~PS_MENU_NUMBERS;else if(equal(a[first],"--details"))style|=PS_MENU_DETAILS;else break;}
-        ps_menu_set_style(s,style);ps_menu_open(s,&default_menu);
-        for(i=first;i<(unsigned)argc;++i){
-            int n;const ps_menu *m=s->menu_depth?s->menu_stack[s->menu_depth-1]:0;
-            if(!m||!integer(a[i],&n)||n<0||(unsigned)n>m->count||
-               (i+1<(unsigned)argc&&n&&!m->items[n-1].submenu)){
-                ps_menu_close(s);return fail(s,"menu [NUMBER ...]");
-            }
-            result=ps_menu_choose(s,n);
-            if(result){ps_menu_close(s);return result;}
-        }
-        if(!(s->io.flags&PS_INTERACTIVE))ps_menu_close(s);
-        return result;
-    }
-    if (equal(cmd, "help")) {
-        const char *name = 0;
-        unsigned layout = PS_HELP_HEADINGS;
-        for (i = 1; i < (unsigned)argc; ++i) {
-            if (equal(a[i], "--compact")) layout = PS_HELP_COMPACT;
-            else if (equal(a[i], "--headings")) layout = PS_HELP_HEADINGS;
-            else if (!name) name = a[i];
-            else return fail(s, "help [--headings|--compact] [command]");
-        }
-        return ps_print_help(s, name, layout) ? 0 : fail(s, "Unknown command");
-    }
-    if (equal(cmd, "bell")) {
-        ps_ring_bell(s);
-        return 0;
-    }
-    if (equal(cmd, "echo")) {
-        for (i = 1; i < (unsigned)argc; ++i) {
-            if (i > 1)
-                out(s, " ");
-            ps_write(s, a[i]);
-        }
-        ps_newline(s);
-        return 0;
-    }
-    if (equal(cmd, "args")) {
-        for (i = 1; i < (unsigned)argc; ++i) {
-            ps_number(s, i - 1);
-            out(s, " [");
-            ps_number(s, length(a[i]));
-            out(s, "] ");
-            ps_write(s, a[i]);
-            ps_newline(s);
-        }
-        return 0;
-    }
-    if (equal(cmd, "controls")) {
-        int result;
-        s->notice[0] = 0;
-        result = controls_command(s, argc, a);
-        if (result && !s->board)
-            return fail(s, s->notice[0] ? s->notice
-                                        : "controls [open [page]|dashboard|list|get ID|set ID VALUE]");
-        return result;
-    }
-    if (equal(cmd, "board")) {
-        unsigned tab = 0;
-        if (argc > 2)
-            return fail(s, "board [tasks|variables|jobs|session]");
-        if (argc == 2) {
-            if (equal(a[1], "variables"))
-                tab = 1;
-            else if (equal(a[1], "jobs"))
-                tab = 2;
-            else if (equal(a[1], "session"))
-                tab = 3;
-            else if (!equal(a[1], "tasks"))
-                return fail(s, "unknown tab");
-        }
-        if (!(s->io.flags & PS_INTERACTIVE))
-            return fail(s, "board requires interactive mode");
-        s->control_view = s->dialog = 0;
-        table_open(s, tab);
-        return 0;
-    }
-    if (equal(cmd, "task")) {
-        if (argc == 1 || (argc == 2 && equal(a[1], "list"))) {
-            for (i = 0; i < s->task_count; ++i) {
-                ps_number(s, s->tasks[i].id);
-                out(s, s->tasks[i].done ? " [x] " : " [ ] ");
-                ps_write(s, s->tasks[i].title);
-                ps_newline(s);
-            }
-            return 0;
-        }
-        if (argc == 3 && equal(a[1], "add")) {
-            if (!add_task(s, a[2]))
-                return fail(s, "task must be 1..127 bytes; table capacity 32");
-            ps_number(s, s->tasks[s->task_count - 1].id);
-            ps_newline(s);
-            return 0;
-        }
-        if (argc >= 3) {
-            int id;
-            if (!integer(a[2], &id) || id < 1)
-                return fail(s, "invalid task id");
-            for (i = 0; i < s->task_count && s->tasks[i].id != (unsigned)id; ++i) {
-            }
-            if (i == s->task_count)
-                return fail(s, "task not found");
-            if (argc == 3 && equal(a[1], "done")) {
-                s->tasks[i].done ^= 1;
-                return 0;
-            }
-            if (argc == 3 && equal(a[1], "remove")) {
-                move(s->tasks + i, s->tasks + i + 1, (s->task_count - i - 1) * sizeof(Task));
-                --s->task_count;
-                return 0;
-            }
-            if (argc == 4 && equal(a[1], "rename")) {
-                if (!*a[3] || length(a[3]) >= PS_VALUE)
-                    return fail(s, "invalid title length");
-                str(s->tasks[i].title, a[3], PS_VALUE);
-                return 0;
-            }
-        }
-        return fail(s, "task add TITLE | done ID | remove ID | rename ID TITLE | list");
-    }
-    if (equal(cmd, "set") || equal(cmd, "get") || equal(cmd, "unset")) {
-        int set = equal(cmd, "set"), del = equal(cmd, "unset");
-        if ((set && argc != 3) || (del && argc != 2) || (!set && !del && argc > 2))
-            return fail(s, "set KEY VALUE | get [KEY] | unset KEY");
-        if (argc == 1) {
-            for (i = 0; i < s->var_count; ++i) {
-                ps_write(s, s->vars[i].key);
-                out(s, "=");
-                ps_write(s, s->vars[i].value);
-                ps_newline(s);
-            }
-            return 0;
-        }
-        for (i = 0; i < s->var_count && !equal(s->vars[i].key, a[1]); ++i) {
-        }
-        if (set) {
-            if (!*a[1] || length(a[1]) >= 32 || length(a[2]) >= PS_VALUE)
-                return fail(s, "key/value too long or empty key");
-            for (j = 0; a[1][j]; ++j)
-                if (!((a[1][j] >= 'a' && a[1][j] <= 'z') || (a[1][j] >= 'A' && a[1][j] <= 'Z') ||
-                      (a[1][j] >= '0' && a[1][j] <= '9') || a[1][j] == '_' || a[1][j] == '-' ||
-                      a[1][j] == '.'))
-                    return fail(s, "key requires letters, digits, _, - or .");
-            if (i == PS_ROWS)
-                return fail(s, "variable capacity reached");
-            if (i == s->var_count)
-                ++s->var_count;
-            str(s->vars[i].key, a[1], 32);
-            str(s->vars[i].value, a[2], PS_VALUE);
-            return 0;
-        }
-        if (i == s->var_count)
-            return fail(s, "key not found");
-        if (del) {
-            move(s->vars + i, s->vars + i + 1, (s->var_count - i - 1) * sizeof(Variable));
-            --s->var_count;
-        } else {
-            ps_write(s, s->vars[i].value);
-            ps_newline(s);
-        }
-        return 0;
-    }
-    if (equal(cmd, "text")) {
-        char b[PS_LINE];
-        unsigned n = 0, start = 0, end, sep = 0;
-        if (argc != 3)
-            return fail(s, "text upper|lower|trim|slug TEXT");
-        end = length(a[2]);
-        if (equal(a[1], "trim")) {
-            while (a[2][start] == ' ' || a[2][start] == '\t' || a[2][start] == '\n')
-                ++start;
-            while (end > start &&
-                   (a[2][end - 1] == ' ' || a[2][end - 1] == '\t' || a[2][end - 1] == '\n'))
-                --end;
-        } else if (!equal(a[1], "upper") && !equal(a[1], "lower") && !equal(a[1], "slug"))
-            return fail(s, "unknown transform");
-        for (i = start; i < end && n + 1 < PS_LINE; ++i) {
-            unsigned char c = (unsigned char)a[2][i];
-            if (equal(a[1], "upper") && c >= 'a' && c <= 'z')
-                c -= 32;
-            else if ((equal(a[1], "lower") || equal(a[1], "slug")) && c >= 'A' && c <= 'Z')
-                c += 32;
-            if (equal(a[1], "slug")) {
-                if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))) {
-                    sep = n ? 1 : 0;
-                    continue;
-                }
-                if (sep && n + 2 < PS_LINE)
-                    b[n++] = '-';
-                sep = 0;
-            }
-            b[n++] = (char)c;
-        }
-        b[n] = 0;
-        ps_write(s, b);
-        ps_newline(s);
-        return 0;
-    }
-    if (equal(cmd, "calc")) {
-        int x, y, r = 0;
-        unsigned ax, ay, lim;
-        char op;
-        if (argc != 4 || !integer(a[1], &x) || !integer(a[3], &y) || length(a[2]) != 1)
-            return fail(s, "calc INTEGER +|-|*|/|% INTEGER");
-        op = *a[2];
-        if (op == '+') {
-            if ((y > 0 && x > 2147483647 - y) || (y < 0 && x < (-2147483647 - 1) - y))
-                return fail(s, "integer overflow");
-            r = x + y;
-        } else if (op == '-') {
-            if ((y < 0 && x > 2147483647 + y) || (y > 0 && x < (-2147483647 - 1) + y))
-                return fail(s, "integer overflow");
-            r = x - y;
-        } else if (op == '*') {
-            ax = x < 0 ? 0u - (unsigned)x : (unsigned)x;
-            ay = y < 0 ? 0u - (unsigned)y : (unsigned)y;
-            lim = ((x < 0) != (y < 0)) ? 2147483648u : 2147483647u;
-            if (ay && ax > lim / ay)
-                return fail(s, "integer overflow");
-            ax *= ay;
-            r = ((x < 0) != (y < 0)) ? (ax == 2147483648u ? (-2147483647 - 1) : -(int)ax) : (int)ax;
-        } else if (op == '/' || op == '%') {
-            if (!y)
-                return fail(s, "division by zero");
-            if (x == (-2147483647 - 1) && y == -1)
-                return fail(s, "integer overflow");
-            r = op == '/' ? x / y : x % y;
-        } else
-            return fail(s, "unknown operator");
-        signed_number(s, r);
-        ps_newline(s);
-        return 0;
-    }
-    if (equal(cmd, "hash")) {
-        const char *rounds;
-        int n = 1;
-        if (!(argc == 2 || (argc == 3 && prefix(a[2], "--rounds=")) ||
-              (argc == 4 && equal(a[2], "--rounds"))))
-            return fail(s, "hash TEXT [--rounds N]");
-        rounds = ps_option(argc, a, "rounds");
-        if (rounds && (!integer(rounds, &n) || n < 1 || n > 1000000))
-            return fail(s, "rounds must be 1..1000000");
-        if (s->job.active)
-            return fail(s, "job already running");
-        str(s->job_data, a[1], PS_LINE);
-        s->job_length = length(s->job_data);
-        str(s->job.name, "FNV-1a stream", 40);
-        s->job.total = (unsigned)n;
-        s->job.done = 0;
-        s->job.active = 1;
-        s->job.cancelled = 0;
-        s->job.hash = 2166136261u;
-        notice(s, "Hash job started");
-        return 0;
-    }
-    if (equal(cmd, "jobs")) {
-        if (argc == 2 && equal(a[1], "cancel")) {
-            s->job.active = 0;
-            s->job.cancelled = 1;
-            notice(s, "Job cancelled");
-        } else if (argc != 1)
-            return fail(s, "jobs [cancel]");
-        if (s->job.total)
-            job_report(s);
-        return 0;
-    }
-    if (equal(cmd, "history")) {
-        if (argc == 2 && equal(a[1], "clear")) {
-            ps_history_clear(s);
-            return 0;
-        }
-        if (argc != 1)
-            return fail(s, "history [clear]");
-        for (i = 0; i < s->history_count; ++i) {
-            ps_number(s, i + 1);
-            out(s, "  ");
-            ps_write(s, ps_history_get(s, i));
-            ps_newline(s);
-        }
-        return 0;
-    }
-    if (equal(cmd, "bind")) {
-        unsigned key;
-        if (argc == 1) {
-            for (i = 0; i < s->binding_count; ++i) {
-                ps_number(s, s->bindings[i].key);
-                out(s, "  ");
-                ps_write(s, s->bindings[i].command);
-                ps_newline(s);
-            }
-            return 0;
-        }
-        if (argc != 3 || a[1][0] != 'F' || a[1][1] < '1' || a[1][1] > '4' || a[1][2] ||
-            length(a[2]) >= 64)
-            return fail(s, "bind F1|F2|F3|F4 COMMAND");
-        key = PS_KEY_F1 + (unsigned)(a[1][1] - '1');
-        if (ps_bind(s, key, 0, 0))
-            return fail(s, "binding capacity reached");
-        for (i = 0; i < s->binding_count; ++i)
-            if (s->bindings[i].key == key)
-                str(s->bindings[i].command, a[2], 64);
-        return 0;
-    }
-    if(equal(cmd,"segments")){
-        unsigned short digits[PS_SEG_MAX_CELLS];int count;
-        ps_segment_style display=ps_segment_default_style();
-        if(argc<2)return fail(s,"segments TEXT [--large] [--red] [--mono] [--ascii]");
-        display.unicode=!!(s->io.flags&PS_UNICODE);
-        display.color=(s->io.flags&(PS_INTERACTIVE|PS_COLOR))==(PS_INTERACTIVE|PS_COLOR);
-        for(i=2;i<(unsigned)argc;++i){
-            if(equal(a[i],"--large")){display.horizontal=4;display.vertical=3;}
-            else if(equal(a[i],"--red"))display.foreground=203;
-            else if(equal(a[i],"--mono"))display.color=0;
-            else if(equal(a[i],"--ascii"))display.unicode=0;
-            else return fail(s,"unknown display option");
-        }
-        count=ps_segment_parse(a[1],digits,PS_SEG_MAX_CELLS);
-        if(count<=0)return fail(s,"unsupported display text or too many cells");
-        if(!ps_segment_width(digits,(unsigned)count,&display)||ps_segment_width(digits,(unsigned)count,&display)>=s->io.columns)
-            return fail(s,"display does not fit terminal");
-        frame_begin(s);
-        ps_segment_render(digits,(unsigned)count,&display,s->io.columns-1,segment_sink,s);
-        frame_end(s);s->prompt_rows_drawn=0;return 0;
-    }
-    if(equal(cmd,"prompt")){
-        static const char *const names[]={"default","heading","success","warning","error","green","muted","command","blue"};
-        ps_prompt_part parts[16];unsigned n=0,j;
-        if(argc==2&&equal(a[1],"reset"))return ps_set_prompt_parts(s,0,0);
-        if(argc<3 || !(argc&1))return fail(s,"prompt reset | STYLE TEXT [STYLE TEXT ...]");
-        for(i=1;i<(unsigned)argc;i+=2){
-            for(j=0;j<9&&!equal(a[i],names[j]);++j){}
-            if(j==9||n==16)return fail(s,"unknown prompt style");
-            parts[n].text=a[i+1];parts[n++].style=j;
-        }
-        return ps_set_prompt_parts(s,parts,n)?fail(s,"prompt exceeds limits or contains controls"):0;
-    }
-    if (equal(cmd, "theme") || equal(cmd, "display")) {
-        const char *choice;
-        if(equal(cmd,"display")){
-            if(argc!=3)return fail(s,"display color rgb|ansi|mono; display glyphs unicode|ascii");
-            if(equal(a[1],"color")&&(equal(a[2],"rgb")||equal(a[2],"ansi")||equal(a[2],"mono")))
-                choice=equal(a[2],"rgb")?"color":a[2];
-            else if(equal(a[1],"glyphs")&&(equal(a[2],"unicode")||equal(a[2],"ascii")))choice=a[2];
-            else return fail(s,"unknown display setting");
-        }else{
-            if(argc!=2)return fail(s,"theme default|cyan|violet|red|onedark");
-            choice=equal(a[1],"semantic")?"default":equal(a[1],"lumen")?"cyan":a[1];
-        }
-#ifdef PS_ASCII_ONLY
-        if (equal(choice, "color") || equal(choice, "unicode") || equal(choice, "violet") ||
-            equal(choice, "red") || equal(choice, "cyan") || equal(choice, "onedark") || equal(choice, "default") ||
-            equal(choice, "ansi"))
-            return fail(s, "disabled in ASCII-only build");
-#endif
-        if (equal(choice, "violet") || equal(choice, "red") || equal(choice, "cyan") ||
-            equal(choice, "onedark") || equal(choice, "default")) {
-            s->theme = equal(choice, "default") ? PS_THEME_DEFAULT : equal(choice, "onedark") ? 3
-                       : equal(choice, "cyan") ? 2
-                       : equal(choice, "red")   ? 1
-                                              : 0;
-        } else if (equal(choice, "color"))
-            s->io.flags |= PS_COLOR | PS_TRUECOLOR;
-        else if (equal(choice, "ansi")) {
-            s->io.flags |= PS_COLOR;
-            s->io.flags &= ~PS_TRUECOLOR;
-        } else if (equal(choice, "mono")) {
-            s->io.flags &= ~PS_COLOR;
-            reset(s);
-        } else if (equal(choice, "ascii"))
-            s->io.flags &= ~PS_UNICODE;
-        else if (equal(choice, "unicode"))
-            s->io.flags |= PS_UNICODE;
-        else
-            return fail(s, "unknown theme");
-        if (s->board) {
-            reset(s);
-            s->canvas_kind=0;
-        }
-        s->dirty = 1;
-        return 0;
-    }
-    if (equal(cmd, "clear")) {
-        s->prompt_rows_drawn=0;ansi(s, "\033[2J\033[H");
-        return 0;
-    }
-    if (equal(cmd, "status")) {
-#if PS_REPORT
-        if(argc==2&&equal(a[1],"--report")){
-            char storage[11],executions[11],tasks[11],received[11],sent[11];
-            ps_report_row rows[]={
-                {"Session",0,PS_VERSION,PS_REPORT_SECTION},
-                {"Storage","caller-owned bytes",storage,PS_REPORT_NUMBER},
-                {"Heap","core allocations","0",PS_REPORT_NUMBER},
-                {"Backend",0,ps_memory_backend(),0},
-                {"Activity",0,0,PS_REPORT_SECTION|PS_REPORT_GAP},
-                {"Commands","executed",executions,PS_REPORT_NUMBER},
-                {"Tasks",0,tasks,PS_REPORT_NUMBER},
-                {"Input","bytes",received,PS_REPORT_NUMBER},
-                {"Output","bytes before this report",sent,PS_REPORT_NUMBER}
-            };
-            dec(storage,sizeof *s);dec(executions,s->executions);dec(tasks,s->task_count);
-            dec(received,s->bytes_in);dec(sent,s->bytes_out);
-            ps_print_report(s,rows,sizeof rows/sizeof rows[0],PS_REPORT_DOTS);
-            return 0;
-        }
-#endif
-        if(argc!=1)return fail(s,"status [--report]");
-        out(s, "version=" PS_VERSION " session_bytes=");
-        ps_number(s, sizeof *s);
-        out(s, " heap_bytes=0 memory_backend=");
-        out(s, ps_memory_backend());
-        out(s, " commands=");
-        ps_number(s, s->executions);
-        out(s, " tasks=");
-        ps_number(s, s->task_count);
-        out(s, " input_bytes=");
-        ps_number(s, s->bytes_in);
-        out(s, " output_bytes=");
-        ps_number(s, s->bytes_out);
-        ps_newline(s);
-        return 0;
-    }
-    if (equal(cmd, "exit")) {
-        s->exit = 1;
-        ps_close(s);
-        return 0;
-    }
-    return fail(s, "unknown command");
-}
 PS_API void ps_set_executor(ps_session *s, ps_command_fn run, void *context) {
     if (s) { s->executor = run; s->executor_context = context; }
 }
@@ -2641,7 +1893,7 @@ PS_API int ps_execute_argv(ps_session *s, int argc, const char *const *a) {
         s->executing = 0;
         return s->status;
     }
-    s->status = fail(s, "unknown command; use help or Tab");
+    s->status = fail(s, "unknown command");
     return s->status;
 }
 PS_API int ps_execute(ps_session *s, const char *line) {
@@ -2728,7 +1980,7 @@ static void escape_key(ps_session *s) {
     else if (equal(p, "[200~")) {
         if(s->document_open&&!s->document_dialog)document_snapshot(s);
 #if PS_UNDO_DEPTH
-        if(!s->board&&!s->form&&!s->document_open&&!s->menu_depth&&!s->file_count){
+        if(!s->board&&!form_is_active(s)&&!s->document_open&&!s->menu_depth&&!s->file_count){
             if(!s->undo.frames)ps_undo_bind(&s->undo,&s->undo_frames[0][0],s->undo_positions,PS_LINE,PS_UNDO_DEPTH+1);
             ps_undo_record(&s->undo,s->line,s->pos);
         }
@@ -2747,7 +1999,7 @@ static void input_byte(ps_session *s, unsigned c) {
                 s->paste = 0;
                 s->paste_match = 0;
 #if PS_UNDO_DEPTH
-                if(s->undo.frames&&!s->board&&!s->form&&!s->document_open&&!s->menu_depth&&!s->file_count)ps_undo_record(&s->undo,s->line,s->pos);
+                if(s->undo.frames&&!s->board&&!form_is_active(s)&&!s->document_open&&!s->menu_depth&&!s->file_count)ps_undo_record(&s->undo,s->line,s->pos);
 #endif
                 prompt(s);
             }
@@ -2893,7 +2145,9 @@ PS_API void ps_feed(ps_session *s, const void *data, unsigned n) {
         render(s);
 }
 PS_API void ps_tick(ps_session *s, ps_u32 now) {
+#if PS_WORKBENCH
     unsigned rounds = 0, i;
+#endif
     s->now = now;
     if (s->esc && (ps_u32)(now - s->esc_time) >= 60) {
         unsigned is_escape = s->esc == 1;
@@ -2901,26 +2155,9 @@ PS_API void ps_tick(ps_session *s, ps_u32 now) {
         if (is_escape)
             ps_key(s, 27);
     }
-    if (s->job.active) {
-        while (s->job.done < s->job.total && rounds++ < 128) {
-            for (i = 0; i < s->job_length; ++i) {
-                s->job.hash ^= (ps_byte)s->job_data[i];
-                s->job.hash *= 16777619u;
-            }
-            ++s->job.done;
-        }
-        s->dirty = 1;
-        if (s->job.done == s->job.total) {
-            s->job.active = 0;
-            notice(s, "Hash complete");
-            if (!s->board) {
-                if (s->io.flags & PS_INTERACTIVE)
-                    ansi(s, "\r\033[2K");
-                job_report(s);
-                prompt(s);
-            }
-        }
-    }
+#if PS_WORKBENCH
+#include "../host/workbench/job_tick.inc"
+#endif
     if (s->board && (s->dirty || (s->tab == 3 && now / 1000 != s->last_paint / 1000)) &&
         (ps_u32)(now - s->last_paint) >= 100)
         render(s);

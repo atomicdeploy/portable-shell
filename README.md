@@ -10,6 +10,15 @@ console, TCP/Telnet, and serial I/O. No third-party runtime is linked into the c
 [🛡️ CodeQL](https://github.com/atomicdeploy/portable-shell/actions/workflows/codeql.yml) ·
 [🔐 Security](SECURITY.md)
 
+## Framework and consumer applications
+
+The `portable_shell` library starts with an empty command registry. Consumers supply
+commands, help, completion callbacks, application titles and typed settings.
+The native demo uses the separate `portable_shell_workbench` composition; its
+application commands live under `host/workbench/`, outside the reusable core.
+Link one composition, not both. [Registration and migration guide](docs/wiki/Commands.md)
+· [Runnable consumer example](examples/consumer_commands.c)
+
 ## Terminal interaction
 
 Shared bounded undo/redo, protected bracketed paste, and an opt-in retained screen with clipped windows, scrolling pads and changed-cell repainting. [API and compatibility boundaries](https://github.com/atomicdeploy/portable-shell/wiki/Terminal-interaction).

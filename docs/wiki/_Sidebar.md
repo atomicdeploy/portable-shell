@@ -28,3 +28,4 @@
 
 - [Local shell language](Local-shell.md)
 - [Terminal OSC integration](OSC.md)
+- [Consumer commands and typed settings](Commands.md)

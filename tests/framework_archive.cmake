@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.16)
+file(STRINGS "${ARCHIVE}" leaked REGEX "Station_SSID|Task empty or capacity reached|fnv1a=|New task")
+if(leaked)
+  message(FATAL_ERROR "Application catalogue leaked into framework archive: ${leaked}")
+endif()
+message(STATUS "Framework archive excludes workbench and device command text")

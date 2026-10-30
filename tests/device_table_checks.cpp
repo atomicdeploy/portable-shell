@@ -39,7 +39,11 @@ int main(){
     v.setSynchronizedOutput(false);output.clear();v.render(s,write,true);
     assert(output.find("2026")==std::string::npos);
     v.setSynchronizedOutput(true);output.clear();v.render(s,write,true);
+#if PS_DEVICE_VIEW_SECTIONS
     assert(output.find("▸ ")==std::string::npos);
+#else
+    assert(output.find("▸ ")!=std::string::npos); /* No collapsible category competes with selection. */
+#endif
     v.setSelectionMarker("* ");output.clear();v.render(s,write,true);
     assert(output.find("* Output")!=std::string::npos);
     v.setSelectionMarker("");output.clear();v.render(s,write,true);
