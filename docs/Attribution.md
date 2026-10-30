@@ -21,3 +21,5 @@ They are not linked into the shell library.
 - [PakarController ownership and terminal integration](https://github.com/atomicdeploy/PakarController/blob/update/portable-shell-refresh/docs/SYSTEM-MAPS.md)
 
 PU850 is a prospective adapter migration, not a completed consumer refresh. Preserve its device commands and persistence semantics when integrating; do not substitute desktop demo commands.
+
+[Source disposition audit and migration gates](Source-disposition.md)
