@@ -59,7 +59,7 @@ if(DEFINED GENERATOR)
 endif()
 execute_process(COMMAND ${configure} COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${CMAKE_COMMAND}" --build "${BUILD_DIR}/native" --config Release COMMAND_ERROR_IS_FATAL ANY)
-set(frames native-tree native-list native-split native-nerd native-emoji menu-centered menu-details editor-framed files meters workspace controls inline dialog red lumen onedark ascii controls-columns controls-collapsed controls-compact controls-inside menu document device-full device-vertical device-matrix device-inline device-reduced device-inside device-scrollbar device-scrollbar-compact prompt-colored prompt-multiline prompt-ascii)
+set(frames native-tree native-list native-split native-nerd native-emoji menu-centered menu-details editor-framed files meters workspace controls inline dialog red lumen onedark ascii controls-columns controls-collapsed controls-compact controls-inside menu document device-full device-vertical device-matrix device-inline device-reduced device-inside device-scrollbar device-scrollbar-compact prompt-colored prompt-multiline prompt-ascii seven-segment)
 set(arguments)
 set(managed)
 foreach(frame IN LISTS frames)
@@ -79,6 +79,7 @@ execute_process(COMMAND "${BUILD_DIR}/native/bin/meter_preview${exe}" "${generat
 execute_process(COMMAND "${BUILD_DIR}/native/bin/layout_preview${exe}" "${generated}/menu-centered.svg" "${generated}/menu-details.svg" "${generated}/editor-framed.svg" "${generated}/files.svg" COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${BUILD_DIR}/native/bin/filesystem_preview${exe}" "${root}/tests/fixtures/browser" "${generated}/native-tree.svg" "${generated}/native-list.svg" "${generated}/native-split.svg" "${generated}/native-nerd.svg" "${generated}/native-emoji.svg" COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${BUILD_DIR}/native/bin/prompt_preview${exe}" "${generated}/prompt-colored.svg" "${generated}/prompt-multiline.svg" "${generated}/prompt-ascii.svg" COMMAND_ERROR_IS_FATAL ANY)
+execute_process(COMMAND "${BUILD_DIR}/native/bin/segment_preview${exe}" "${generated}/seven-segment.svg" COMMAND_ERROR_IS_FATAL ANY)
 foreach(frame IN LISTS frames)
   # One explicitly supplied font; two-times resolution for smooth display scaling.
   execute_process(COMMAND "${RESVG}" --skip-system-fonts --use-font-file "${cache}/Agave.ttf"
