@@ -42,7 +42,7 @@ static void dashboard_render(ps_session *s){
     s->tab=tab;s->selected=selected;s->editing=editing;s->scroll=scroll;
     at(s,s->io.rows-2,2);ink(s,PS_INK_MUTED);field(s,s->notice[0]?s->notice:s->panel->status,s->io.columns-3);reset(s);
     at(s,s->io.rows-1,2);footer_field(s,editing?"Enter Apply  Esc Cancel  ^U Clear":(s->io.flags&PS_UNICODE)?"Tab Panel  ↑/↓ Row  ←/→ Adjust  Enter Edit":"Tab Panel  Up/Down Row  Left/Right Adjust  Enter Edit",s->io.columns-3,0);
-    at(s,s->io.rows,2);footer_field(s,"F2 Dialog  Esc Cancel/close",s->io.columns-3,0);
+    at(s,s->io.rows,2);footer_field(s,editing?"F2 Dialog":"F2 Dialog  Esc Close",s->io.columns-3,0);
     if(editing){
         if(s->dialog)control_overlay(s,&active);
         else{
