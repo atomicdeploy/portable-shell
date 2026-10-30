@@ -12,7 +12,11 @@ int main(){
     view.begin();view.setGroupLayout(V::SectionRows);
     auto keys=[&](const char *text){while(*text){assert(!view.feed(uint8_t(*text++),s,a));assert(a.type==V::Action::None);}};
     auto frame=[&](){std::string out;view.render(s,[&](const uint8_t*p,size_t n){out.append((const char*)p,n);},true);return out;};
-    assert(frame().find("ALPHA")!=std::string::npos);
+    assert(!view.sectionBottomBorder());
+    const std::string without=frame();assert(without.find("ALPHA")!=std::string::npos);
+    view.setSectionBottomBorder(true);const std::string with=frame();
+    assert(view.sectionBottomBorder()&&with!=without);
+    view.setSectionBottomBorder(false);
     keys("\x1b[A\r\n");assert(view.sectionSelected());
     assert(frame().find("First")==std::string::npos);
     keys("\x1b[D\x1b[D");assert(frame().find("Second")==std::string::npos);

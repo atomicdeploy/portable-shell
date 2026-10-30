@@ -692,7 +692,7 @@ PS_API void ps_set_selection_marker(ps_session *s,const char *marker) {
     s->dirty=1;
 }
 PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
-    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER|PS_TABLE_COMPACT_SCROLLBAR;
+    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER|PS_TABLE_COMPACT_SCROLLBAR|PS_TABLE_SECTION_BOTTOM;
     if (s->editing)
         flags = (flags & ~layout) | (s->table_style & layout);
     if ((s->table_style ^ flags) & layout)
