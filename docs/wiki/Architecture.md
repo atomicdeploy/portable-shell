@@ -132,9 +132,6 @@ These links also work in readers that disable clickable diagram nodes.
 - [.github/workflows/build.yml](https://github.com/atomicdeploy/portable-shell/blob/3a7eeba179c238226deef1b64e3bd3b86c4e12e7/.github/workflows/build.yml)
 - [.github/workflows/docs.yml](https://github.com/atomicdeploy/portable-shell/blob/3a7eeba179c238226deef1b64e3bd3b86c4e12e7/.github/workflows/docs.yml)
 
-## Consumer maps
+## Consumer integration
 
-- [Ardush serial adapter and board builds](https://github.com/DRSDavidSoft/Ardush/blob/master/ARCHITECTURE.md)
-- [PakarController ownership and terminal integration](https://github.com/atomicdeploy/PakarController/blob/update/portable-shell-refresh/docs/SYSTEM-MAPS.md)
-
-PU850 is a prospective adapter migration, not a completed consumer refresh. Preserve its device commands and persistence semantics when integrating; do not substitute desktop demo commands.
+See the [consumer source maps](../Attribution.md#consumer-maps). A prospective device migration must preserve application commands and persistence semantics; desktop demo commands are not device replacements.
