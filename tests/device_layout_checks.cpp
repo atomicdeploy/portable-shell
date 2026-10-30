@@ -74,7 +74,6 @@ struct Screen {
 };
 
 int main(){
-#if PS_DEVICE_VIEW_TABLE
     for(unsigned width:{40U,64U,80U,120U,240U})for(unsigned height:{16U,24U,40U,100U})
     for(bool compact:{false,true})for(bool vertical:{false,true})for(bool unicode:{false,true})for(bool borders:{false,true})for(bool inside:{false,true}){
         V view;view.setCompactScrollbar(compact);V::Snapshot s;V::Action a;V::Row rows[32];
@@ -95,7 +94,7 @@ int main(){
         assert(screen.cells[height-4][right]==(unicode?"\xe2\x95\xaf":"+"));
         assert(screen.line(height-1).find("Tab pages")!=std::string::npos);
         assert(screen.line(height-2).find("select")!=std::string::npos);
-        if(left)assert(screen.line(2).find(PS_TAB_BRACKETS||!PS_STYLE_THEMES?"[Device]":" Device ")!=std::string::npos);
+        if(left)assert(screen.line(2).find(PS_TAB_BRACKETS?"[Device]":" Device ")!=std::string::npos);
 #if PS_DEVICE_VIEW_SECTIONS && !PS_DEVICE_VIEW_CATEGORY_COLUMN
         feed("\x1b[A");render(false);assert(view.sectionSelected());
         auto heading=screen.cells;render(true);assert(heading==screen.cells);
@@ -151,34 +150,6 @@ int main(){
         s.canLeds=true;uint8_t states[80]={};s.cellStates=states;
         feed("\t\t");render(false);assert(view.page()==V::Led);
         assert(screen.line(height-1).find("Tab pages")!=std::string::npos);
-        assert(screen.cells[height-4][right]==(unicode?"\xe2\x95\xaf":"+"));
+        assert(screen.cells[height-4-(PS_DEVICE_VIEW_MATRIX?0:height<24?5:9)][right]==(unicode?"\xe2\x95\xaf":"+"));
     }
-#else
-    for(unsigned width:{40U,80U,100U})for(unsigned height:{16U,24U,40U,100U})
-    for(bool unicode:{false,true}){
-        const unsigned right=width-2;V view;V::Snapshot s;V::Action a;V::Row row("Setting","setting","Observed",true);
-        s.rows=&row;s.rowCount=1;s.columns=uint16_t(width);s.lines=uint16_t(height);s.unicode=unicode;
-        view.begin();Screen screen(width,height);std::string output;
-        auto render=[&](bool force){
-            output.clear();
-            view.render(s,[&](const uint8_t *p,size_t n){output.append((const char*)p,n);},force);
-            screen.feed(output);
-            assert(output.size()<PS_DEVICE_VIEW_FRAME_BYTES);
-            assert(output.find("\x1b[48;2;")==std::string::npos);
-            assert(output.find("\x1b[48;5;")==std::string::npos);
-            if(screen.cells[height-4][right]!=(unicode?"\xe2\x95\xaf":"+"))
-                std::fprintf(stderr,"Incomplete retained frame %ux%u unicode=%d bytes=%zu\n",width,height,int(unicode),output.size());
-            const std::string vertical=unicode?"\xe2\x94\x82":"|";
-            for(unsigned r=3;r<height-4;++r)assert(screen.cells[r][0]==vertical&&screen.cells[r][right]==vertical);
-            assert(screen.cells[height-4][0]==(unicode?"\xe2\x95\xb0":"+"));
-            assert(screen.cells[height-4][right]==(unicode?"\xe2\x95\xaf":"+"));
-        };
-        render(true);
-        assert(screen.line(height-2).find("select")!=std::string::npos||width<60);
-        view.feed('\r',s,a);render(false);assert(view.editing());
-        view.feed('X',s,a);render(false);
-        view.feed('\x1b',s,a);view.flushEscape(a);render(false);
-        auto incremental=screen.cells;render(true);assert(incremental==screen.cells);
-    }
-#endif
 }

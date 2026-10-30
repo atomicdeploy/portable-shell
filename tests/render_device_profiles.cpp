@@ -4,6 +4,9 @@
 extern "C" void ps_replay_reset(void);
 extern "C" void ps_replay_feed(const unsigned char *,unsigned);
 extern "C" unsigned ps_replay_svg(char *);
+#ifndef PS_PREVIEW_REDUCED
+#define PS_PREVIEW_REDUCED 0
+#endif
 static char svg[400000];
 static int save(const char *path){
     unsigned n=ps_replay_svg(svg);FILE *f=std::fopen(path,"wb");if(!f)return 1;
@@ -11,7 +14,7 @@ static int save(const char *path){
 }
 int main(int argc,char **argv){
     using V=PortableShell::DeviceView;
-    if(argc!=(PS_DEVICE_VIEW_TABLE?8:2))return 2;
+    if(argc!=(PS_PREVIEW_REDUCED?2:8))return 2;
     V view;V::Snapshot s;V::Action a;
     V::Row rows[]={ {"Output","output","on",true},{"Brightness","brightness","160",true},
         {"Effect","effect","breathe",true},{"Hostname","hostname","workbench",true},
@@ -29,8 +32,8 @@ int main(int argc,char **argv){
     view.begin();
     auto render=[&](){ps_replay_reset();view.render(s,[](const uint8_t *p,size_t n){ps_replay_feed(p,unsigned(n));},true);};
     render();if(save(argv[1]))return 3;
-    std::printf("DeviceView state: %u bytes; table=%d widgets=%d dialogs=%d matrix=%d\n",unsigned(sizeof(view)),PS_DEVICE_VIEW_TABLE,PS_DEVICE_VIEW_WIDGETS,PS_DEVICE_VIEW_DIALOGS,PS_DEVICE_VIEW_MATRIX);
-#if PS_DEVICE_VIEW_TABLE
+    std::printf("DeviceView state: %u bytes; retained_rows=%d widgets=%d dialogs=%d matrix=%d\n",unsigned(sizeof(view)),PS_DEVICE_VIEW_RETAIN_ROWS,PS_DEVICE_VIEW_WIDGETS,PS_DEVICE_VIEW_DIALOGS,PS_DEVICE_VIEW_MATRIX);
+#if !PS_PREVIEW_REDUCED
     view.setTabsInsideTable(true);render();if(save(argv[5]))return 7;
     view.setTabsInsideTable(false);
     view.setTabLayout(V::VerticalTabs);render();if(save(argv[2]))return 4;

@@ -57,8 +57,8 @@ add `PS_TABLE_TABS_INSIDE` to `ps_set_table_style()`; C++ callers use
 `view.setTabsInsideTable(true)`. It is **off by default** and independent of the
 section-density and category-column options. Changes during editing are ignored.
 At the C workbench's minimum 14-line height it falls back outside to retain a
-usable body row; the requested placement returns when height permits. The
-retained C++ `PS_DEVICE_VIEW_TABLE=0` renderer keeps its original placement.
+usable body row; the requested placement returns when height permits. Both C++
+profiles use the same placement logic.
 
 Grouped control panels and rich device tables default to **collapsible section
 rows**: uppercase headings on solid surfaces spanning the two key/value columns.
@@ -124,7 +124,7 @@ to retain the respective older below-table editor layout.
 | Profile | Features and selection | Default capacity |
 | --- | --- | --- |
 | Full shell | Default library: commands, tasks, variables, jobs, panels | 512-byte line storage, 24 history entries, 32 table rows, 40 command slots |
-| Compact full shell | `PORTABLE_SHELL_COMPACT=ON`, same features | 128-byte line storage, 4 history entries, 4 rows, 24 commands |
+| Compact full shell | `PORTABLE_SHELL_COMPACT=ON`, same features | 128-byte line storage, 4 history entries, 4 rows, 28 commands |
 | Device commands | `--device-commands`; `portable_shell_device.h`, `ps_device_attach()`; raw-tail, case-insensitive registry with host callbacks | Full/compact session bounds |
 | Event editor | `portable_editor.h`; application owns dispatch | 512 characters, 8 history entries |
 | Small console | `portable_console.h` in the serial example repository; shared editor/parser/probe, callback commands, optional Telnet | 64 characters, 2 history entries, 8 parsed arguments |
@@ -145,8 +145,7 @@ sidebar (plus a two-column gap). Horizontal tabs remain the default. Tab and
 Shift+Tab navigate pages; arrows continue to operate the selected row or matrix.
 The sidebar falls back to horizontal tabs below 64 columns, without ANSI, or
 with `PS_DEVICE_VIEW_VERTICAL_TABS=0`. The requested layout is retained across
-resizes and restored when space permits. `PS_DEVICE_VIEW_TABLE=0` retains the
-older horizontal view. The serial example exposes `view vertical` and
+resizes and restored when space permits. The serial example exposes `view vertical` and
 `view horizontal` (`view` defaults to horizontal).
 
 Rich interactive tables reserve the window's final three lines for status and
@@ -157,16 +156,18 @@ than losing rows. These capacities are independent of CPU architecture.
 
 | Explicit device-view flag | Default | Setting to 0 removes |
 | --- | --- | --- |
-| `PS_DEVICE_VIEW_TABLE` | 1 | Rich grid, section headings and sidebar; retained layout remains |
-| `PS_DEVICE_VIEW_WIDGETS` | 1 | Toggle/choice shortcuts, level meters and typed validation |
-| `PS_DEVICE_VIEW_DIALOGS` | 1 | Optional F2 modal editing |
+| `PS_DEVICE_VIEW_RETAIN_ROWS` | 1 | Per-row repaint cache; shared renderer paints the dirty viewport instead |
+| `PS_DEVICE_VIEW_SECTIONS` | 1 | Collapsible headings and per-page fold storage |
+| `PS_DEVICE_VIEW_INLINE_EDIT` | 1 | In-cell draft; a labeled editor uses the footer instead |
+| `PS_DEVICE_VIEW_WIDGETS` | 1 | Toggle/choice shortcuts and level meters; typed validation is always retained |
+| `PS_DEVICE_VIEW_DIALOGS` | 1 | Optional F2/right-click modal editing; inline or footer editing remains |
 | `PS_DEVICE_VIEW_MATRIX` | 1 | Dedicated matrix layout; retained diagnostics remain |
 | `PS_DEVICE_VIEW_DIAGNOSTICS` | 1 | Matrix/pixel/game diagnostics (the simple serial adapter sets 0 because it has no such devices) |
-| `PS_STYLE_THEMES` | 1 | Rich theme palettes |
+| `PS_STYLE_THEMES` | 1 | Color palettes; reset/bold/inverse remain for monochrome selection |
 | `PS_DEVICE_VIEW_VERTICAL_TABS` | 1 | Sidebar implementation; enabling this flag does not select it by default |
 
 The comparison pictures in the serial example build one identical observation
-fixture with all rich features, and again with TABLE/WIDGETS/DIALOGS/MATRIX/
+fixture with all rich features, and again with RETAIN_ROWS/WIDGETS/DIALOGS/MATRIX/
 STYLE_THEMES/VERTICAL_TABS explicitly set to 0. A third fixture builds only the
 C prompt. They are host byte replays, not claims of board RAM/flash fit.
 
@@ -250,15 +251,42 @@ track (│) and thick thumb (┃); ASCII uses | and #. Below 64 available column
 
 Set the C table flag `PS_TABLE_COMPACT_SCROLLBAR` or call
 `DeviceView::setCompactScrollbar(true)` to keep the border scrollbar at any width.
-The retained minimal C++ renderer continues to use the border scrollbar.
+Both C++ profiles share these scrollbar options.
 
 Ordinary editable rows have an empty selection marker by default; their
 background indicates selection. Only expandable category headings keep their
 disclosure arrows. Customize with `ps_set_selection_marker(session, "* ")` or
 `view.setSelectionMarker("* ")`; `""` removes the marker, and `" "` reserves
 blank space. The C API copies up to 31 bytes; the C++ setting borrows a string
-that must remain valid. Markers are clipped to the label area. The minimal
-renderer retains its fixed two-cell marker slot.
+that must remain valid. Markers are clipped to the label area in all profiles.
 
 Actual-output comparison fixtures: [separate scrollbar](https://github.com/atomicdeploy/portable-shell/blob/main/previews/device-scrollbar.png)
 and [compact scrollbar](https://github.com/atomicdeploy/portable-shell/blob/main/previews/device-scrollbar-compact.png).
+
+### Unified reduced profile
+
+There is one DeviceView renderer. The former retained layout has been removed;
+its inline/footer editing and diagnostic actions are served by shared code.
+The legacy `PS_DEVICE_VIEW_TABLE=0` flag is accepted as the default for
+`PS_DEVICE_VIEW_RETAIN_ROWS=0`. It no longer disables layout, sections or tabs.
+Explicit RETAIN_ROWS wins if both macros are supplied.
+
+Both profiles support 40–240 terminal columns, viewport-driven row counts,
+Unicode/ASCII borders, scrolling, custom markers, contextual footers, tab
+placement, pending/read-only/secret guards and stale-value checks. Validation of
+toggles, numeric bounds and choice membership is unconditional. Disabling
+widgets changes presentation and shortcuts only.
+
+The reduced preview explicitly disables row caching, widgets, dialogs, the
+spatial matrix, palettes and vertical tabs. These are the remaining deliberate
+differences. Sections can independently be disabled; they are enabled in the
+preview. No CPU architecture selects a reduced profile automatically.
+`PS_DEVICE_VIEW_MAX_ROWS` controls both row limits and optional cache/fold RAM.
+The default frame budget is 65535 output bytes in either profile (a byte counter,
+not a framebuffer allocation); an explicitly lower budget may limit populated
+rows. Uncached painting saves RAM but sends more bytes on dirty frames. Idle
+frames remain suppressed and synchronized output remains available.
+
+The C shell's tasks/jobs/menu/editor/files components are separate from
+DeviceView. A consumer choosing only the snapshot/action API does not acquire
+those components by enabling presentation flags.

@@ -122,7 +122,7 @@ static inline const char *ps_style_ink(unsigned theme, int rgb, int red_border, 
                                             : fallback[kind % 8];
 }
 static inline const char *ps_style_surface(unsigned theme, int rgb, unsigned active) {
-    if (!PS_STYLE_THEMES) return "";
+    if (!PS_STYLE_THEMES) return active ? "\033[7m" : "\033[1m";
     if(theme==PS_STYLE_SEMANTIC){
         if(!rgb)return active==1?"\033[48;5;252;38;5;234m":active==2?"\033[48;5;237m":"\033[48;5;236;38;5;255m";
         return active==1?"\033[48;2;211;218;230m\033[38;2;24;26;31m":active==2?"\033[48;2;48;55;67m":"\033[48;2;36;41;50m\033[38;2;230;233;239m";
