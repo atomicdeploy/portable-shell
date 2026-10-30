@@ -134,4 +134,4 @@ These links also work in readers that disable clickable diagram nodes.
 
 ## Consumer integration
 
-See the [consumer source maps](../Attribution.md#consumer-maps). A prospective device migration must preserve application commands and persistence semantics; desktop demo commands are not device replacements.
+See the [consumer source maps](https://github.com/atomicdeploy/portable-shell/blob/abcb3a6/docs/Attribution.md#consumer-maps). A prospective device migration must preserve application commands and persistence semantics; desktop demo commands are not device replacements.
