@@ -39,6 +39,11 @@ int main(){
     v.setSynchronizedOutput(false);output.clear();v.render(s,write,true);
     assert(output.find("2026")==std::string::npos);
     v.setSynchronizedOutput(true);output.clear();v.render(s,write,true);
+    assert(output.find("▸ ")==std::string::npos);
+    v.setSelectionMarker("* ");output.clear();v.render(s,write,true);
+    assert(output.find("* Output")!=std::string::npos);
+    v.setSelectionMarker("");output.clear();v.render(s,write,true);
+    assert(output.find("* Output")==std::string::npos);
     assert(output.find("[Device]")==std::string::npos);
     assert(output.find(PS_KEYCAP_STYLE "Space")!=std::string::npos);
     assert(output.find(PS_KEYCAP_PROMINENT_STYLE)==std::string::npos);

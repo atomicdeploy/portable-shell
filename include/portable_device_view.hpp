@@ -207,6 +207,9 @@ class DeviceView {
     }
     bool tabsInsideTable() const { return tabsInsideTable_; }
     void setFooterKeycaps(bool enabled){keycaps_=enabled;dirty_=full_=true;}
+    void setCompactScrollbar(bool enabled){compactScrollbar_=enabled;dirty_=full_=true;}
+    // Caller retains the marker string for the lifetime of this setting.
+    void setSelectionMarker(const char *marker){selectionMarker_=marker?marker:"";dirty_=full_=true;}
     void setFooterGrid(bool enabled){footerGrid_=enabled;dirty_=full_=true;}
     void setSynchronizedOutput(bool enabled){syncOutput_=enabled;}
     void setFooterEmphasis(bool enabled){footerEmphasis_=enabled;dirty_=full_=true;}
@@ -560,7 +563,7 @@ class DeviceView {
                     if (ansi_) {
                         out.raw(selected ? (theme_==Semantic ? "\x1b[7m" : "\x1b[1;35m") : "\x1b[0m");
                     }
-                    out.raw(selected ? "> " : "  ");
+                    out.field(selected ? selectionMarker_ : "",2);
                     const size_t labelWidth = width < 60 ? 12 : 22;
                     out.field(row.label, labelWidth);
                     if (ansi_)
@@ -1210,6 +1213,8 @@ class DeviceView {
     uint32_t sectionSchema_[PS_DEVICE_VIEW_TABLE&&PS_DEVICE_VIEW_SECTIONS?PageCount:1]{};
     bool trueColor_ = true, dialog_ = false;
     bool keycaps_=PS_FOOTER_KEYCAPS!=0,tabBrackets_=PS_TAB_BRACKETS!=0;
+    bool compactScrollbar_=false;
+    const char *selectionMarker_="";
     bool footerGrid_=PS_FOOTER_GRID!=0,footerEmphasis_=false;
     bool syncOutput_=PS_SYNC_OUTPUT!=0;
     unsigned editRow_ = 6, editColumn_ = 30, editWidth_ = 40;

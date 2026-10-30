@@ -240,3 +240,25 @@ MCU capacity/style macros must match across translation units.
 Public APIs, profiles and paths describe their function. Earlier names and their
 mappings are preserved in the [naming history](https://github.com/atomicdeploy/portable-shell/blob/main/docs/provenance/name-history.md).
 
+
+### Table scrollbar and selection marker
+
+Wide editable tables use a separate scrollbar column by default, with one blank
+cell between it and the uninterrupted table border. Unicode mode draws a thin
+track (│) and thick thumb (┃); ASCII uses | and #. Below 64 available columns
+(after a vertical tab sidebar), the compact scrollbar shares the right border.
+
+Set the C table flag `PS_TABLE_COMPACT_SCROLLBAR` or call
+`DeviceView::setCompactScrollbar(true)` to keep the border scrollbar at any width.
+The retained minimal C++ renderer continues to use the border scrollbar.
+
+Ordinary editable rows have an empty selection marker by default; their
+background indicates selection. Only expandable category headings keep their
+disclosure arrows. Customize with `ps_set_selection_marker(session, "* ")` or
+`view.setSelectionMarker("* ")`; `""` removes the marker, and `" "` reserves
+blank space. The C API copies up to 31 bytes; the C++ setting borrows a string
+that must remain valid. Markers are clipped to the label area. The minimal
+renderer retains its fixed two-cell marker slot.
+
+Actual-output comparison fixtures: [separate scrollbar](https://github.com/atomicdeploy/portable-shell/blob/main/previews/device-scrollbar.png)
+and [compact scrollbar](https://github.com/atomicdeploy/portable-shell/blob/main/previews/device-scrollbar-compact.png).
