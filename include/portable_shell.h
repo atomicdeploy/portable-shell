@@ -156,6 +156,13 @@ typedef struct {
 } ps_panel;
 PS_API int ps_panel_attach(ps_session *, const ps_panel *); /* NULL detaches */
 PS_API int ps_panel_open(ps_session *, unsigned page);
+#ifndef PS_DASHBOARD
+#define PS_DASHBOARD 1
+#endif
+enum { PS_PANEL_TABS, PS_PANEL_GRID };
+/* Select presentation; provider IDs, validation and writes stay shared.
+   Returns 0 for unsupported layout, active editing, or a disabled dashboard. */
+PS_API int ps_panel_set_layout(ps_session *,unsigned layout);
 PS_API void ps_panel_refresh(ps_session *); /* after provider events, redraw on tick */
 typedef struct {
     const char *title;

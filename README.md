@@ -10,6 +10,10 @@ console, TCP/Telnet, and serial I/O. No third-party runtime is linked into the c
 [🛡️ CodeQL](https://github.com/atomicdeploy/portable-shell/actions/workflows/codeql.yml) ·
 [🔐 Security](SECURITY.md)
 
+## Multi-panel controls
+
+Run controls dashboard for simultaneous panels with stepped values, toggles and inline editing. [Dashboard](previews/dashboard.png) · [Inline edit](previews/dashboard-edit.png) · [API](https://github.com/atomicdeploy/portable-shell/wiki/Shell#multi-panel-dashboard)
+
 ## Forms
 
 Framed text input, validation messages, radio choices and sequential steps share the existing byte editor. [Validation](previews/form-validation.png) · [Choices](previews/form-choice.png) · [Completed and active steps](previews/form-steps.png) · [API](https://github.com/atomicdeploy/portable-shell/wiki/Shell#framed-forms)

@@ -205,3 +205,38 @@ Actual-output Agave previews:
 [validation](https://github.com/atomicdeploy/portable-shell/blob/main/previews/form-validation.png),
 [choices](https://github.com/atomicdeploy/portable-shell/blob/main/previews/form-choice.png),
 [steps](https://github.com/atomicdeploy/portable-shell/blob/main/previews/form-steps.png).
+
+## Multi-panel dashboard
+
+The control provider can be presented as simultaneous panels instead of tabs:
+
+~~~c
+ps_panel_attach(session, &panel);
+ps_panel_set_layout(session, PS_PANEL_GRID);
+ps_panel_open(session, 0);
+~~~
+
+Each ps_control_page becomes a bordered panel. At 90 columns and 24 rows or larger,
+up to four panels appear in a two-column grid. Narrower terminals use one column;
+shorter terminals use one row. Tab and Shift+Tab move focus through all pages,
+including pages outside the current visible group. Very small terminals fall back
+to the existing table layout. This is a responsive grid, not an arbitrary nested
+window compositor.
+
+Use ↑/↓ to select a row, ←/→ to adjust by its declared step, Home/End for bounds,
+Space for toggles, Enter for inline editing, F2 for the existing dialog, and Esc
+to cancel an edit or close the view. Clicking a row focuses it; the wheel moves
+the selection. Oversized panels scroll to keep selection visible and show a range
+on the lower border. The footer stays at the bottom of the terminal.
+
+All reads, writes, validation, pending/locked handling and revision checks use the
+same provider path as the tabbed view. The host supplies observed values and can
+call ps_panel_refresh after changes. Draft edits do not write until Enter.
+
+PS_PANEL_TABS remains the default. The demo command controls dashboard selects
+the grid; controls open returns to tabs. PS_DASHBOARD=0 removes the dashboard
+renderer and state; requesting PS_PANEL_GRID then returns zero.
+
+The following previews replay real output from a simulated provider, not hardware:
+[dashboard](https://github.com/atomicdeploy/portable-shell/blob/main/previews/dashboard.png)
+and [inline editing](https://github.com/atomicdeploy/portable-shell/blob/main/previews/dashboard-edit.png).

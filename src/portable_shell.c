@@ -125,6 +125,9 @@ typedef struct {
     ps_u32 hash;
 } Job;
 struct ps_session {
+#if PS_DASHBOARD
+    unsigned dashboard;
+#endif
 #if PS_FORM
     const ps_form *form;
     unsigned form_index, form_choice, form_top;
@@ -620,7 +623,7 @@ PS_API unsigned ps_history_limit(ps_session *s, unsigned limit) {
     return s->history_limit;
 }
 static const ps_command builtins[] = {
-    {"controls", "[open [page]|list|get ID|set ID VALUE]", "Workspace", builtin, 0, 0},
+    {"controls", "[open [page]|dashboard|list|get ID|set ID VALUE]", "Workspace", builtin, 0, 0},
     {"help", "[--headings|--compact] [command]", "Shell", builtin, 0, 0},
     {"board", "[tasks|variables|jobs|session]", "Workspace", builtin, 0, 0},
     {"edit", "[--framed]", "Workspace", builtin, 0, 0},
@@ -869,6 +872,7 @@ static void enter_edit(ps_session *, unsigned, const char *);
 static void edit_insert(char *, unsigned *, unsigned *, unsigned, unsigned);
 static void edit_delete(char *, unsigned *, unsigned *, int);
 #include "portable_controls.inc"
+#include "portable_dashboard.inc"
 static void task_row(ps_session *s, unsigned index, const Grid *g) {
     Task *t = &s->tasks[index];
     char b[20];
@@ -963,6 +967,9 @@ static void render(ps_session *s) {
     if (!s->board || !(s->io.flags & PS_INTERACTIVE))
         return;
     s->dirty = 0;
+#if PS_DASHBOARD
+    if(s->control_view&&s->dashboard&&w>=42&&h>=14){dashboard_render(s);return;}
+#endif
     s->mouse_edit_width=0;
     zero(s->mouse_tab_left,sizeof s->mouse_tab_left);
     zero(s->mouse_tab_right,sizeof s->mouse_tab_right);
@@ -1695,7 +1702,7 @@ static unsigned collect_completions(ps_session *s, unsigned *start, unsigned *en
     } else {
         static const char *const task[] = {"add", "done", "remove", "rename", "list"};
         static const char *const board[] = {"tasks", "variables", "jobs", "session"};
-        static const char *const controls[] = {"open", "list", "get", "set"};
+        static const char *const controls[] = {"open", "list", "get", "set", "dashboard"};
         static const char *const theme[] = {"violet", "red",   "lumen",   "color",  "ansi",
                                             "mono",   "ascii", "unicode", "onedark", "semantic"};
         static const char *const txt[] = {"upper", "lower", "trim", "slug"};
@@ -1726,7 +1733,7 @@ static unsigned collect_completions(ps_session *s, unsigned *start, unsigned *en
                     count = 4;
                 } else if (equal(args.argv[0], "controls") && args.argc == 1) {
                     opts = controls;
-                    count = 4;
+                    count = PS_DASHBOARD ? 5 : 4;
                 } else if (equal(args.argv[0], "theme")) {
                     opts = theme;
                     count = 10;
@@ -2124,7 +2131,7 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
         result = controls_command(s, argc, a);
         if (result && !s->board)
             return fail(s, s->notice[0] ? s->notice
-                                        : "controls [open [page]|list|get ID|set ID VALUE]");
+                                        : "controls [open [page]|dashboard|list|get ID|set ID VALUE]");
         return result;
     }
     if (equal(cmd, "board")) {
