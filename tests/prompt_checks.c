@@ -8,7 +8,7 @@ unsigned ps_replay_svg(char *);
 unsigned ps_replay_row(void);
 unsigned ps_replay_column(void);
 const char *ps_replay_cell(unsigned,unsigned);
-static union {void *align;unsigned char bytes[40000];} memory;
+static union {void *align;unsigned char bytes[PS_DEFAULT_SESSION_STORAGE];} memory;
 static char output[131072],svg[400000];static unsigned used;
 static void sink(void *ctx,const ps_byte *p,unsigned n){
     (void)ctx;assert(used+n<sizeof output);memcpy(output+used,p,n);used+=n;output[used]=0;

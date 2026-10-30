@@ -53,3 +53,24 @@ Settings persist for that session. Save, discard and cancel retain their existin
 behavior; the border does not change persistence.
 
 ![Framed editor](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/editor-framed.png)
+
+## Binary hex editor
+
+Run `hex` in the demo host to edit a 128-byte session-memory buffer. It is
+independent of external command execution. This is a memory demo, not a file
+path command. Saving persists the buffer for this session only.
+
+- Arrow keys, Page Up/Down, Home/End navigate the fixed-length buffer.
+- Enter two hexadecimal digits to replace a byte; Tab switches to ASCII overwrite.
+- Ctrl-S saves through the consumer callback. Esc closes; modified buffers offer
+  Save, Discard, or Cancel. A failed save retains the draft.
+- Narrow terminals switch from 16 to 8 or 1 byte per row.
+- `PS_HEX_EDITOR=0` removes the editor state, implementation, and demo command.
+
+Consumers call `ps_hex_editor_open(session, title, source, length, draft,
+capacity, save_callback, context)`. Source and draft must be distinct,
+non-overlapping buffers; draft, title, and context remain valid until closure.
+The source is unchanged unless the callback writes it. The callback receives all
+bytes, including NUL and bytes above 127, and returns 1 only when saving succeeds.
+This API performs no allocation or filesystem operations. Editing currently
+supports overwrite, not byte insertion/deletion or search.

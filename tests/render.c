@@ -30,7 +30,7 @@ static unsigned utf_n, utf_left;
 #ifndef PS_REPLAY_ONLY
 static union {
     void *align;
-    unsigned char bytes[40000];
+    unsigned char bytes[PS_DEFAULT_SESSION_STORAGE];
 } memory;
 char preview_tasks[400000], preview_variables[400000], preview_jobs[400000],
     preview_session[400000], preview_edit[400000], preview_ascii[400000], preview_red[400000],

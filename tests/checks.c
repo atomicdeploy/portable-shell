@@ -10,7 +10,7 @@ typedef struct {
 } Test;
 static union {
     void *align;
-    unsigned char bytes[40000];
+    unsigned char bytes[PS_DEFAULT_SESSION_STORAGE];
 } memory;
 static Test t;
 static unsigned len(const char *s) {
@@ -370,7 +370,7 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         {
             static union {
                 void *align;
-                unsigned char bytes[40000];
+                unsigned char bytes[PS_DEFAULT_SESSION_STORAGE];
             } other_memory;
             ps_device_profile other_profile;
             ps_session *other = ps_init(other_memory.bytes, sizeof other_memory.bytes, &cfg);

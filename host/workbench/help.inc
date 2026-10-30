@@ -1,4 +1,7 @@
 static const char *const help_summaries[]={
+#if PS_HEX_EDITOR
+    "Edit binary session bytes in hex or ASCII.",
+#endif
     "Inspect and adjust connected controls.","Explore commands and their usage.",
     "Open the workspace dashboard.","Edit session notes with save and discard.",
     "Navigate a numbered menu.","Browse session files.",

@@ -1,3 +1,6 @@
+#if PS_HEX_EDITOR
+static int hex_demo_save(void *ctx,const ps_byte *data,unsigned n){ps_session *s=ctx;copy(s->hex_sample,data,n);return 1;}
+#endif
 static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     unsigned i, j;
     const char *cmd = a[0];
@@ -28,6 +31,13 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
             ps_terminal_report_progress(s,states[i].state,(unsigned)percent);return 0;
         }
         return fail(s,"osc progress clear|normal|error|busy|paused [0..100] | path HOST /PATH");
+    }
+#endif
+#if PS_HEX_EDITOR
+    if(equal(cmd,"hex")){
+        if(argc!=1)return fail(s,"hex");
+        return ps_hex_editor_open(s,"Binary buffer (session memory)",s->hex_sample,sizeof s->hex_sample,
+            s->hex_draft,sizeof s->hex_draft,hex_demo_save,s)?0:fail(s,"hex editor unavailable");
     }
 #endif
     if(equal(cmd,"edit")){

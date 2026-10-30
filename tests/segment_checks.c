@@ -12,7 +12,7 @@ static void sink(void *ctx,const unsigned char *p,size_t n){
     ps_replay_feed(p,(unsigned)n);
 }
 static void shell_sink(void *ctx,const ps_byte *p,unsigned n){sink(ctx,p,n);}
-static union {void *align;unsigned char bytes[40000];} memory;
+static union {void *align;unsigned char bytes[PS_DEFAULT_SESSION_STORAGE];} memory;
 static void draw(const char *text,ps_segment_style *style){
     unsigned short cells[32];int n=ps_segment_parse(text,cells,32);
     assert(n>0);assert(ps_segment_render(cells,(unsigned)n,style,95,sink,0)>0);

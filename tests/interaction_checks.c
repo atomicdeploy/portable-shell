@@ -16,6 +16,8 @@ static ps_cell cells[96*24],presented[96*24],pad_cells[40*40],pad_presented[40*4
 #if PS_UNDO_DEPTH
 static union {void *align;unsigned char bytes[48000];} memory;
 #endif
+static unsigned hex_saved,hex_fail;
+static int save_hex(void *ctx,const ps_byte *p,unsigned n){(void)ctx;if(hex_fail)return 0;assert(n==4&&p[0]==0xAF);++hex_saved;return 1;}
 int main(int argc,char **argv){
     ps_screen screen,pad;ps_window whole,view,source;ps_rich rich={sink,0,PS_COLOR_RGB,0,0};
     ps_cell style=ps_cell_make(0xabb2bf,0x181a1f,0),heading=ps_cell_make(0x70d3eb,0x181a1f,PS_TEXT_BOLD);
@@ -60,6 +62,22 @@ int main(int argc,char **argv){
         assert(!strcmp(ps_history_get(s,5),"echo a"));
         ps_feed(s,"!999\r",5);assert(ps_history_count(s)==6&&ps_status(s)==2);
         ps_key(s,3);ps_key(s,PS_KEY_F7);ps_close(s);assert(!ps_terminal_state(s));
+    }
+#endif
+#if PS_UNDO_DEPTH && PS_HEX_EDITOR
+    {ps_config config={shell_sink,0,96,24,PS_INTERACTIVE|PS_COLOR|PS_UNICODE};
+     ps_byte original[]={0,127,128,255},draft[4];ps_session *s=ps_init(memory.bytes,sizeof memory.bytes,&config);
+     assert(ps_hex_editor_open(s,"Binary",original,sizeof original,draft,sizeof draft,save_hex,0));
+     assert(ps_terminal_state(s)==PS_TERMINAL_ALT_SCREEN);
+     ps_feed(s,"af",2);assert(draft[0]==0xAF&&original[0]==0);
+     ps_key(s,9);ps_key(s,'Z');assert(draft[1]=='Z');
+     ps_resize(s,24,8);hex_fail=1;ps_key(s,19);assert(!hex_saved&&ps_hex_editor_active(s));
+     ps_key(s,27);ps_key(s,27);assert(ps_hex_editor_active(s));
+     hex_fail=0;ps_key(s,19);assert(hex_saved==1);ps_key(s,27);assert(!ps_hex_editor_active(s));
+     assert(ps_hex_editor_open(s,"Discard",original,4,draft,4,save_hex,0));
+     ps_key(s,'1');ps_key(s,27);ps_key(s,'d');assert(!ps_hex_editor_active(s)&&hex_saved==1&&original[0]==0);
+     assert(!ps_hex_editor_open(s,"Too small",original,4,draft,3,save_hex,0));
+     assert(ps_hex_editor_open(s,"Empty",0,0,draft,4,save_hex,0));ps_key(s,PS_KEY_END);ps_key(s,'F');ps_key(s,27);
     }
 #endif
     assert(ps_screen_init(&screen,cells,presented,96,24));whole=ps_screen_window(&screen,0,0,96,24);

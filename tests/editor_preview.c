@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "portable_shell.h"
-static union { void *align; unsigned char bytes[40000]; } memory;
+static union { void *align; unsigned char bytes[PS_DEFAULT_SESSION_STORAGE]; } memory;
 static void write_bytes(void *ctx, const ps_byte *bytes, unsigned count) {
     fwrite(bytes, 1, count, (FILE *)ctx);
 }

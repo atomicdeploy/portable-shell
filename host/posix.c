@@ -30,7 +30,7 @@ typedef struct {
 static Channel channels[CLIENTS];
 static union {
     void *alignment;
-    ps_byte data[40000];
+    ps_byte data[PS_DEFAULT_SESSION_STORAGE];
 } memory[CLIENTS];
 static ps_session *sessions[CLIENTS];
 static volatile sig_atomic_t stopping;
