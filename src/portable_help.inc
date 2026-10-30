@@ -16,7 +16,11 @@ static const char *const help_summaries[]={
     "Create, complete and organize tasks.","Store a session value.",
     "Read session values.","Remove a session value.",
     "Transform text.","Calculate with integers.","Hash text in a background job.",
-    "Inspect or cancel background work.","Ring the terminal bell.",
+    "Inspect or cancel background work.",
+#if PS_OSC
+    "Set the terminal window title.","Report terminal progress or directory.",
+#endif
+    "Ring the terminal bell.",
     "Print text.","Inspect parsed arguments.","Review or clear command history.",
     "Bind a function key to a command.","Choose an appearance palette.","Configure color depth and character output.",
     "Customize prompt text, colors and lines.","Render a seven-segment display.",

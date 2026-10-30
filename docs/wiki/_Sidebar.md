@@ -27,3 +27,4 @@
 - [Snake demo](Snake.md)
 
 - [Local shell language](Local-shell.md)
+- [Terminal OSC integration](OSC.md)

@@ -25,7 +25,7 @@ include(GNUInstallDirs)
 install(TARGETS portable_shell ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES include/portable_shell.h include/portable_shell_device.h include/portable_remote.h
   include/portable_terminal.h include/portable_editor.h
-  include/portable_segments.h include/portable_meter.h include/portable_monitor.h include/portable_rich.h include/portable_undo.h include/portable_screen.h include/portable_async.h include/portable_command_line.h include/portable_parse.h include/portable_probe.h
+  include/portable_segments.h include/portable_meter.h include/portable_monitor.h include/portable_rich.h include/portable_undo.h include/portable_screen.h include/portable_async.h include/portable_osc.h include/portable_command_line.h include/portable_parse.h include/portable_probe.h
   include/portable_shell_editor.hpp include/portable_device_view.hpp
   include/portable_device_table.hpp include/portable_style.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -80,9 +80,9 @@ if(PORTABLE_SHELL_COMPILER_RT)
 endif()
 if(PORTABLE_SHELL_COMPACT)
   # Smaller line/history/table buffers do not remove native host commands.
-  set(compact_commands 28)
+  set(compact_commands 30)
   if(PORTABLE_SHELL_BUILD_HOST AND PORTABLE_SHELL_HOST_EXEC)
-    set(compact_commands 40)
+    set(compact_commands 42)
   endif()
   target_compile_definitions(portable_shell PUBLIC PS_LINE=128 PS_HISTORY=4 PS_ROWS=4 PS_COMMANDS=${compact_commands})
 endif()
@@ -440,4 +440,15 @@ if(PORTABLE_SHELL_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
     target_compile_options(snake_checks PRIVATE /UNDEBUG)
   endif()
   add_test(NAME snake_checks COMMAND snake_checks)
+endif()
+
+if(PORTABLE_SHELL_BUILD_TESTS)
+  add_executable(osc_checks tests/osc_checks.c)
+  target_link_libraries(osc_checks PRIVATE portable_shell)
+  if(NOT MSVC)
+    target_compile_options(osc_checks PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+  else()
+    target_compile_options(osc_checks PRIVATE /UNDEBUG)
+  endif()
+  add_test(NAME osc_checks COMMAND osc_checks)
 endif()

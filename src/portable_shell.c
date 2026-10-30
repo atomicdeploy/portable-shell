@@ -1,3 +1,4 @@
+#include "portable_osc.h"
 #include "portable_undo.h"
 #include "portable_style.h"
 #include "portable_segments.h"
@@ -650,6 +651,10 @@ static const ps_command builtins[] = {
     {"calc", "INTEGER +|-|*|/|% INTEGER", "Tools", builtin, 0, 0},
     {"hash", "TEXT [--rounds N]", "Tools", builtin, 0, 0},
     {"jobs", "[cancel]", "Tools", builtin, 0, 0},
+#if PS_OSC
+    {"title", "[TEXT ...]", "Terminal", builtin, 0, 0},
+    {"osc", "progress clear|normal|error|busy|paused [0..100] | path HOST /PATH", "Terminal", builtin, 0, 0},
+#endif
     {"bell", "", "Shell", builtin, 0, 0},
     {"echo", "[TEXT ...]", "Shell", builtin, 0, 0},
     {"args", "[ARGUMENT ...]", "Shell", builtin, 0, 0},
@@ -2102,10 +2107,50 @@ static const char *command_category(const ps_command *c) {
 static void segment_sink(void *context,const unsigned char *p,size_t n){
     raw((ps_session *)context,(const char *)p,(unsigned)n);
 }
+PS_API int ps_osc(ps_session *s,unsigned code,const char *payload){
+    return s&&(s->io.flags&PS_INTERACTIVE)&&!(s->io.flags&PS_NO_OSC)?
+        ps_terminal_osc(segment_sink,s,code,payload):0;
+}
+PS_API int ps_set_title(ps_session *s,const char *title){return ps_osc(s,2,title);}
+PS_API int ps_terminal_report_progress(ps_session *s,unsigned state,unsigned percent){
+    return s&&(s->io.flags&PS_INTERACTIVE)&&!(s->io.flags&PS_NO_OSC)?
+        ps_terminal_progress(segment_sink,s,state,percent):0;
+}
+PS_API int ps_report_directory(ps_session *s,const char *host,const char *path){
+    return s&&(s->io.flags&PS_INTERACTIVE)&&!(s->io.flags&PS_NO_OSC)?
+        ps_terminal_directory(segment_sink,s,host,path):0;
+}
+#if PS_OSC
+static void osc_discard(void *ctx,const unsigned char *p,size_t n){(void)ctx;(void)p;(void)n;}
+#endif
 static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     unsigned i, j;
     const char *cmd = a[0];
     (void)ctx;
+#if PS_OSC
+    if(equal(cmd,"title")){
+        char title[PS_LINE];unsigned used=0,k;
+        for(i=1;i<(unsigned)argc;++i){
+            if(!ps_osc_text_valid(a[i]))return fail(s,"invalid title");
+            if(i>1){if(used+1>=sizeof title)return fail(s,"title too long");title[used++]=' ';}
+            for(k=0;a[i][k];++k){if(used+1>=sizeof title)return fail(s,"title too long");title[used++]=a[i][k];}
+        }
+        title[used]=0;ps_set_title(s,title);return 0;
+    }
+    if(equal(cmd,"osc")){
+        if(argc==4&&equal(a[1],"path")){
+            if(!ps_terminal_directory(osc_discard,0,a[2],a[3]))return fail(s,"invalid directory");
+            ps_report_directory(s,a[2],a[3]);return 0;
+        }
+        if((argc==3||argc==4)&&equal(a[1],"progress")){
+            const char *states[]={"clear","normal","error","busy","paused"};int percent=0;
+            for(i=0;i<5;++i)if(equal(a[2],states[i]))break;
+            if(i==5||(argc==4&&(!integer(a[3],&percent)||percent<0||percent>100)))return fail(s,"invalid progress");
+            ps_terminal_report_progress(s,i,(unsigned)percent);return 0;
+        }
+        return fail(s,"osc progress clear|normal|error|busy|paused [0..100] | path HOST /PATH");
+    }
+#endif
     if(equal(cmd,"edit")){
         if(argc>2||(argc==2&&!equal(a[1],"--framed")))return fail(s,"edit [--framed]");
         if(argc==2)ps_editor_set_style(s,PS_EDITOR_HEADER|PS_EDITOR_BORDER);
@@ -2626,6 +2671,7 @@ PS_API void ps_progress(ps_session *s, const char *name, unsigned done, unsigned
     s->job.done = min(done, s->job.total);
     s->job.active = 0;
     s->job.cancelled = 0;
+    ps_terminal_report_progress(s,!total?3:s->job.done==s->job.total?0:1,s->job.total?s->job.done*100u/s->job.total:0);
     s->dirty = 1;
 }
 #include "portable_mouse.inc"
@@ -2899,6 +2945,7 @@ PS_API void ps_finish(ps_session *s) {
         ps_tick(s, s->now + 1);
 }
 PS_API void ps_close(ps_session *s) {
+    ps_terminal_report_progress(s,0,0);
     ps_form_close(s);
     ps_file_picker_close(s);
     if(s->document_open)document_close(s);

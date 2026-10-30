@@ -135,8 +135,8 @@ to retain the respective older below-table editor layout.
 
 | Profile | Features and selection | Default capacity |
 | --- | --- | --- |
-| Full shell | Default library: commands, tasks, variables, jobs, panels | 512-byte line storage, 24 history entries, 32 table rows, 40 command slots |
-| Compact full shell | `PORTABLE_SHELL_COMPACT=ON`, same features | 128-byte line storage, 4 history entries, 4 rows, 28 commands |
+| Full shell | Default library: commands, tasks, variables, jobs, panels | 512-byte line storage, 24 history entries, 32 table rows, 42 command slots |
+| Compact full shell | `PORTABLE_SHELL_COMPACT=ON`, same features | 128-byte line storage, 4 history entries, 4 rows, 30 commands |
 | Device commands | `--device-commands`; `portable_shell_device.h`, `ps_device_attach()`; raw-tail, case-insensitive registry with host callbacks | Full/compact session bounds |
 | Event editor | `portable_editor.h`; application owns dispatch | 512 characters, 8 history entries |
 | Small console | `portable_console.h` in the serial example repository; shared editor/parser/probe, callback commands, optional Telnet | 64 characters, 2 history entries, 8 parsed arguments |

@@ -100,6 +100,22 @@ static void host_file_write(void *context,const ps_byte *bytes,unsigned n) {
         bytes+=k;n-=(unsigned)k;
     }
 }
+static void host_report_directory(ps_session *s){
+    static char path[4098];unsigned i;
+    if(!host_directory(path+1,sizeof path-1))return;
+#ifdef _WIN32
+    path[0]='/';
+    for(i=1;path[i];++i)if(path[i]=='\\')path[i]='/';
+    /* UNC paths carry the server as the authority. */
+    if(path[1]=='/'&&path[2]=='/'){
+        char host[256];unsigned n=0;
+        for(i=3;path[i]&&path[i]!='/';++i){if(n+1>=sizeof host)return;host[n++]=path[i];}
+        host[n]=0;if(path[i])ps_report_directory(s,host,path+i);
+    }else ps_report_directory(s,"",path);
+#else
+    (void)i;ps_report_directory(s,"",path+1);
+#endif
+}
 static int host_state_command(ps_session *s,int argc,const char *const *argv,void *context) {
     const char *name=argv[0];int current=ps_status(s);(void)context;
     if(ps_text_equal(name,"exit")){
@@ -129,7 +145,7 @@ static int host_state_command(ps_session *s,int argc,const char *const *argv,voi
         if(!*path||!host_directory(previous,sizeof previous)||!host_change_directory(path)){
             ps_write(s,"Directory unavailable");ps_newline(s);return 1;
         }
-        ps_bytes_copy(host_previous_directory,previous,ps_text_length(previous)+1);return 0;
+        ps_bytes_copy(host_previous_directory,previous,ps_text_length(previous)+1);host_report_directory(s);return 0;
     }
     if(ps_text_equal(name,"env")){
         if(argc!=2)return 2;ps_write(s,host_env_lookup(&current,argv[1]));ps_newline(s);return 0;

@@ -38,7 +38,7 @@ its output is drained concurrently during shutdown, as required by
 `--no-exec` disables local execution and remote-tool commands. Build with
 `-DPORTABLE_SHELL_HOST_EXEC=OFF` to omit the native process sources. TCP/Telnet,
 serial and device-command sessions never receive this local executor automatically.
-Compact hosts with execution enabled reserve 40 command slots; all capacities remain explicit compile-time choices.
+Compact hosts with execution enabled reserve 42 command slots; all capacities remain explicit compile-time choices.
 
 ## ⌨️ Optional editing shortcuts
 

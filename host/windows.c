@@ -514,6 +514,8 @@ int host_main(void) {
             flags &= ~PS_UNICODE;
         else if (equal(argv[i], "--no-color") || equal(argv[i], "--mono"))
             flags &= ~PS_COLOR;
+        else if (equal(argv[i], "--no-osc"))
+            flags |= PS_NO_OSC;
         else if (equal(argv[i], "--no-bell"))
             flags |= PS_NO_BELL;
         else if (equal(argv[i], "--no-suggestions"))
@@ -540,7 +542,7 @@ int host_main(void) {
         else if (equal(argv[i], "--controls"))
             board = 2;
         else if (equal(argv[i], "--help")) {
-            say("PortableShell [--device-commands] [--board|--controls|--menu|--edit|--files] [--ascii] [--no-color] [--no-bell] [--no-suggestions] [--history "
+            say("PortableShell [--device-commands] [--board|--controls|--menu|--edit|--files] [--ascii] [--no-color] [--no-bell] [--no-osc] [--no-suggestions] [--history "
                 "FILE]\r\n     "
                 " "
                 "[--command TEXT "
@@ -644,7 +646,7 @@ int host_main(void) {
     if (history)
         history_load(s, history);
     if (console_out && (flags & PS_INTERACTIVE)) {
-        SetConsoleTitleW(L"PortableShell - byte-native workbench");
+        ps_set_title(s,"PortableShell");
         old_cp = GetConsoleOutputCP();
         SetConsoleOutputCP(CP_UTF8);
         if (!SetConsoleMode(output, output_mode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {

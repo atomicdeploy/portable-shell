@@ -26,7 +26,7 @@ extern "C" {
 #define PS_ROWS 32
 #endif
 #ifndef PS_COMMANDS
-#define PS_COMMANDS 40
+#define PS_COMMANDS 42
 #endif
 #define PS_ARGS 32
 #define PS_VALUE 128
@@ -230,7 +230,8 @@ enum {
     PS_NO_BELL = 256,
     PS_NO_SUGGESTIONS = 512,
     PS_EXTENDED_KEYS = 1024, /* Alt-D/Alt-Backspace and Ctrl-T readline shortcuts */
-    PS_NO_SYNC_OUTPUT = 2048
+    PS_NO_SYNC_OUTPUT = 2048,
+    PS_NO_OSC = 4096
 };
 enum { PS_STYLE_DEFAULT, PS_STYLE_PROMPT, PS_STYLE_SUCCESS, PS_STYLE_WARNING, PS_STYLE_ERROR,
        PS_STYLE_GREEN, PS_STYLE_MUTED, PS_STYLE_COMMAND, PS_STYLE_BLUE };
@@ -362,6 +363,12 @@ PS_API void ps_set_help_documents(ps_session *, const ps_help_document *, unsign
 /* NULL name lists the registry; non-NULL prints Usage. Returns entries printed. */
 PS_API int ps_print_help(ps_session *s, const char *name, unsigned layout);
 PS_API void ps_number(ps_session *s, ps_u32 value);
+/* OSC returns 1 only when emitted. Batch output and PS_NO_OSC suppress it.
+ * ps_set_title sets the window title. Directory accepts an absolute URI path. */
+PS_API int ps_set_title(ps_session *, const char *title);
+PS_API int ps_osc(ps_session *, unsigned code, const char *payload);
+PS_API int ps_terminal_report_progress(ps_session *, unsigned state, unsigned percent);
+PS_API int ps_report_directory(ps_session *, const char *host, const char *path);
 PS_API void ps_progress(ps_session *s, const char *name, unsigned done, unsigned total);
 PS_API void ps_history_clear(ps_session *s);
 typedef int (*ps_history_filter_fn)(void *context, const char *line);
