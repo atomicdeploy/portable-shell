@@ -6,7 +6,7 @@
  * Hosts route keys/clicks to the focused control. Requests never change readback. */
 #include "portable_terminal.h"
 #include <stdint.h>
-enum { PS_METER_LINE, PS_METER_BLOCKS };
+enum { PS_METER_LINE, PS_METER_BLOCKS, PS_METER_TICKS, PS_METER_CHEVRONS };
 enum { PS_METER_TEXT_ABOVE, PS_METER_TEXT_INSIDE, PS_METER_TEXT_NONE };
 enum { PS_METER_DECREASE, PS_METER_INCREASE, PS_METER_MINIMUM, PS_METER_MAXIMUM };
 typedef struct {
@@ -62,7 +62,29 @@ static inline int ps_meter_position(ps_meter *m,unsigned position,unsigned cells
     return ps_meter_request(m,m->minimum+v,fn,ctx);
 }
 static inline const char *ps_meter_cell(unsigned style,unsigned filled,unsigned unicode){
+    if(style==PS_METER_TICKS)return unicode?(filled?"┃":"┊"):(filled?"|":":");
     return unicode?(style==PS_METER_BLOCKS?(filled?"█":"░"):(filled?"━":"─")):(filled?(style==PS_METER_BLOCKS?"#":"="):".");
+}
+/* Spaced segments share their geometry between standalone and table renderers. */
+static inline const char *ps_meter_track_cell(unsigned style,unsigned filled,unsigned unicode,unsigned index){
+    return style==PS_METER_TICKS&&(index&1)?" ":ps_meter_cell(style,filled,unicode);
+}
+/* A fixed-cell-width value field, including chevrons. Input is sanitized ASCII;
+ * generated delimiters use Unicode. Capacity includes UTF-8 expansion and NUL. */
+static inline int ps_meter_value_field(char *dst,unsigned capacity,unsigned width,const char *value,unsigned unicode){
+    char clean[241];unsigned n=0,i,k=0,left,edge=unicode?1:2,available;
+    const char *open=unicode?"«":"<<",*close=unicode?"»":">>";
+    if(!dst||!value||width<6||width>240||capacity<width+(unicode?3:1))return 0;
+    while(n<240&&value[n]){clean[n]=value[n];++n;}clean[n]=0;
+    ps_terminal_text(clean,sizeof clean,clean,n);n=0;
+    available=width-2*edge-2;while(clean[n]&&n<available)++n;
+    left=(available-n)/2;
+    for(i=0;i<left;++i)dst[k++]=' ';
+    for(i=0;open[i];++i)dst[k++]=open[i];
+    dst[k++]=' ';for(i=0;i<n;++i)dst[k++]=clean[i];dst[k++]=' ';
+    for(i=0;close[i];++i)dst[k++]=close[i];
+    for(i=left+n;i<available;++i)dst[k++]=' ';
+    dst[k]=0;return 1;
 }
 static inline void ps_meter_emit(ps_terminal_write write,void *ctx,const char *s){
     size_t n=0;while(s[n])++n;write(ctx,(const unsigned char *)s,n);
@@ -100,13 +122,17 @@ static inline unsigned ps_meter_render(const ps_meter *m,const ps_meter_style *s
     n=0;if(s->text==PS_METER_TEXT_INSIDE)while(value[n]&&n<width)++n;
     start=(width-n)/2;
     if(s->panel)ps_meter_emit(write,ctx,s->unicode?"│":"|");
-    for(i=0;i<width;++i){
+    if(s->style==PS_METER_CHEVRONS){
+        char field[244];ps_meter_value_field(field,sizeof field,width,value,s->unicode);
+        if(s->color)ps_meter_emit(write,ctx,"\033[33m");
+        ps_meter_emit(write,ctx,field);
+    }else for(i=0;i<width;++i){
         if(n&&i>=start&&i<start+n){
             if(s->color)ps_meter_emit(write,ctx,i<filled?"\033[30;42m":"\033[97;40m");
             write(ctx,(const unsigned char *)value+i-start,1);
         }else{
             if(s->color)ps_meter_emit(write,ctx,i<filled?"\033[0;32m":"\033[0;90m");
-            ps_meter_emit(write,ctx,ps_meter_cell(s->style,i<filled,s->unicode));
+            ps_meter_emit(write,ctx,ps_meter_track_cell(s->style,i<filled,s->unicode,i));
         }
     }
     if(s->color)ps_meter_emit(write,ctx,"\033[0;37m");

@@ -101,6 +101,17 @@ int main(){
     assert(output.find("cursor  Enter apply")==std::string::npos);
     feed("\x1b");v.flushEscape(a);
     for(unsigned theme=0;theme<4;++theme){v.setTheme(V::Theme(theme));output.clear();assert(v.render(s,write));assert(output.find("\x1b[48;")!=std::string::npos);}
+    // Scroll to the last of 64 rows in a short viewport, then back to the first.
+    s.lines=16;rows[63].label="Last visible row";
+    feed("\x1b[F");output.clear();v.render(s,write,true);
+    assert(output.find("Last visible row")!=std::string::npos);widths(output,119);
+    feed("\x1b[H");output.clear();v.render(s,write,true);
+    assert(output.find("Last visible row")==std::string::npos);
+    rows[1].meterStyle=PS_METER_TICKS;output.clear();v.render(s,write,true);
+    assert(output.find("┃")!=std::string::npos);
+    rows[1].meterStyle=PS_METER_CHEVRONS;output.clear();v.render(s,write,true);
+    assert(output.find("« 130 »")!=std::string::npos);widths(output,119);
+    rows[1].meterStyle=PS_METER_LINE;feed("\x1b[B");
     // Maximum viewport must be complete, bounded and use available space.
     s.columns=240;s.lines=100;output.clear();v.render(s,write);
     assert(output.size()<PS_DEVICE_VIEW_FRAME_BYTES);assert(output.find(" / 64")!=std::string::npos);widths(output,239);

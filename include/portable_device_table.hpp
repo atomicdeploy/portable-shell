@@ -164,12 +164,16 @@ template<class W> void value(Writer<W> &out,const Snapshot &s,const Row &r,unsig
         out.raw(s.unicode?(on?"\xe2\x97\x8f ":"\xe2\x97\x8b "):(on?"+ ":"- "));
         out.field(on?r.onLabel:r.offLabel,width-2);return;
     }
+    if(PS_DEVICE_VIEW_WIDGETS&&r.kind==Level&&r.meter&&r.meterStyle==PS_METER_CHEVRONS&&width>=6){
+        char text[244];ps_meter_value_field(text,sizeof text,width,r.value,s.unicode);
+        ink(out,PS_INK_NUMBER);out.raw(text);return;
+    }
     uint32_t n;
     if(PS_DEVICE_VIEW_WIDGETS&&r.kind==Level&&r.meter&&width>=22&&decimal(r.value,n)&&r.maximum>r.minimum&&n>=r.minimum&&n<=r.maximum){
         // At most ten cells, no multiplication overflow for uint32 ranges.
         const unsigned bar=10;const uint32_t span=r.maximum-r.minimum,offset=n-r.minimum;
         const unsigned filled=ps_meter_fraction(offset,span,bar);
-        for(unsigned i=0;i<bar;++i){ink(out,i<filled?PS_INK_NUMBER:0);out.raw(ps_meter_cell(r.meterStyle,i<filled,s.unicode));}
+        for(unsigned i=0;i<bar;++i){ink(out,i<filled?PS_INK_NUMBER:0);out.raw(ps_meter_track_cell(r.meterStyle,i<filled,s.unicode,i));}
         ink(out,PS_INK_NUMBER);out.raw(" ");char text[40];
         const unsigned percent=levelPercent(n-r.minimum,r.maximum-r.minimum);
         ps_terminal_format(text,sizeof(text),"%u%% (%u/%u)",percent,n,r.maximum);
