@@ -21,15 +21,35 @@ static std::vector<std::vector<std::string> > lines(const std::string &bytes) {
 int main(){
     using V=PortableShell::DeviceView;
     const unsigned widths[]={40,79,80,96,100,240};
+    const uint8_t counts[]={16};const uint16_t starts[]={0};
     const char *titles[]={"Console","A very long device identity that must be clipped at the same cell used to measure the closing border, even in narrow terminals"};
+    for(unsigned theme=0;theme<4;++theme)for(bool rgb:{false,true})
     for(unsigned width:widths)for(bool unicode:{false,true})for(bool ansi:{false,true})for(const char *title:titles){
         V view;V::Snapshot s;V::Action a;
         s.columns=uint16_t(width);s.lines=24;s.unicode=unicode;s.title=title;
         s.canLeds=s.canPixels=s.canGame=s.terminalSettings=s.cloudSettings=s.notificationSettings=s.clockSettings=true;
-        s.pixelCount=480;view.begin(ansi);
+        s.pixelCount=480;s.usedPixels=16;s.groupCount=1;s.groupCounts=counts;s.groupStarts=starts;
+        view.begin(ansi);view.setTheme(V::Theme(theme));view.setTrueColor(rgb);
         for(unsigned page=0;page<V::PageCount;++page){
             std::string output;view.render(s,[&](const uint8_t *p,size_t n){output.append((const char*)p,n);},true);
             const auto rows=lines(output);assert(rows.size()>=3);
+#if PS_DEVICE_VIEW_TABLE && PS_STYLE_THEMES
+            if(ansi){
+                // The selected surface must contain exactly the bracketed label,
+                // with neither table padding nor the separator between tabs.
+                const std::string surface=ps_style_surface(theme,rgb,1);
+                const size_t start=output.find(surface,output.find('\n')+1);
+                assert(start!=std::string::npos);
+                const size_t end=output.find(ps_style_base(theme,rgb),start+surface.size());
+                assert(end!=std::string::npos);
+                const auto selected=lines(output.substr(start+surface.size(),end-start-surface.size()));
+                assert(selected.size()==1);
+                std::string label;for(const auto &cell:selected[0])label+=cell;
+                const char *names[]={"Device","Network","Matrix","Pixels","Game","Terminal","Cloud","Notifications","Clock"};
+                assert(unsigned(view.page())<sizeof(names)/sizeof(names[0]));
+                assert(label==std::string("[")+names[view.page()]+"]");
+            }
+#endif
             const unsigned expected=(PS_DEVICE_VIEW_TABLE?width:width>100?100:width)-1;
             for(unsigned row=0;row<3;++row){
                 assert(rows[row].size()==expected);
