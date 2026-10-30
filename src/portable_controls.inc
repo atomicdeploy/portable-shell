@@ -1,5 +1,8 @@
 /* Private implementation: shared renderer/editor primitives, no OS/runtime imports. */
 static int control_sections(const ps_session *s) {
+#if PS_DASHBOARD
+    if(s->dashboard)return 0;
+#endif
     return PS_CONTROL_SECTION_ROWS && !(s->table_style & PS_TABLE_CATEGORY_COLUMN);
 }
 /* Encoded presentation rows keep provider indices stable. Headings never write. */
@@ -606,11 +609,16 @@ static int controls_command(ps_session *s, int argc, const char *const *argv) {
     char b[80];
     if (!s->panel)
         control_local_attach(s);
+    if(argc==2&&equal(argv[1],"dashboard")){
+        if(!ps_panel_set_layout(s,PS_PANEL_GRID))return 2;
+        return ps_panel_open(s,0)?0:2;
+    }
     if (argc == 1 || equal(argv[1], "open")) {
         if (argc > 3 || (argc == 3 && (!control_decimal(argv[2], &id) || !id)))
             return 2;
         if (argc == 3)
             --id;
+        ps_panel_set_layout(s,PS_PANEL_TABS);
         return ps_panel_open(s, id) ? 0 : 2;
     }
     if (equal(argv[1], "list") && argc == 2) {

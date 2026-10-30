@@ -6,6 +6,9 @@ static void table_mouse(ps_session *s,const ps_mouse_event *e) {
     unsigned short items[512];
     Grid g;
     if(!s->board||!(s->io.flags&PS_INTERACTIVE)||s->io.columns<42||s->io.rows<14)return;
+#if PS_DASHBOARD
+    if(s->control_view&&s->dashboard&&!s->editing){dashboard_mouse(s,e);return;}
+#endif
     if(e->release){s->mouse_drag=0;return;}
     if(x>s->io.columns||y>s->io.rows||b&~127U)return;
     if(b&28U)return; /* Let terminal selection/modifier gestures remain non-mutating. */
