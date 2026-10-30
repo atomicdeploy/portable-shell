@@ -183,6 +183,7 @@ struct ps_session {
     unsigned var_count;
     Job job;
     unsigned tab, selected, scroll, board, dirty, exit, started;
+    unsigned canvas_kind, canvas_key, canvas_columns, canvas_rows;
     int status;
     unsigned esc, esc_len;
     char escbuf[32];
@@ -240,6 +241,18 @@ static void ansi(ps_session *s, const char *p) {
 static void color(ps_session *s, const char *p) {
     if ((s->io.flags & (PS_INTERACTIVE | PS_COLOR)) == (PS_INTERACTIVE | PS_COLOR))
         out(s, p);
+}
+static void frame_begin(ps_session *s) {
+    if(PS_SYNC_OUTPUT&&!(s->io.flags&PS_NO_SYNC_OUTPUT))ansi(s,"\033[?2026h");
+}
+static void frame_end(ps_session *s) {
+    if(PS_SYNC_OUTPUT&&!(s->io.flags&PS_NO_SYNC_OUTPUT))ansi(s,"\033[?2026l");
+}
+static void canvas_begin(ps_session *s,unsigned kind,unsigned key) {
+    frame_begin(s);ansi(s,"\033[?25l\033[H");
+    if(s->canvas_kind!=kind||s->canvas_key!=key||s->canvas_columns!=s->io.columns||s->canvas_rows!=s->io.rows)
+        ansi(s,"\033[2J");
+    s->canvas_kind=kind;s->canvas_key=key;s->canvas_columns=s->io.columns;s->canvas_rows=s->io.rows;
 }
 static void reset(ps_session *s) {
     ansi(s, "\033[0m");
@@ -799,7 +812,8 @@ static void table_open(ps_session *s, unsigned tab) {
     if (!s->board) {
         s->board = 1;
         reset(s);
-        ansi(s, "\033[?1049h\033[?25l\033[2J");
+        s->canvas_kind=0;
+        ansi(s, "\033[?1049h\033[?25l");
     if(PS_MOUSE)ansi(s,"\033[?1002h\033[?1006h");
     }
     s->dirty = 1;
@@ -918,6 +932,7 @@ static void render(ps_session *s) {
     zero(s->mouse_tab_left,sizeof s->mouse_tab_left);
     zero(s->mouse_tab_right,sizeof s->mouse_tab_right);
     s->last_paint = s->now;
+    canvas_begin(s,4,0);
     reset(s);
     ansi(s, "\033[?25l");
     if (w < 42 || h < 14) {
@@ -930,6 +945,7 @@ static void render(ps_session *s) {
         ps_number(s, h);
         at(s, 3, 1);
         out(s, (s->io.flags & PS_UNICODE) ? "42 \xc3\x97 14 minimum | Esc shell" : "42 x 14 minimum | Esc shell");
+        frame_end(s);
         return;
     }
     inner = w - 6;
@@ -1248,6 +1264,7 @@ static void render(ps_session *s) {
         at(s, 3, 1);
     }
     (void)inner;
+    frame_end(s);
 }
 static unsigned collect_completions(ps_session *, unsigned *, unsigned *, const char **);
 static unsigned encode_completion(const char *, unsigned, char *);
@@ -1290,7 +1307,8 @@ static void prompt(ps_session *s) {
     const char *hint;
     if (!(s->io.flags & PS_INTERACTIVE) || s->board || s->menu_depth || s->file_count || s->document_open || s->exit)
         return;
-    ansi(s, "\r\033[2K");
+    frame_begin(s);
+    ansi(s, "\r");
     if (s->custom_prompt) {
         style(s, s->prompt_style);
         field(s, s->prompt_text, prompt_width);
@@ -1324,11 +1342,11 @@ static void prompt(ps_session *s) {
         reset(s);
     } else
         ps_secure_clear(s->suggestion, sizeof s->suggestion);
-    ansi(s, "\r\033[");
+    ansi(s, "\033[K\r\033[");
     ps_number(s, prompt_width + cells(s->line + start, s->pos - start, s->io.flags) + 1);
     out(s, "G");
     if (s->search) {
-        ansi(s, "\r\033[2K");
+        ansi(s, "\r");
         ink(s, 1);
         out(s, "search: ");
         ps_write(s, s->query);
@@ -1336,7 +1354,9 @@ static void prompt(ps_session *s) {
         out(s, "  ");
         ps_write(s, s->line);
         reset(s);
+        ansi(s,"\033[K");
     }
+    frame_end(s);
 }
 static void edit_insert(char *buf, unsigned *len, unsigned *pos, unsigned cap, unsigned c) {
     if (*len + 1 >= cap)
@@ -2345,7 +2365,7 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
             return fail(s, "unknown theme");
         if (s->board) {
             reset(s);
-            ansi(s, "\033[2J");
+            s->canvas_kind=0;
         }
         s->dirty = 1;
         return 0;
@@ -2682,7 +2702,6 @@ PS_API void ps_resize(ps_session *s, unsigned columns, unsigned rows) {
     if(s->file_count){file_render(s);return;}
     if(s->menu_depth){ps_menu_refresh(s);return;}
     if (s->board) {
-        ansi(s, "\033[2J");
         render(s);
     } else
         prompt(s);

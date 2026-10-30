@@ -35,12 +35,12 @@ static unsigned document_location(ps_session *s,unsigned *start){
 static void document_render(ps_session *s){
     unsigned start,row=document_location(s,&start),height=document_height(s),a=0,r=0,end,b;
     unsigned border=document_border(s),top=1+document_header(s)+border;
-    unsigned col=document_column(s,start,s->document_pos);
+    unsigned col=document_column(s,start,s->document_pos),painted=0,content_width=s->io.columns-1-2*border;
     char status[128];unsigned sn;
     if(row<s->document_top)s->document_top=row;
     if(row>=s->document_top+height)s->document_top=row-height+1;
-    ansi(s,"\033[?25l\033[H\033[2J");ink(s,PS_INK_HEADING);
-        if(document_header(s))field(s,s->document_title,min(length(s->document_title),s->io.columns-2));
+    canvas_begin(s,3,s->document_style);ink(s,PS_INK_HEADING);
+        if(document_header(s))field(s,s->document_title,s->io.columns-2);
     reset(s);
     if(border){
         unsigned y;view_rule(s,top-1,1,s->io.columns-1,0);
@@ -56,10 +56,13 @@ static void document_render(ps_session *s){
                 else {if((s->io.flags&PS_UNICODE)&&c!=0xfffd&&!(c>=128&&c<160))raw(s,s->document+i,n);else field(s,s->document+i,1);cx+=(s->io.flags&PS_UNICODE)?width(c):1;}
                 i+=n;
             }
+            if(cx<content_width)spaces(s,content_width-cx);
+            ++painted;
         }
         if(b==a||b==s->document_length||r>=s->document_top+height)break;
         a=b;++r;
     }
+    while(painted<height){at(s,top+painted,1+border);spaces(s,content_width);++painted;}
     at(s,s->io.rows-1,1);ink(s,PS_INK_INACTIVE);
     str(status,s->document_dirty?"Modified  ":"Unmodified  ",sizeof status);sn=length(status);
     sn+=dec(status+sn,s->document_length);status[sn++]='/';sn+=dec(status+sn,PS_EDITOR_CAPACITY-1);
@@ -70,6 +73,7 @@ static void document_render(ps_session *s){
     if(s->document_dialog)footer_field(s,"S Save & close  D Discard  Esc Cancel",s->io.columns-1,0);
     else footer_field(s,"^S Save  ^Q/Esc Close  ^Z Undo/redo  ^A/^E Line start/end",s->io.columns-1,0);
     reset(s);at(s,row-s->document_top+top,col+1+border);ansi(s,"\033[?25h");
+    frame_end(s);
 }
 static void document_close(ps_session *s){
     s->document_open=0;s->document_dialog=0;
@@ -85,7 +89,7 @@ PS_API int ps_editor_open(ps_session *s,const char *title,const char *text,ps_ed
     copy(s->document,text,n+1);s->document_title=title;s->document_save=save;s->document_context=ctx;
     s->document_length=n;s->document_pos=s->document_top=s->document_dirty=s->document_dialog=s->document_undo_valid=0;
     s->document_notice=0;s->document_open=1;s->search=0;
-    ansi(s,"\033[?1049h\033[?2004h");document_render(s);return 1;
+    s->canvas_kind=0;ansi(s,"\033[?1049h\033[?2004h");document_render(s);return 1;
 }
 static void document_snapshot(ps_session *s){
     copy(s->document_undo,s->document,s->document_length+1);

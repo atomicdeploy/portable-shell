@@ -17,6 +17,28 @@ palettes keep their existing IDs; `DeviceView::Semantic` selects the default pol
 
 ## Presentation
 
+### Repainting
+
+Interactive frames use synchronized output (`CSI ? 2026 h/l`) by default, so
+supporting terminals present complete frames instead of intermediate clears and
+partial drawing. This covers the prompt, tables, menus, files and editor, including
+the reusable C++ device view. The C++ closing marker is sent outside the frame byte
+budget so truncation cannot leave display updates suspended.
+
+Ordinary menu/file/editor repaints overwrite their content without clearing the
+whole screen. Shortened lines and deleted document rows are padded; layout changes
+and resize still invalidate the canvas. Prompt typing erases only the leftover
+tail after writing. No framebuffer allocation or OS dependency is added.
+
+Terminals that ignore synchronized output still receive the normal VT repaint.
+They benefit from fewer destructive clears, but atomic display is terminal-dependent.
+Set `PS_NO_SYNC_OUTPUT` in the C session flags, `setSynchronizedOutput(false)` in
+C++, or `PS_SYNC_OUTPUT=0` at build time to disable the default. Batch output is
+unchanged. See the [protocol description](https://contour-terminal.org/vt-extensions/synchronized-output/)
+and [Windows Terminal support](https://github.com/microsoft/terminal/discussions/19779).
+
+### Navigation and tables
+
 Navigation hints use a shared 20-cell column grid when a complete row fits. Narrow
 or long-label rows retain compact spacing without dropping hints. Keycaps use one
 explicit neutral background, independent of the footer row's inherited colors.

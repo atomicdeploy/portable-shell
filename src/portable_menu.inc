@@ -18,7 +18,7 @@ static void menu_draw(ps_session *s){
     if(s->menu_selected>=s->menu_top+slots)s->menu_top=s->menu_selected-slots+1;
     if(m->count<slots)slots=m->count;
     s->menu_x=x;s->menu_width=w;s->menu_slots=slots;
-    ansi(s,"\033[?25l\033[H\033[2J");at(s,1,x);view_color(s,"\033[1;33m");field(s,m->title,min(w,s->io.columns-x));reset(s);
+    canvas_begin(s,1,w+slots*256+pane*65536);at(s,1,x);view_color(s,"\033[1;33m");field(s,m->title,min(w,s->io.columns-x));reset(s);
     view_rule(s,3,x,w,0);
     if(num){at(s,3,x+6);view_color(s,"\033[31m");out(s,(s->io.flags&PS_UNICODE)?"┬":"+");reset(s);}
     for(i=0;i<slots;++i){
@@ -43,6 +43,7 @@ static void menu_draw(ps_session *s){
     if(!pane){at(s,s->io.rows,1);view_color(s,"\033[33m");
     footer_field(s,(s->io.flags&PS_UNICODE)?"↑/↓ Select  Enter Open  Esc Back  0 Close/back":"Up/Down Select  Enter Open  Esc Back",s->io.columns-1,0);reset(s);}
     if(pane)at(s,10,x+w+3);else at(s,s->io.rows-1,2);out(s,"Select: ");if(s->menu_bad)out(s,"Invalid selection");else raw(s,s->menu_input,s->menu_length);
+    ansi(s,"\033[K");frame_end(s);
 }
 PS_API void ps_menu_set_style(ps_session *s,unsigned flags){if(!s)return;ps_menu_close(s);s->menu_style=flags;}
 PS_API void ps_menu_set_description(ps_session *s,ps_menu_description_fn fn,void *ctx){if(s){s->menu_description=fn;s->menu_description_context=ctx;}}
@@ -76,6 +77,7 @@ PS_API void ps_menu_refresh(ps_session *s){
 }
 PS_API void ps_menu_close(ps_session *s){
     if(!s)return;
+    s->canvas_kind=0;
     if(s->menu_screen){if(PS_MOUSE)ansi(s,"\033[?1002l\033[?1006l");ansi(s,"\033[0m\033[?25h\033[?1049l");s->menu_screen=0;}
     s->menu_depth=s->menu_length=s->menu_bad=0;
 }
