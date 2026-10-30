@@ -9,7 +9,7 @@ target_compile_definitions(full_preview PRIVATE PS_REPLAY_ONLY)
 target_compile_definitions(reduced_preview PRIVATE PS_REPLAY_ONLY PS_PREVIEW_REDUCED=1 PS_DEVICE_VIEW_RETAIN_ROWS=0 PS_DEVICE_VIEW_WIDGETS=0
   PS_DEVICE_VIEW_DIALOGS=0 PS_DEVICE_VIEW_MATRIX=0 PS_STYLE_THEMES=0 PS_DEVICE_VIEW_VERTICAL_TABS=0)
 add_executable(meter_preview "${root}/tests/render_meters.c" "${root}/tests/render.c")
-target_compile_definitions(meter_preview PRIVATE PS_REPLAY_ONLY)
+target_compile_definitions(meter_preview PRIVATE PS_REPLAY_ONLY W=80 H=32)
 add_executable(layout_preview "${root}/tests/render_workspaces.c" "${root}/tests/render.c" "${root}/host/workbench.c" "${root}/compat/device_profile.c")
 target_compile_definitions(layout_preview PRIVATE PS_REPLAY_ONLY)
 add_executable(filesystem_preview "${root}/tests/render_filesystem.c" "${root}/tests/render.c" "${root}/host/workbench.c" "${root}/compat/device_profile.c")
