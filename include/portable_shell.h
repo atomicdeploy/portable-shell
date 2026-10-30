@@ -219,7 +219,7 @@ enum {
     PS_NO_SYNC_OUTPUT = 2048
 };
 enum { PS_STYLE_DEFAULT, PS_STYLE_PROMPT, PS_STYLE_SUCCESS, PS_STYLE_WARNING, PS_STYLE_ERROR,
-       PS_STYLE_GREEN };
+       PS_STYLE_GREEN, PS_STYLE_MUTED, PS_STYLE_COMMAND, PS_STYLE_BLUE };
 enum {
     PS_KEY_UP = 256,
     PS_KEY_DOWN,
@@ -269,6 +269,11 @@ PS_API const ps_command *ps_command_at(const ps_session *s, unsigned index);
 PS_API int ps_register_raw(ps_session *s, const ps_command *metadata, ps_raw_command_fn run);
 /* Text is copied, max 63 UTF-8 bytes, no control characters. NULL restores default. */
 PS_API int ps_set_prompt(ps_session *s, const char *text, unsigned style);
+/* Copied prompt: 255 bytes, 16 colored parts, four lines. Newlines are allowed;
+ * other controls/escape sequences are rejected. Zero parts restores the default.
+ * Symbols are ordinary UTF-8 text. */
+typedef struct { const char *text; unsigned style; } ps_prompt_part;
+PS_API int ps_set_prompt_parts(ps_session *, const ps_prompt_part *, unsigned count);
 PS_API void ps_set_uppercase_echo(ps_session *s, int enabled);
 /* Safe external event output; preserves pending input/cursor. In the board it
    becomes the contextual notice. Call from the owning loop, not from write(). */

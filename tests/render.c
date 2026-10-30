@@ -93,6 +93,8 @@ static void csi(char end) {
         col = a[1] ? a[1] - 1 : 0;
     } else if (end == 'G')
         col = a[0] ? a[0] - 1 : 0;
+    else if(end=='A'){unsigned n=a[0]?a[0]:1;row=row>n?row-n:0;}
+    else if(end=='B'){unsigned n=a[0]?a[0]:1;row=row+n<H?row+n:H-1;}
     else if (end == 'C')
         col += a[0] ? a[0] : 1;
     else if (end == 'D') {
@@ -376,6 +378,9 @@ void ps_replay_reset(void) {
 }
 void ps_replay_feed(const unsigned char *bytes,unsigned count) { sink(0,bytes,count); }
 unsigned ps_replay_svg(char *buffer) { return svg(buffer); }
+unsigned ps_replay_row(void){return row;}
+unsigned ps_replay_column(void){return col;}
+const char *ps_replay_cell(unsigned r,unsigned c){return r<H&&c<W?screen[r][c].text:"";}
 #ifndef PS_REPLAY_ONLY
 __attribute__((noinline, noipa)) int render_complete(void) {
     return 0;

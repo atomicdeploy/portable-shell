@@ -67,3 +67,48 @@ compatibility API retains its explicit raw-byte behavior.
 Bracketed paste is inserted without executing pasted newlines. Escape sequences may
 arrive one byte at a time; a standalone Escape resolves after a 60 ms tick timeout.
 
+
+## Custom prompts
+
+Prompts support colored segments, UTF-8 symbols, and up to four lines. Text is
+copied into the session (255 bytes total, at most 16 parts). Only LF is accepted
+as a control character; use styles rather than embedding ANSI escapes.
+
+Try these commands in the hosted shell or over Telnet:
+
+~~~text
+prompt success "operator@workbench " muted "/configuration\n" command "❯ "
+prompt heading "controller\n" success "-> "
+prompt reset
+~~~
+
+Available styles: `default`, `heading`, `success`, `warning`, `error`,
+`green`, `muted`, `command`, and `blue`. They follow the selected palette;
+monochrome mode omits color. Custom symbols are ordinary text, so callers can
+choose ASCII symbols for terminals that need them. No font is required by the core.
+
+~~~c
+ps_prompt_part parts[] = {
+    {"operator@workbench", PS_STYLE_SUCCESS},
+    {"  /configuration\n", PS_STYLE_MUTED},
+    {"╰─❯ ", PS_STYLE_COMMAND}
+};
+ps_set_prompt_parts(session, parts, 3);
+~~~
+
+`ps_set_prompt(session, "host\n> ", PS_STYLE_PROMPT)` remains available for a
+single style. Passing NULL restores the original prompt. Both setters reject
+invalid input without replacing the current prompt. Host callbacks can rebuild
+the parts when hostname, directory, connection, or status changes; the core does
+not infer OS state.
+
+The final line owns the editor and suggestions. Prompt lines are clipped to
+terminal width, and excess leading lines are hidden in short viewports.
+Repainting returns to the existing prompt instead of appending another header.
+Switching to fewer lines erases stale content. Command submission starts a new
+prompt beneath its output; non-interactive output contains no prompt.
+
+Actual-output fixtures (dark Agave, generated in CI):
+[Colored](https://github.com/atomicdeploy/portable-shell/blob/main/previews/prompt-colored.png) ·
+[Multiline](https://github.com/atomicdeploy/portable-shell/blob/main/previews/prompt-multiline.png) ·
+[ASCII monochrome](https://github.com/atomicdeploy/portable-shell/blob/main/previews/prompt-ascii.png).

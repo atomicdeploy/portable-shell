@@ -62,3 +62,14 @@ Emitted-byte replay fixture with simulated observations; [configuration](Meters.
 ## Menus, editor and file tree
 
 [Centered and split menus](Menus.md), [framed editor](Text-editor.md), and [file tree](File-picker.md) include emitted-byte Agave previews.
+
+## Custom prompts
+
+![Multiline prompt](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/prompt-multiline.png)
+
+[Colored single line](https://github.com/atomicdeploy/portable-shell/blob/main/previews/prompt-colored.png) ·
+[ASCII monochrome](https://github.com/atomicdeploy/portable-shell/blob/main/previews/prompt-ascii.png) ·
+[Commands and embedding API](Shell.md#custom-prompts).
+
+Actual emitted-byte fixtures with simulated host/directory text. Agave renders
+the text; the pinned Agave Nerd Font supplies the custom chevron glyph.
