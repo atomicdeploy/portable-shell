@@ -34,6 +34,25 @@ int main(){
     std::string output;auto write=[&](const uint8_t *p,size_t n){output.append((const char*)p,n);};
     auto feed=[&](const char *keys){bool emitted=false;while(*keys)emitted=v.feed(uint8_t(*keys++),s,a)||emitted;return emitted;};
     v.begin();v.render(s,write);
+#if PS_MOUSE
+    {
+        V m;V::Snapshot ms=s;ms.rowCount=3;V::Action ma;
+        m.setGroupLayout(V::CategoryColumn);m.begin();m.render(ms,write);
+        auto send=[&](const char *p){bool hit=false;while(*p)hit=m.feed(uint8_t(*p++),ms,ma)||hit;return hit;};
+        assert(send("\x1b[<0;80;7M")&&ma.type==V::Action::Set&&std::string(ma.value)=="false");
+        assert(!send("\x1b[<0;80;7m"));
+        assert(send("\x1b[<0;80;8M")&&ma.type==V::Action::Set);
+        assert(send("\x1b[<32;90;8M")&&ma.type==V::Action::Set);
+        send("\x1b[<0;90;8m");assert(!send("\x1b[<32;95;8M"));
+        assert(!send("\x1b[<0;99999;8M"));
+        rows[0].pending=true;assert(!send("\x1b[<0;80;7M"));rows[0].pending=false;
+        send("\x1b[<0;16;3M");assert(m.page()==V::Network);
+        m.setTabLayout(V::VerticalTabs);m.render(ms,write);send("\x1b[<0;6;3M");assert(m.page()==V::Device);
+        m.render(ms,write);assert(!send("\x1b[<65;40;9M"));assert(ma.type==V::Action::None);
+        output.clear();m.end(write);assert(output.find("\x1b[?1006l")!=std::string::npos&&!m.active());
+    }
+    output.clear();v.render(s,write,true);
+#endif
     assert(v.theme()==V::Semantic);
     assert(output.find("\x1b[38;2;255;184;108m")!=std::string::npos); // Numeric control, not a theme accent.
     assert(output.find("\x1b[38;2;255;95;115m")==std::string::npos); // Ordinary borders are not alarms.

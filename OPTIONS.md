@@ -139,6 +139,25 @@ palette, `ansi` / `plain` commands, and `PS_CONSOLE_ASCII_ONLY`.
 
 ## Entry screen and I/O
 
+Mouse input is enabled by default in interactive tables (`PS_MOUSE=0` compiles
+out routing and reporting). The Windows C adapter translates console mouse events
+to the same SGR byte packets accepted over serial or Telnet. A remote terminal must
+support SGR mouse reporting; the transport itself needs no pointer API.
+
+- Click a label to select its row, a category heading to fold it, or a tab to switch.
+- Click a value to toggle, cycle a choice, or start inline editing. Click/drag a
+  level to adjust it; the provider still validates and acknowledges every change.
+- Scroll the wheel to navigate; drag the right-border scrollbar to seek.
+- Right-click a value for its dialog; right-click while editing to cancel.
+  Click inside the editable text to position its cursor. C control dialogs also
+  have clickable Apply/Cancel buttons.
+
+Mouse actions never bypass read-only, pending, locked, unknown-value or revision
+checks. Modified clicks are ignored, leaving terminal selection gestures available.
+The command prompt retains keyboard editing. Matrix/game gestures remain keyboard
+driven. DeviceView callers must call `end(write)` on exit to disable mouse reporting;
+the bundled serial-console adapter does this before restoring the normal screen.
+
 The native host starts at the prompt. `--board` opens Tasks / Variables / Jobs /
 Session. `--controls` opens toggles, levels, choices, text, actions and dialogs.
 `board` and `controls` also work as commands. Device-command mode uses its own
