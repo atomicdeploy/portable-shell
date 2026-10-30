@@ -165,6 +165,8 @@ struct ps_session {
     char prompt_text[64];
     unsigned custom_prompt, prompt_style, uppercase_echo, executing;
     unsigned command_count;
+    ps_command_fn executor;
+    void *executor_context;
     Binding bindings[24];
     unsigned binding_count;
     char line[PS_LINE], saved[PS_LINE], kill[PS_LINE], suggestion[PS_LINE];
@@ -1866,6 +1868,24 @@ PS_API void ps_key(ps_session *s, unsigned key) {
         s->kill[p - s->pos] = 0;
         move(s->line + s->pos, s->line + p, s->len - p + 1);
         s->len -= p - s->pos;
+    } else if (key == PS_KEY_KILLWORD && (s->io.flags & PS_EXTENDED_KEYS)) {
+        unsigned end = s->pos;
+        while (s->line[end] == ' ') ++end;
+        while (s->line[end] && s->line[end] != ' ') end = next(s->line, end);
+        copy(s->kill, s->line + s->pos, end - s->pos);
+        s->kill[end - s->pos] = 0;
+        move(s->line + s->pos, s->line + end, s->len - end + 1);
+        s->len -= end - s->pos;
+    } else if (key == 20 && (s->io.flags & PS_EXTENDED_KEYS)) {
+        unsigned end = s->pos < s->len ? next(s->line, s->pos) : s->pos;
+        unsigned mid = prev(s->line, end), begin = prev(s->line, mid), j;
+        char first[4];
+        if (mid > begin && mid - begin <= sizeof first) {
+            for (j = 0; j < mid - begin; ++j) first[j] = s->line[begin + j];
+            move(s->line + begin, s->line + mid, end - mid);
+            copy(s->line + begin + end - mid, first, mid - begin);
+            s->pos = end;
+        } else ps_ring_bell(s);
     } else if (key == 25) {
         for (i = 0; s->kill[i]; ++i)
             edit_insert(s->line, &s->len, &s->pos, PS_LINE, (unsigned char)s->kill[i]);
@@ -2354,6 +2374,9 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     }
     return fail(s, "unknown command");
 }
+PS_API void ps_set_executor(ps_session *s, ps_command_fn run, void *context) {
+    if (s) { s->executor = run; s->executor_context = context; }
+}
 PS_API int ps_execute_argv(ps_session *s, int argc, const char *const *a) {
     unsigned i;
     if (argc <= 0)
@@ -2373,6 +2396,12 @@ PS_API int ps_execute_argv(ps_session *s, int argc, const char *const *a) {
             s->executing = 0;
             return s->status;
         }
+    if (s->executor) {
+        s->executing = 1;
+        s->status = s->executor(s, argc, a, s->executor_context);
+        s->executing = 0;
+        return s->status;
+    }
     s->status = fail(s, "unknown command; use help or Tab");
     return s->status;
 }
@@ -2513,6 +2542,10 @@ static void input_byte(ps_session *s, unsigned c) {
                 s->escbuf[1] = (char)c;
                 s->escbuf[2] = 0;
                 escape_key(s);
+                return;
+            }
+            if ((s->io.flags & PS_EXTENDED_KEYS) && (c == 'd' || c == 127 || c == 8)) {
+                ps_key(s, c == 'd' ? PS_KEY_KILLWORD : 23);
                 return;
             }
             if (c == 'b') {

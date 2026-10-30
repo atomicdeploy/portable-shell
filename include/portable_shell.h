@@ -211,7 +211,8 @@ enum {
     PS_NO_BUILTINS = 64,
     PS_LEGACY_KEYS = 128,
     PS_NO_BELL = 256,
-    PS_NO_SUGGESTIONS = 512
+    PS_NO_SUGGESTIONS = 512,
+    PS_EXTENDED_KEYS = 1024 /* Alt-D/Alt-Backspace and Ctrl-T readline shortcuts */
 };
 enum { PS_STYLE_DEFAULT, PS_STYLE_PROMPT, PS_STYLE_SUCCESS, PS_STYLE_WARNING, PS_STYLE_ERROR,
        PS_STYLE_GREEN };
@@ -231,7 +232,8 @@ enum {
     PS_KEY_F3,
     PS_KEY_F4,
     PS_KEY_WORDLEFT,
-    PS_KEY_WORDRIGHT
+    PS_KEY_WORDRIGHT,
+    PS_KEY_KILLWORD
 };
 PS_API unsigned ps_sizeof_session(void);
 PS_API const char *ps_memory_backend(void); /* "portable" or "libc"; no allocation */
@@ -253,6 +255,9 @@ PS_API int ps_execute_argv(ps_session *s, int argc, const char *const *argv);
 PS_API int ps_parse(const char *line, ps_args *out);
 PS_API const char *ps_option(int argc, const char *const *argv, const char *name);
 PS_API int ps_register(ps_session *s, const ps_command *command);
+/* Optional consumer-owned fallback, after registered commands. NULL disables it.
+   The callback receives parsed argv, never an implicitly interpreted OS shell string. */
+PS_API void ps_set_executor(ps_session *s, ps_command_fn run, void *context);
 PS_API int ps_unregister(ps_session *s, const char *name);
 /* Metadata remains borrowed until the next registry mutation. */
 PS_API unsigned ps_command_count(const ps_session *s);

@@ -11,6 +11,7 @@ PortableShell is a reusable byte-oriented shell and terminal UI toolkit. Choose 
 | 📝 Edit documents | [Text editor](Text-editor.md) |
 | ⚙️ Select features | [Options](Options.md) |
 | 🔌 Connect streams | [Transports](Transports.md) |
+| 🖥️ Run programs and access remote files | [Host execution](Host-execution.md) |
 | 🧩 Embed and integrate | [Embedding](Embedding.md), [Components](Components.md), [Integration](Integration.md) |
 | 🌍 Port targets | [Portability](Portability.md) |
 | 🛡️ Maintain and publish | [Automation](Automation.md), [Verification](Verification.md) |

@@ -6,6 +6,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "portable_shell.h"
 #include "portable_shell_device.h"
+#include "process.h"
 static unsigned use_device_commands;
 static ps_device_profile profiles[4];
 #include <unistd.h>
@@ -252,9 +253,12 @@ static void history_save(ps_session *s, const char *path) {
     }
     close(fd);
 }
+#if PS_HOST_EXEC
+#include "execution.h"
+#endif
 int main(int argc, char **argv) {
     unsigned flags = PS_COLOR | PS_UNICODE | PS_TRUECOLOR, port = 0, baud = 115200, board = 0,
-             batch = 0, force = 0;
+             execution = PS_HOST_EXEC, batch = 0, force = 0;
     int i, command_at = 0, fd = 0, outfd = 1, raw = 0, result;
     const char *command = 0, *host = "127.0.0.1", *serial = 0, *history = 0;
     struct termios saved;
@@ -274,6 +278,10 @@ int main(int argc, char **argv) {
             flags |= PS_NO_BELL;
         else if (equal(argv[i], "--no-suggestions"))
             flags |= PS_NO_SUGGESTIONS;
+        else if (equal(argv[i], "--no-exec"))
+            execution = 0;
+        else if (equal(argv[i], "--shortcuts"))
+            flags |= PS_EXTENDED_KEYS;
         else if (equal(argv[i], "--batch"))
             batch = 1;
         else if (equal(argv[i], "--interactive"))
@@ -297,7 +305,7 @@ int main(int argc, char **argv) {
         } else if (equal(argv[i], "--help")) {
             say("PortableShell [--device-commands] [--board|--controls|--menu|--edit|--files] [--ascii] [--no-color] [--no-bell] [--no-suggestions] [--history FILE]\n      "
                 "[--command TEXT | "
-                "-- ARGV...] [--batch | --interactive]\n      [--listen PORT [--bind IPv4]] "
+                "-- ARGV...] [--batch | --interactive] [--no-exec] [--shortcuts]\n      [--listen PORT [--bind IPv4]] "
                 "[--serial PATH [--baud N]]\n");
             return 0;
         } else if (i + 1 < argc && (equal(argv[i], "--command") || equal(argv[i], "--listen") ||
@@ -347,6 +355,11 @@ int main(int argc, char **argv) {
     if (use_device_commands)
         ps_device_attach(s, &profiles[0], 0, 0);
     if (!serial && !use_device_commands && fs_attach(s)) return 2;
+#if PS_HOST_EXEC
+    if (execution && !serial && !use_device_commands && host_attach(s)) return 2;
+#else
+    (void)execution;
+#endif
     if (command || command_at) {
         result =
             command ? ps_execute(s, command)
@@ -393,7 +406,7 @@ int main(int argc, char **argv) {
         int ready = poll(&p, 1, 20);
         if (ready > 0 && (p.revents & (POLLIN | POLLHUP))) {
             ps_byte b[2048];
-            ssize_t n = read(fd, b, sizeof b);
+            ssize_t n = read(fd, b, execution && !serial ? 1 : sizeof b);
             if (n > 0)
                 ps_feed(s, b, (unsigned)n);
             else if (n == 0 && !serial)

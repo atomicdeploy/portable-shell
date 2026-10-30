@@ -6,6 +6,7 @@
 #include "portable_shell.h"
 #include "portable_shell_device.h"
 #include "portable_terminal.h"
+#include "process.h"
 static unsigned use_device_commands;
 static ps_device_profile profiles[4];
 #include "filesystem.h"
@@ -172,7 +173,7 @@ static int get_args(void) {
                     return 0;
                 arguments[pos++] = '\\';
             }
-            if (!*p)
+            if (!*p || (!quote && (*p == ' ' || *p == '\t')))
                 break;
             cp = *p++;
             if (cp >= 0xd800 && cp <= 0xdbff && *p >= 0xdc00 && *p <= 0xdfff)
@@ -211,7 +212,7 @@ static void keyboard(ps_session *s) {
     DWORD n, i;
     static unsigned high = 0;
     static DWORD mouse_buttons=0;
-    if (!ReadConsoleInputW(input, events, 32, &n))
+    if (!ReadConsoleInputW(input, events, 1, &n))
         return;
     for (i = 0; i < n; ++i) {
         KEY_EVENT_RECORD *k = &events[i].Event.KeyEvent;
@@ -488,9 +489,12 @@ static void history_save(ps_session *s, const char *path) {
     }
     CloseHandle(h);
 }
+#if PS_HOST_EXEC
+#include "execution.h"
+#endif
 int host_main(void) {
     unsigned flags = PS_COLOR | PS_UNICODE | PS_TRUECOLOR, port = 0, baud = 115200, i, board = 0,
-             batch = 0, force = 0, command_at = 0;
+             execution = PS_HOST_EXEC, batch = 0, force = 0, command_at = 0;
     const char *command = 0, *bind_addr = "127.0.0.1", *serial = 0, *history = 0;
     ps_config cfg;
     ps_session *s;
@@ -511,6 +515,10 @@ int host_main(void) {
             flags |= PS_NO_BELL;
         else if (equal(argv[i], "--no-suggestions"))
             flags |= PS_NO_SUGGESTIONS;
+        else if (equal(argv[i], "--no-exec"))
+            execution = 0;
+        else if (equal(argv[i], "--shortcuts"))
+            flags |= PS_EXTENDED_KEYS;
         else if (equal(argv[i], "--batch"))
             batch = 1;
         else if (equal(argv[i], "--interactive"))
@@ -533,7 +541,7 @@ int host_main(void) {
                 "FILE]\r\n     "
                 " "
                 "[--command TEXT "
-                "| -- ARGV...] [--batch | --interactive]\r\n      [--listen PORT [--bind IPv4]] "
+                "| -- ARGV...] [--batch | --interactive] [--no-exec] [--shortcuts]\r\n      [--listen PORT [--bind IPv4]] "
                 "[--serial PORT [--baud N]]\r\n");
             return 0;
         } else if (equal(argv[i], "--")) {
@@ -615,6 +623,11 @@ int host_main(void) {
     if (use_device_commands)
         ps_device_attach(s, &profiles[0], 0, 0);
     if (!serial && !use_device_commands && fs_attach(s)) return 2;
+#if PS_HOST_EXEC
+    if (execution && !serial && !use_device_commands && host_attach(s)) return 2;
+#else
+    (void)execution;
+#endif
     if (command || command_at) {
         result = command ? ps_execute(s, command)
                          : ps_execute_argv(s, (int)(argc - command_at), argv + command_at);
@@ -662,7 +675,7 @@ int host_main(void) {
                     continue;
                 }
             }
-            if (!ReadFile(input, b, sizeof b, &n, 0) || (!n && !serial))
+            if (!ReadFile(input, b, execution && !serial ? 1 : sizeof b, &n, 0) || (!n && !serial))
                 break;
             if (n)
                 ps_feed(s, b, n);
