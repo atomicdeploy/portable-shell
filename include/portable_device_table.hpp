@@ -1,7 +1,7 @@
 unsigned tableCapacity(const Snapshot &s,unsigned w) const {
     const unsigned shift=tabsInsideTable_?0:1;
     const unsigned diagnostics=page_==Led&&!PS_DEVICE_VIEW_MATRIX?(s.lines<24?5:9):page_==Game?3:page_==Pixel?2:0;
-    unsigned visible=s.lines>9+shift+diagnostics?s.lines-9-shift-diagnostics:1;
+    unsigned visible=s.lines>9+shift+diagnostics-(PS_DEVICE_VIEW_PLAIN_ROWS?2:0)?s.lines-9-shift-diagnostics+(PS_DEVICE_VIEW_PLAIN_ROWS?2:0):1;
     if(visible>PS_DEVICE_VIEW_MAX_ROWS)visible=PS_DEVICE_VIEW_MAX_ROWS;
     const unsigned reserve=8192U+unsigned(s.lines)*110U;
     const unsigned budget=(PS_DEVICE_VIEW_FRAME_BYTES>reserve?PS_DEVICE_VIEW_FRAME_BYTES-reserve:1)/(w+450U);
@@ -96,7 +96,7 @@ bool mouse(const ps_mouse_event &e,const Snapshot &s,Action &a){
     if(!drag)mouseDrag_=true;
     const unsigned width=s.columns>240?240:s.columns;
     const unsigned offset=PS_DEVICE_VIEW_VERTICAL_TABS&&tabs_==VerticalTabs&&width>=64?22:0;
-    const unsigned w=width-1-offset-tableGutter(s,width,offset),shift=tabsInsideTable_?0:1,body=6+shift;
+    const unsigned w=width-1-offset-tableGutter(s,width,offset),shift=tabsInsideTable_?0:1,body=6+shift-(PS_DEVICE_VIEW_PLAIN_ROWS?2:0);
     if(editing_){
         if(button==2&&!drag){clearDraft();dirty_=full_=true;return false;}
         if(y==editRow_&&x>=editColumn_&&x<editColumn_+editWidth_){
@@ -167,7 +167,7 @@ template<class W> void rule(Writer<W> &out,const Snapshot &s,unsigned width,cons
 }
 template<class W> void gridRule(Writer<W> &out,const Snapshot &s,unsigned w,unsigned group,unsigned label,const char *junction,const char *left,const char *right) const {
     base(out);ink(out,7);out.raw(s.unicode?left:"+");
-    for(unsigned i=1;i<w-1;++i){const bool join=i==label+3+(group?group+3:0)||(group&&i==group+3);
+    for(unsigned i=1;i<w-1;++i){const bool join=!PS_DEVICE_VIEW_PLAIN_ROWS&&(i==label+3+(group?group+3:0)||(group&&i==group+3));
         out.raw(s.unicode?(join?junction:"\xe2\x94\x80"):(join?"+":"-"));}
     out.raw(s.unicode?right:"+");base(out);out.raw("\r\n");
 }
@@ -254,8 +254,8 @@ template<class W> void blankRows(Writer<W> &out,const Snapshot &s,unsigned first
     for(unsigned row=first;row<=last;++row){
         out.position(row);out.raw("\x1b[K");
         out.raw(s.unicode?"\xe2\x94\x82":"|");
-        if(group){out.position(row,group+4);out.raw(s.unicode?"\xe2\x94\x82":"|");}
-        if(label){out.position(row,label+4+(group?group+3:0));out.raw(s.unicode?"\xe2\x94\x82":"|");}
+        if(group&&!PS_DEVICE_VIEW_PLAIN_ROWS){out.position(row,group+4);out.raw(s.unicode?"\xe2\x94\x82":"|");}
+        if(label&&!PS_DEVICE_VIEW_PLAIN_ROWS){out.position(row,label+4+(group?group+3:0));out.raw(s.unicode?"\xe2\x94\x82":"|");}
         out.position(row,w);out.raw(s.unicode?"\xe2\x94\x82":"|");
     }
     base(out);
@@ -354,7 +354,7 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     const unsigned gutter=tableGutter(s,width,offset);
     if(gutter!=paintedGutter_){paintAll=true;paintedGutter_=gutter;if(ansi_)out.raw("\x1b[H\x1b[2J");}
     const unsigned w=width-1-offset-gutter;
-    const unsigned shift=tabsInsideTable_?0:1,body=6+shift;
+    const unsigned shift=tabsInsideTable_?0:1,body=6+shift-(PS_DEVICE_VIEW_PLAIN_ROWS?2:0);
     if(offset){sidebar(out,s,s.lines-3);out.indent(offset);out.position(1);}
     base(out);ink(out,7);if(!shift)out.raw(s.unicode?"\xe2\x95\xad\xe2\x94\x80 ":"+- ");
     ink(out,4);char title[241];const unsigned titleSize=unsigned(terminalText(title,w-8,s.title));out.raw(title);
@@ -375,13 +375,15 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
         const unsigned n=unsigned(ps_text_length(hint));if(used+n<w-4){ink(out,0);out.raw(hint);used+=n;}}
     out.field("",w-4-used);if(shift)out.raw("  ");else edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");
     if(PS_DEVICE_VIEW_MATRIX&&page_==Led&&grid_&&s.canLeds){matrix(out,s,w,shift);return true;}
-    const bool category=groups_==CategoryColumn&&w>=95;
+    const bool category=!PS_DEVICE_VIEW_PLAIN_ROWS&&groups_==CategoryColumn&&w>=95;
     const unsigned groupWidth=category?16:0,labelWidth=w<59?12:w<95?24:28;
     const unsigned valueWidth=w-7-labelWidth-(category?groupWidth+3:0);
     gridRule(out,s,w,groupWidth,labelWidth,"┬",shift?"╭":"├",shift?"╮":"┤");
     auto cell=[&](const char *text,unsigned n){ink(out,theme_==Default?PS_INK_HEADING:0);out.field(text,n);edge(out,s," \xe2\x94\x82 "," | ");};
+    if(!PS_DEVICE_VIEW_PLAIN_ROWS){
     edge(out,s,"\xe2\x94\x82 ","| ");if(category)cell("Category",groupWidth);cell("Setting",labelWidth);
     ink(out,theme_==Default?PS_INK_HEADING:0);out.field("Value",valueWidth);edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");
+    }
     const unsigned count=rowCount(s);if(selected_>=count)selected_=count?uint8_t(count-1):0;
     const unsigned diagnostics=page_==Led&&!PS_DEVICE_VIEW_MATRIX?(s.lines<24?5:9):page_==Game?3:page_==Pixel?2:0;
     unsigned visible=tableCapacity(s,w);
@@ -392,7 +394,7 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     if(paintedRows_!=visible){paintAll=true;paintedRows_=visible;}
     const unsigned start=selectedLine>=visible?selectedLine-visible+1:0;
     mouseStart_=start;mouseVisible_=visible;
-    gridRule(out,s,w,groupWidth,labelWidth,total&&(logical[start]&0xe000)?"\xe2\x94\xb4":"\xe2\x94\xbc","\xe2\x94\x9c","\xe2\x94\xa4");
+    if(!PS_DEVICE_VIEW_PLAIN_ROWS)gridRule(out,s,w,groupWidth,labelWidth,total&&(logical[start]&0xe000)?"\xe2\x94\xb4":"\xe2\x94\xbc","\xe2\x94\x9c","\xe2\x94\xa4");
     for(unsigned i=0;i<visible;++i){
         const unsigned line=start+i,at=line<total?(logical[line]&0x1fff):count;
         const bool group=line<total&&(logical[line]&0x8000);
@@ -428,7 +430,7 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
         const unsigned markerWidth=marker<labelWidth?marker:labelWidth;
         if(!selectionMarker_&&selected&&markerWidth==2)out.raw(mark);
         else out.field(selected&&selectionMarker_?markerText:"",markerWidth);
-        out.field(r?r->label:"",labelWidth-markerWidth);edge(out,s," \xe2\x94\x82 "," | ");
+        out.field(r?r->label:"",labelWidth-markerWidth);if(PS_DEVICE_VIEW_PLAIN_ROWS)out.raw("   ");else edge(out,s," \xe2\x94\x82 "," | ");
         if(PS_DEVICE_VIEW_INLINE_EDIT&&selected&&editing_&&(!dialog_||!ansi_)){editValue(out,valueWidth);editRow_=body+i;editColumn_=offset+labelWidth+6+(category?groupWidth+3:0);editWidth_=valueWidth;}
         else if(r)value(out,s,*r,valueWidth);else out.field("",valueWidth);
         edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");
@@ -436,9 +438,9 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     paintedSelection_=selected_;paintedGrid_=grid_;
     if(ansi_){
         if(paintAll)blankRows(out,s,body+visible,s.lines-4-diagnostics,w,groupWidth,labelWidth);
-        if(gutter){base(out);for(unsigned i=0;i<s.lines-9-shift-diagnostics;++i){out.position(body+i,w+1);out.field("",gutter);}}
+        if(gutter){base(out);for(unsigned i=0;i<s.lines-9-shift-diagnostics+(PS_DEVICE_VIEW_PLAIN_ROWS?2:0);++i){out.position(body+i,w+1);out.field("",gutter);}}
         if(total>visible){
-            const unsigned height=s.lines-9-shift-diagnostics;
+            const unsigned height=s.lines-9-shift-diagnostics+(PS_DEVICE_VIEW_PLAIN_ROWS?2:0);
             const unsigned thumb=height*visible/total?height*visible/total:1;
             const unsigned top=start*(height-thumb)/(total-visible);
             base(out);int previous=-1;

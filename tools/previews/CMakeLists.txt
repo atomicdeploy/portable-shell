@@ -5,6 +5,11 @@ add_executable(workspace_preview "${root}/tests/export_previews.c" "${root}/test
   "${root}/host/workbench.c" "${root}/compat/device_profile.c")
 add_executable(full_preview "${root}/tests/render_device_profiles.cpp" "${root}/tests/render.c")
 add_executable(reduced_preview "${root}/tests/render_device_profiles.cpp" "${root}/tests/render.c")
+add_executable(plain_device_preview "${root}/tests/render_device_profiles.cpp" "${root}/tests/render.c")
+target_compile_definitions(plain_device_preview PRIVATE PS_REPLAY_ONLY PS_PREVIEW_REDUCED=1
+  PS_DEVICE_VIEW_PLAIN_ROWS=1 PS_DEVICE_VIEW_SECTIONS=0 PS_DEVICE_VIEW_RETAIN_ROWS=0
+  PS_DEVICE_VIEW_WIDGETS=0 PS_DEVICE_VIEW_DIALOGS=0 PS_DEVICE_VIEW_MATRIX=0
+  PS_STYLE_THEMES=1 PS_DEVICE_VIEW_VERTICAL_TABS=0)
 target_compile_definitions(full_preview PRIVATE PS_REPLAY_ONLY)
 target_compile_definitions(reduced_preview PRIVATE PS_REPLAY_ONLY PS_PREVIEW_REDUCED=1 PS_DEVICE_VIEW_RETAIN_ROWS=0 PS_DEVICE_VIEW_WIDGETS=0
   PS_DEVICE_VIEW_DIALOGS=0 PS_DEVICE_VIEW_MATRIX=0 PS_STYLE_THEMES=0 PS_DEVICE_VIEW_VERTICAL_TABS=0)
@@ -47,7 +52,7 @@ target_compile_options(dashboard_preview PRIVATE -UNDEBUG)
 add_executable(snake_preview "${root}/tests/snake_checks.c" "${root}/tests/render.c")
 target_compile_definitions(snake_preview PRIVATE PS_REPLAY_ONLY PS_RICH_REPLAY W=80)
 target_compile_options(snake_preview PRIVATE -UNDEBUG)
-foreach(target snake_preview interaction_preview rich_preview monitor_preview list_preview dashboard_preview form_preview report_preview help_preview segment_preview prompt_preview workspace_preview full_preview reduced_preview meter_preview layout_preview filesystem_preview)
+foreach(target plain_device_preview snake_preview interaction_preview rich_preview monitor_preview list_preview dashboard_preview form_preview report_preview help_preview segment_preview prompt_preview workspace_preview full_preview reduced_preview meter_preview layout_preview filesystem_preview)
   target_include_directories(${target} PRIVATE "${root}/include")
   target_compile_features(${target} PRIVATE c_std_99 cxx_std_11)
   target_compile_options(${target} PRIVATE -Wall -Wextra -Werror)

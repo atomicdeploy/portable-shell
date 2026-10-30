@@ -79,3 +79,56 @@ the text; the pinned Agave Nerd Font supplies the custom chevron glyph.
 ![Seven-segment display](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/seven-segment.png)
 
 [Component and command options](Components.md#seven-segment-display).
+
+## Optional plain device list (framed, no column headings)
+
+![Plain device list with current navigation and borders](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-plain.png)
+
+This restores the earlier headerless device-list presentation through the shared
+DeviceView renderer. It is not the default and is not selected automatically for
+an MCU. The selected Output row now retains its value; current page names,
+consistent footer keycaps, inline editing and complete viewport borders remain.
+
+The essential presentation flag is `PS_DEVICE_VIEW_PLAIN_ROWS=1`: omit column
+headings and inner vertical dividers. This capture also uses these explicit
+consumer C++ compile definitions:
+
+```text
+-DPS_DEVICE_VIEW_PLAIN_ROWS=1
+-DPS_DEVICE_VIEW_SECTIONS=0
+-DPS_DEVICE_VIEW_RETAIN_ROWS=0
+-DPS_DEVICE_VIEW_WIDGETS=0
+-DPS_DEVICE_VIEW_DIALOGS=0
+-DPS_DEVICE_VIEW_MATRIX=0
+-DPS_DEVICE_VIEW_VERTICAL_TABS=0
+-DPS_STYLE_THEMES=1
+```
+
+The remaining device flags disable optional features for this particular example;
+they are not requirements for plain rows. Inline editing remains enabled. Keep
+`PS_STYLE_THEMES=1` to select the red palette. The layout also uses runtime options:
+
+```cpp
+view.setTheme(PortableShell::DeviceView::Red);
+view.setTabsInsideTable(true);
+snapshot.unicode = true;
+snapshot.columns = 96;
+snapshot.lines = 24;
+```
+
+The title, row labels/values and available pages are supplied by the consumer's
+snapshot, not by build flags. `PS_DEVICE_VIEW_TABLE=0` is a historical feature
+alias, not a switch back to a separate renderer. `PORTABLE_SHELL_COMPACT` changes
+storage capacities and does not select this appearance.
+
+Build only this C++ replay example (the C source is the host-only preview sink):
+
+```text
+cmake -S tools/previews -B build/previews/native -G Ninja
+cmake --build build/previews/native --target plain_device_preview
+build/previews/native/bin/plain_device_preview previews/device-plain.svg
+```
+
+Windows adds `.exe` to the last command. To rebuild both SVG and antialiased PNG
+with pinned Agave, use the gallery rebuild command above. CI includes this profile
+and checks that its preview remains current, including its inline-edit regression.
