@@ -486,6 +486,9 @@ PS_API int ps_set_prompt(ps_session *s,const char *text,unsigned value) {
 PS_API void ps_set_uppercase_echo(ps_session *s, int enabled) {
     s->uppercase_echo = enabled != 0;
 }
+PS_API int ps_get_uppercase_echo(const ps_session *s) {
+    return s ? (int)s->uppercase_echo : 0;
+}
 PS_API void ps_message(ps_session *s, unsigned value, const char *text) {
     if (s->board) {
         notice(s, text);

@@ -303,6 +303,7 @@ PS_API int ps_set_prompt(ps_session *s, const char *text, unsigned style);
 typedef struct { const char *text; unsigned style; } ps_prompt_part;
 PS_API int ps_set_prompt_parts(ps_session *, const ps_prompt_part *, unsigned count);
 PS_API void ps_set_uppercase_echo(ps_session *s, int enabled);
+PS_API int ps_get_uppercase_echo(const ps_session *s);
 /* Safe external event output; preserves pending input/cursor. In the board it
    becomes the contextual notice. Call from the owning loop, not from write(). */
 PS_API void ps_message(ps_session *s, unsigned style, const char *text);

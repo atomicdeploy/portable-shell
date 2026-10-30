@@ -1,11 +1,12 @@
 #include "portable_shell_device.h"
+#include "session_settings.h"
 
-static const char *const names[] = {"echo",  "clear",  "cls",     "exit",    "upper",  "noupper",
+static const char *const names[] = {"echo",  "clear",  "cls",     "exit",
                                     "hex",   "save",   "restore", "connect", "reboot", "busy",
                                     "ready", "status", "get",     "set",     "beep"};
 static const char *const parameters[] = {"Hostname",         "WiFi_Mode",     "Station_SSID",
                                          "Station_Password", "AP_SSID",       "AP_Password",
-                                         "Uptime",           "Firmware_Hash", "Build_Date"};
+                                         "Uptime",           "Firmware_Hash", "Build_Date", "input.uppercase"};
 static unsigned lower(unsigned c) {
     return c >= 'A' && c <= 'Z' ? c + 32 : c;
 }
@@ -21,9 +22,9 @@ static unsigned complete(ps_session *s, int argc, const char *const *argv, const
     ps_device_slot *slot = context;
     (void)s;
     (void)argv;
-    if (argc != 1 || (slot->command != 14 && slot->command != 15))
+    if (argc != 1 || (slot->command != 12 && slot->command != 13))
         return 0;
-    for (i = 0; i < 9 && n < capacity; ++i)
+    for (i = 0; i < 10 && n < capacity; ++i)
         if (starts(parameters[i], prefix))
             items[n++] = parameters[i];
     return n;
@@ -68,6 +69,19 @@ static int hexadecimal(ps_session *s, const char *p) {
 }
 static int run(ps_session *s, const char *tail, void *context) {
     ps_device_slot *slot = context;
+    const char *setting = tail;
+    while (*setting == ' ' || *setting == '\t') ++setting;
+    if ((slot->command == 12 || slot->command == 13) &&
+        starts(setting, "input.uppercase") &&
+        (!setting[sizeof "input.uppercase" - 1] || setting[sizeof "input.uppercase" - 1] == ' ' || setting[sizeof "input.uppercase" - 1] == '\t')) {
+        ps_args args;
+        if (ps_parse(setting, &args) ||
+            args.argc != (slot->command == 13 ? 2 : 1)) {
+            ps_message(s, PS_STYLE_ERROR, "set input.uppercase BOOL | get input.uppercase");
+            return 2;
+        }
+        return session_uppercase_setting(s, slot->command == 13 ? args.argv[1] : 0);
+    }
     switch (slot->command) {
     case 0:
         ps_write(s, tail);
@@ -81,12 +95,6 @@ static int run(ps_session *s, const char *tail, void *context) {
         ps_request_exit(s);
         return 0;
     case 4:
-        ps_set_uppercase_echo(s, 1);
-        return 0;
-    case 5:
-        ps_set_uppercase_echo(s, 0);
-        return 0;
-    case 6:
         return hexadecimal(s, tail);
     default:
         if (slot->owner->call)
@@ -101,13 +109,13 @@ int ps_device_attach(ps_session *s, ps_device_profile *p, ps_device_call_fn call
         return -1;
     p->call = call;
     p->context = context;
-    for (i = 0; i < 17; ++i) {
+    for (i = 0; i < sizeof names / sizeof names[0]; ++i) {
         ps_command command;
         p->slots[i].owner = p;
         p->slots[i].command = i;
         command.name = names[i];
-        command.usage = (i == 14 || i == 15) ? "PARAMETER [RAW VALUE]" : "[RAW ARGUMENTS]";
-        command.category = i < 7 ? "Shell" : "Device";
+        command.usage = (i == 12 || i == 13) ? "PARAMETER [RAW VALUE]" : "[RAW ARGUMENTS]";
+        command.category = i < 5 ? "Shell" : "Device";
         command.run = 0;
         command.complete = complete;
         command.context = &p->slots[i];

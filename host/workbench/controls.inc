@@ -13,6 +13,8 @@ static int local_control_read(void *ctx, unsigned id, ps_control_value *v) {
         v->number = s->theme;
     else if (id == 11)
         v->number = !!(s->table_style & PS_TABLE_GRID);
+    else if (id == 12)
+        v->number = ps_get_uppercase_echo(s);
     return 1;
 }
 static int local_control_write(void *ctx, unsigned id, const ps_control_value *v, ps_u32 rev) {
@@ -35,6 +37,8 @@ static int local_control_write(void *ctx, unsigned id, const ps_control_value *v
         }
     } else if (id == 11)
         s->table_style = (s->table_style & ~PS_TABLE_GRID) | (v->number ? PS_TABLE_GRID : 0);
+    else if (id == 12)
+        ps_set_uppercase_echo(s, v->number != 0);
     else
         return 0;
     ++s->local_revision;
@@ -56,8 +60,9 @@ static void control_local_attach(ps_session *s) {
         {6, "POLICY", "Mode", PS_CONTROL_CHOICE, 0, 2, 1, modes, 3},
         {10, "APPEARANCE", "Theme", PS_CONTROL_CHOICE, 0, 4, 1, themes, 5},
         {11, "APPEARANCE", "Column dividers", PS_CONTROL_TOGGLE, 0, 1, 1, 0, 0},
+        {12, "INPUT", "Uppercase echo", PS_CONTROL_TOGGLE, 0, 1, 1, 0, 0},
         {8, "STORAGE", "Backend", PS_CONTROL_LABEL, 0, 0, 0, 0, 0}};
-    static const ps_control_page pages[] = {{"Outputs", outputs, 7}, {"Settings", settings, 5}};
+    static const ps_control_page pages[] = {{"Outputs", outputs, 7}, {"Settings", settings, 6}};
     if (!s->local_label[0])
         str(s->local_label, "Local bench", sizeof s->local_label);
     s->local_panel.title = "Local bench";
