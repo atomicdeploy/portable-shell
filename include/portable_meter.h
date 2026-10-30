@@ -127,7 +127,13 @@ static inline unsigned ps_meter_render(const ps_meter *m,const ps_meter_style *s
         if(s->color)ps_meter_emit(write,ctx,"\033[33m");
         ps_meter_emit(write,ctx,field);
     }else for(i=0;i<width;++i){
-        if(n&&i>=start&&i<start+n){
+        /* A colored solid track uses cell backgrounds throughout. Mixing font
+         * block glyphs with label backgrounds produces font-dependent seams. */
+        if(s->color&&s->style==PS_METER_BLOCKS){
+            ps_meter_emit(write,ctx,i<filled?"\033[30;42m":"\033[97;100m");
+            if(n&&i>=start&&i<start+n)write(ctx,(const unsigned char *)value+i-start,1);
+            else ps_meter_emit(write,ctx," ");
+        }else if(n&&i>=start&&i<start+n){
             if(s->color)ps_meter_emit(write,ctx,i<filled?"\033[30;42m":"\033[97;40m");
             write(ctx,(const unsigned char *)value+i-start,1);
         }else{

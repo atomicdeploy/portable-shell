@@ -24,7 +24,23 @@ int main(){
         assert(rows==lines&&out.find('\033')==std::string::npos);
     }
     s.width=48;s.unicode=1;s.color=1;s.style=PS_METER_BLOCKS;s.text=PS_METER_TEXT_INSIDE;
-    std::string out;ps_meter_render(&m,&s,output,&out);assert(out.find("█")!=std::string::npos);
+    std::string out;ps_meter_render(&m,&s,output,&out);assert(out.find("█")==std::string::npos&&out.find("░")==std::string::npos);
+    assert(out.find("\033[30;42m")!=std::string::npos&&out.find("\033[97;100m")!=std::string::npos);
+    /* Filled/empty boundaries must use the same cell surface inside and outside labels. */
+    for(unsigned text=0;text<3;++text)for(unsigned value=0;value<=100;value+=20){
+        m.minimum=0;m.maximum=100;m.observed=value;s.text=text;out.clear();
+        ps_meter_render(&m,&s,output,&out);
+        assert(out.find("█")==std::string::npos&&out.find("░")==std::string::npos);
+        size_t pos=0;unsigned cells=0;
+        while((pos=out.find("\033[",pos))!=std::string::npos){
+            if(out.compare(pos,8,"\033[30;42m")==0||out.compare(pos,9,"\033[97;100m")==0)++cells;
+            ++pos;
+        }
+        assert(cells==s.width-(s.panel?2:0));
+    }
+    s.color=0;s.text=PS_METER_TEXT_NONE;m.observed=50;out.clear();ps_meter_render(&m,&s,output,&out);
+    assert(out.find("█")!=std::string::npos&&out.find("░")!=std::string::npos&&out.find('\033')==std::string::npos);
+    s.color=1;
     s.style=PS_METER_TICKS;s.text=PS_METER_TEXT_NONE;
     out.clear();ps_meter_render(&m,&s,output,&out);assert(out.find("┃")!=std::string::npos);
     s.style=PS_METER_CHEVRONS;out.clear();ps_meter_render(&m,&s,output,&out);
