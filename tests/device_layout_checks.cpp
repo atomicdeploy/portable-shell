@@ -49,7 +49,11 @@ struct Screen {
             ++separators;
             assert(cells[2][col]==(unicode?"\xe2\x94\xac":"+"));
             assert(cells[4][col]==(unicode?"\xe2\x94\xbc":"+"));
-            for(unsigned r=5;r<height-4;++r)assert(cells[r][col]==vertical);
+            for(unsigned r=5;r<height-4;++r){
+                const auto &marker=cells[r][left+2];
+                const bool section=marker=="▾"||marker=="▸"||marker=="-"||marker=="+";
+                if(!section)assert(cells[r][col]==vertical);
+            }
             assert(cells[height-4][col]==(unicode?"\xe2\x94\xb4":"+"));
         }
         assert(separators==(PS_DEVICE_VIEW_CATEGORY_COLUMN&&width-1-left>=95?2U:1U));
@@ -78,7 +82,15 @@ int main(){
         assert(screen.line(height-1).find("Tab pages")!=std::string::npos);
         assert(screen.line(height-2).find("select")!=std::string::npos);
         if(left)assert(screen.line(2).find("[Device]")!=std::string::npos);
+#if PS_DEVICE_VIEW_SECTIONS && !PS_DEVICE_VIEW_CATEGORY_COLUMN
+        feed("\x1b[A");render(false);assert(view.sectionSelected());
+        auto heading=screen.cells;render(true);assert(heading==screen.cells);
+        feed(" ");render(false);screen.tableBorders(left,unicode);
+        auto folded=screen.cells;render(true);assert(folded==screen.cells);
+        feed("\x1b[C\x1b[B");render(false);assert(!view.sectionSelected());
+#endif
         feed("\x1b[B");render(false);
+        if(view.sectionSelected()){feed("\x1b[B");render(false);}
         screen.tableBorders(left,unicode);
         auto incremental=screen.cells;render(true);assert(incremental==screen.cells);
         feed("\r\x15" "Draft");render(false);assert(view.editing());

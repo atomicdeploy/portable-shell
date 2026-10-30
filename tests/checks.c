@@ -412,6 +412,22 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         cfg.flags = PS_INTERACTIVE | PS_COLOR | PS_UNICODE;
         s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
         CHECK(ps_panel_attach(s, &panel) && ps_panel_open(s, 0), "provider pages attach and open");
+#if PS_CONTROL_SECTION_ROWS
+        ps_key(s, PS_KEY_UP);
+        feed(s, "\r\n");
+        clear(); ps_feed(s, "", 0);
+        CHECK(!has(t.output, "Relay ") && probe.writes == 0,
+              "section CRLF collapses without provider writes");
+        ps_key(s, PS_KEY_DOWN);
+        ps_key(s, PS_KEY_DOWN);
+        ps_key(s, PS_KEY_RIGHT);
+        CHECK(probe.values[1].number == 41, "collapsed section skips to next group's value");
+        ps_key(s, PS_KEY_UP); ps_key(s, PS_KEY_UP);
+        ps_key(s, PS_KEY_RIGHT); ps_key(s, PS_KEY_RIGHT);
+        ps_key(s, PS_KEY_DOWN);
+        CHECK(probe.writes == 1, "heading expand is idempotent and does not write");
+        probe.values[1].number = 0; probe.writes = 0;
+#endif
         clear();
         ps_tick(s, 100);
         {
@@ -425,6 +441,9 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         }
         feed(s, " ");
         CHECK(probe.values[0].number == 1 && probe.writes == 1, "toggle dispatches provider write");
+#if PS_CONTROL_SECTION_ROWS
+        ps_key(s, PS_KEY_DOWN);
+#endif
         feed(s, "\033[B\033[C");
         CHECK(probe.values[1].number == 41, "byte arrows adjust PWM without changing tab");
         ps_key(s, PS_KEY_END);
@@ -475,12 +494,18 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         CHECK(probe.writes == before && has(t.output, "Unknown"),
               "unknown is not zero or writable");
         ps_key(s, PS_KEY_DOWN);
+#if PS_CONTROL_SECTION_ROWS
+        ps_key(s, PS_KEY_DOWN);
+#endif
         feed(s, "\rbench\r");
         CHECK(eq(probe.values[2].text, "bench"), "inline text editing");
         ps_key(s, PS_KEY_DOWN);
         ps_key(s, PS_KEY_LEFT);
         CHECK(probe.values[3].number == 2, "choice control cycles backwards");
         ps_key(s, PS_KEY_DOWN);
+#if PS_CONTROL_SECTION_ROWS
+        ps_key(s, PS_KEY_DOWN);
+#endif
         before = probe.writes;
         feed(s, "\r\r");
         CHECK(probe.writes == before, "confirmation defaults to Cancel");

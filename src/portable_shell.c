@@ -130,6 +130,8 @@ struct ps_session {
     const ps_panel *panel;
     ps_panel local_panel;
     unsigned control_view, dialog, dialog_focus;
+    unsigned control_header, control_edit_row;
+    ps_byte control_closed[PS_CONTROL_SECTION_ROWS ? 8 : 1][PS_CONTROL_SECTION_ROWS ? 16 : 1];
     ps_u32 draft_revision, local_revision;
     unsigned local_values[7];
     char local_label[64];
@@ -587,7 +589,11 @@ PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsi
     return width - left;
 }
 PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
-    s->table_style = flags & PS_TABLE_DEFAULT;
+    if (s->editing)
+        flags = (flags & ~PS_TABLE_CATEGORY_COLUMN) | (s->table_style & PS_TABLE_CATEGORY_COLUMN);
+    if ((s->table_style ^ flags) & PS_TABLE_CATEGORY_COLUMN)
+        s->control_header = s->scroll = 0;
+    s->table_style = flags & (PS_TABLE_DEFAULT | PS_TABLE_CATEGORY_COLUMN);
     s->dirty = 1;
 }
 PS_API unsigned ps_alignof_session(void) {
@@ -670,8 +676,9 @@ static Grid grid_for(ps_session *s) {
     g.columns = s->tab == 0 ? tasks : s->tab == 1 ? pairs : s->tab == 2 ? jobs : stats;
     g.count = (s->tab == 0 || s->tab == 2) ? 3 : 2;
     if (s->control_view) {
-        g.columns = s->io.columns >= 64 ? controls : compact;
-        g.count = s->io.columns >= 64 ? 3 : 2;
+        unsigned category = (!PS_CONTROL_SECTION_ROWS || (s->table_style & PS_TABLE_CATEGORY_COLUMN)) && s->io.columns >= 64;
+        g.columns = category ? controls : compact;
+        g.count = category ? 3 : 2;
     }
     ps_layout_columns(s->io.columns - 2, g.columns, g.count, g.widths);
     return g;
@@ -825,6 +832,8 @@ static void progress_bar(ps_session *s, unsigned width_) {
 }
 static void render(ps_session *s) {
     unsigned w = s->io.columns, h = s->io.rows, i, count, slots, ids[PS_ROWS], inner;
+    unsigned displayCount, focus;
+    unsigned short controlItems[256];
     Grid grid;
     static const char *const tabs[] = {"Tasks", "Variables", "Jobs", "Session"};
     if (!s->board || !(s->io.flags & PS_INTERACTIVE))
@@ -851,10 +860,12 @@ static void render(ps_session *s) {
     slots = h - 13;
     if (s->selected >= count)
         s->selected = count ? count - 1 : 0;
-    if (s->scroll > s->selected)
-        s->scroll = s->selected;
-    if (s->selected >= s->scroll + slots)
-        s->scroll = s->selected - slots + 1;
+    focus = s->selected;
+    displayCount = s->control_view ? control_items(s,controlItems,&focus) : count;
+    if (s->scroll > focus)
+        s->scroll = focus;
+    if (focus >= s->scroll + slots)
+        s->scroll = focus - slots + 1;
     at(s, 1, 1);
     ansi(s, "\033[2K");
     out(s, "  ");
@@ -921,7 +932,7 @@ static void render(ps_session *s) {
     }
     at(s, 3, 1);
     ansi(s, "\033[2K");
-    if (s->control_view && count && grid.count == 2) {
+    if (s->control_view && !control_sections(s) && count && grid.count == 2) {
         out(s, "  ");
         ink(s, 0);
         grid_text(s, s->panel->pages[s->tab].controls[s->selected].group, w - 4);
@@ -949,20 +960,32 @@ static void render(ps_session *s) {
         visible(s, ids);
     for (i = 0; i < slots; ++i) {
         unsigned idx = s->scroll + i;
+        unsigned heading = 0;
+        if (s->control_view && idx < displayCount) {
+            heading = controlItems[idx] & 0x8000;
+            idx = controlItems[idx] & 0x7fff;
+        } else if (s->control_view) idx = count;
         at(s, 7 + i, 2);
         ink(s, 7);
         out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
+        if (heading) {
+            surface(s, s->control_header && s->selected == idx ? 1 : 0);
+            if (!(s->io.flags & PS_COLOR) && s->control_header && s->selected == idx) ansi(s,"\033[7m");
+            out(s," ");control_section_row(s,idx,inner);out(s," ");
+            reset(s);grid_vertical(s);reset(s);continue;
+        }
         out(s, " ");
         if (idx < count) {
-            if (idx == s->selected) {
+            if (idx == s->selected && (!s->control_view || !s->control_header)) {
                 if (s->io.flags & PS_COLOR)
                     surface(s, 2);
                 else
                     ansi(s, "\033[7m");
             }
-            if (s->control_view)
+            if (s->control_view) {
+                if (idx == s->selected) s->control_edit_row = 7+i;
                 control_row(s, idx, &grid);
-            else if (s->tab == 0)
+            } else if (s->tab == 0)
                 task_row(s, ids[idx], &grid);
             else if (s->tab == 1)
                 pair_row(s, s->vars[idx].key, s->vars[idx].value, &grid);
@@ -1005,10 +1028,12 @@ static void render(ps_session *s) {
     grid_vertical(s);
     at(s, h - 5, 4);
     ink(s, 0);
-    out(s, "Row ");
-    ps_number(s, count ? s->selected + 1 : 0);
-    out(s, "/");
-    ps_number(s, count);
+    if (s->control_view && s->control_header) {
+        out(s,"Section: ");grid_text(s,s->panel->pages[s->tab].controls[s->selected].group,w-15);
+    } else {
+        out(s, "Row ");ps_number(s, count ? s->selected + 1 : 0);
+        out(s, "/");ps_number(s, count);
+    }
     if (!s->control_view && s->filter[0] && s->tab == 0)
         out(s, " filtered");
     if (!s->control_view && s->tab == 0) {

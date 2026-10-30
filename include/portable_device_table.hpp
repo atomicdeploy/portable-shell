@@ -126,6 +126,7 @@ template<class W> void footer(Writer<W> &out,const Snapshot &s,unsigned w) const
         out.raw(w>=60?"  W idle  R lost  O off":"  W/R/O state");
     }else if(grid_&&page_==Pixel){out.raw(s.unicode?"\xe2\x86\x90/\xe2\x86\x92 test  G group  W/R/O color":"Left/Right test G group W/R/O color");}
     else if(page_==Game&&grid_){out.raw(s.gameReady?"1-9 press  R reset":"AVR unavailable");}
+    else if(sectionFocus_){out.raw(w<60?"Enter/Space toggle":s.unicode?"Enter/Space toggle  \xe2\x86\x90 collapse  \xe2\x86\x92 expand":"Enter/Space toggle  Left close Right open");}
     else {out.raw(s.unicode?"\xe2\x86\x91/\xe2\x86\x93 select":"Up/Down select");
         if(r&&r->editable&&!r->pending){
             out.raw(PS_DEVICE_VIEW_WIDGETS&&r->kind==Toggle?"  Space toggle":PS_DEVICE_VIEW_WIDGETS&&r->kind==Choice?(s.unicode?"  \xe2\x86\x90/\xe2\x86\x92 choose":"  +/- choose"):PS_DEVICE_VIEW_WIDGETS&&r->kind==Level?(s.unicode?"  \xe2\x86\x90/\xe2\x86\x92 adjust":"  +/- adjust"):"  Enter edit");
@@ -264,7 +265,7 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
         const unsigned n=unsigned(ps_text_length(hint));if(used+n<w-4){ink(out,0);out.raw(hint);used+=n;}}
     out.field("",w-4-used);edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");
     if(PS_DEVICE_VIEW_MATRIX&&page_==Led&&grid_&&s.canLeds){matrix(out,s,w);return true;}
-    const bool category=PS_DEVICE_VIEW_CATEGORY_COLUMN&&w>=95;
+    const bool category=groups_==CategoryColumn&&w>=95;
     const unsigned groupWidth=category?16:0,labelWidth=w<59?12:w<95?24:28;
     const unsigned valueWidth=w-7-labelWidth-(category?groupWidth+3:0);
     gridRule(out,s,w,groupWidth,labelWidth,"\xe2\x94\xac","\xe2\x94\x9c","\xe2\x94\xa4");
@@ -281,32 +282,30 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     const unsigned budgetRows=(PS_DEVICE_VIEW_FRAME_BYTES > reserve ? PS_DEVICE_VIEW_FRAME_BYTES-reserve : 1)/(w+450U);
     if(visible>budgetRows)visible=budgetRows?budgetRows:1;
     // Separate logical rows from section headings without heap storage.
-    uint8_t logical[PS_DEVICE_VIEW_MAX_ROWS*2];bool section[PS_DEVICE_VIEW_MAX_ROWS*2];
-    unsigned total=0,selectedLine=0;
-    for(unsigned i=0;i<count;++i){
-        if(!category&&s.rows[i].category&&*s.rows[i].category&&(i==0||!ps_text_equal(s.rows[i].category,s.rows[i-1].category))){logical[total]=uint8_t(i);section[total++]=true;}
-        if(i==selected_)selectedLine=total;
-        logical[total]=uint8_t(i);section[total++]=false;
-    }
+    uint16_t logical[PS_DEVICE_VIEW_MAX_ROWS*2];unsigned selectedLine;
+    const unsigned total=sectionItems(s,logical,selectedLine);
     if(visible>(total?total:1))visible=total?total:1;
     if(paintedRows_!=visible){paintAll=true;paintedRows_=visible;}
     const unsigned start=selectedLine>=visible?selectedLine-visible+1:0;
     for(unsigned i=0;i<visible;++i){
-        const unsigned line=start+i,at=line<total?logical[line]:count;
-        const bool group=line<total&&section[line];
-        const Row *r=at<count?s.rows+at:nullptr;const bool selected=r&&at==selected_&&!grid_;
+        const unsigned line=start+i,at=line<total?(logical[line]&0x7fff):count;
+        const bool group=line<total&&(logical[line]&0x8000);
+        const Row *r=at<count?s.rows+at:nullptr;const bool selected=r&&at==selected_&&!grid_&&(group==sectionFocus_);
         Snapshot single;single.rows=r;single.rowCount=r?1:0;
-        const uint32_t stamp=hash(single)^at^(group?0x80000000U:0);
+        const uint32_t stamp=hash(single)^at^(group?0x80000000U:0)^(selected?0x40000000U:0)^(group&&sectionClosed(at)?0x20000000U:0);
         const bool selectionChanged=(selected_!=paintedSelection_)&&(at==selected_||at==paintedSelection_);
         if(!paintAll&&painted_[i]==stamp&&!selectionChanged&&paintedGrid_==grid_)continue;
         painted_[i]=stamp;
         out.position(6+i);
-        edge(out,s,"\xe2\x94\x82 ","| ");
         if(group){
-            ink(out,6);out.raw(s.unicode?"\xe2\x94\x80 ":"- ");out.field(r->category,labelWidth-2);
-            edge(out,s," \xe2\x94\x82 "," | ");out.field("",valueWidth);
-            edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");continue;
+            char label[241];terminalText(label,sizeof label,r->category);
+            for(unsigned j=0;label[j];++j)if(label[j]>='a'&&label[j]<='z')label[j]=char(label[j]-'a'+'A');
+            edge(out,s,"\xe2\x94\x82","|");
+            if(ansi_)out.raw(PS_STYLE_THEMES?ps_style_surface(theme_,trueColor_,selected?1:0):selected?"\x1b[7m":"\x1b[1m");
+            out.raw(" ");out.raw(s.unicode?(sectionClosed(at)?"\xe2\x96\xb8 ":"\xe2\x96\xbe "):(sectionClosed(at)?"+ ":"- "));
+            out.field(label,w-6);out.raw(" ");edge(out,s,"\xe2\x94\x82","|");out.raw("\r\n");continue;
         }
+        edge(out,s,"\xe2\x94\x82 ","| ");
         if(category)cell(r&&(i==0||!ps_text_equal(r->category,s.rows[at-1].category))?r->category:"",groupWidth);
         if(selected&&ansi_)out.raw(ps_style_surface(theme_,trueColor_,2));
         ink(out,selected?1:4);out.raw(selected?(s.unicode?"\xe2\x96\xb8 ":"> "):"  ");
@@ -325,7 +324,9 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     if(ansi_){out.indent(0);out.position(s.lines-2);}
     base(out);ink(out,0);
     const Row *r=currentRow(s);
-    char status[64];ps_terminal_format(status,sizeof(status),"%u / %u",count?selected_+1:0,count);
+    char status[64];
+    if(sectionFocus_)ps_terminal_format(status,sizeof(status),"Section %s",sectionClosed(selected_)?"collapsed":"expanded");
+    else ps_terminal_format(status,sizeof(status),"%u / %u",count?selected_+1:0,count);
     ink(out,1);out.raw(status);out.raw("  ");ink(out,0);
     const char *context=*notice_?notice_:r&&r->pending?"Waiting for readback":r&&!r->editable?"Read only":"";
     out.safe(context,width-1-unsigned(ps_text_length(status))-2);out.raw("\r\n");footer(out,s,width-1);

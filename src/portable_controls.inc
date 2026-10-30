@@ -1,7 +1,67 @@
 /* Private implementation: shared renderer/editor primitives, no OS/runtime imports. */
+static int control_sections(const ps_session *s) {
+    return PS_CONTROL_SECTION_ROWS && !(s->table_style & PS_TABLE_CATEGORY_COLUMN);
+}
+/* Encoded presentation rows keep provider indices stable. Headings never write. */
+static unsigned control_items(ps_session *s, unsigned short *items, unsigned *focus) {
+    const ps_control_page *p = &s->panel->pages[s->tab];
+    unsigned i, n = 0, closed = 0, start = 0;
+    *focus = 0;
+    for (i = 0; i < p->count; ++i) {
+        const char *group = p->controls[i].group;
+        if (control_sections(s) && (!i || !equal(group,p->controls[i-1].group))) {
+            start = i;
+            closed = *group && (s->control_closed[s->tab][i/8] & (1U << (i%8)));
+            if (*group) {
+                if (s->selected == i && s->control_header) *focus = n;
+                items[n++] = (unsigned short)(i | 0x8000);
+            }
+        }
+        if (closed) {
+            if (i == s->selected) { s->selected = start; s->control_header = 1; *focus = n-1; }
+        } else {
+            if (i == s->selected && !s->control_header) *focus = n;
+            items[n++] = (unsigned short)i;
+        }
+    }
+    return n;
+}
+static int control_navigate(ps_session *s, unsigned key, unsigned step) {
+    unsigned short items[256]; unsigned focus, n;
+    if (!control_sections(s)) return 0;
+    n = control_items(s,items,&focus);
+    if (!n) return 0;
+    if (s->control_header && (key == 13 || key == ' ' || key == PS_KEY_LEFT || key == PS_KEY_RIGHT)) {
+        ps_byte *bits = &s->control_closed[s->tab][s->selected/8];
+        unsigned mask = 1U << (s->selected%8);
+        if (key == PS_KEY_LEFT) *bits |= (ps_byte)mask;
+        else if (key == PS_KEY_RIGHT) *bits &= (ps_byte)~mask;
+        else *bits ^= (ps_byte)mask;
+        return 1;
+    }
+    if (key == PS_KEY_DOWN || key == 'j') focus = min(focus+1,n-1);
+    else if (key == PS_KEY_UP || key == 'k') focus = focus ? focus-1 : 0;
+    else if (key == PS_KEY_PAGEDOWN) focus = min(focus+step,n-1);
+    else if (key == PS_KEY_PAGEUP) focus = focus > step ? focus-step : 0;
+    else return 0;
+    s->selected = items[focus] & 0x7fff;
+    s->control_header = (items[focus] & 0x8000) != 0;
+    return 1;
+}
+static void control_section_row(ps_session *s, unsigned index, unsigned width) {
+    char label[128]; unsigned i;
+    const char *name = s->panel->pages[s->tab].controls[index].group;
+    unsigned closed = s->control_closed[s->tab][index/8] & (1U << (index%8));
+    for (i=0; name[i] && i+1<sizeof label; ++i)
+        label[i] = name[i]>='a' && name[i]<='z' ? (char)(name[i]-'a'+'A') : name[i];
+    label[i]=0;
+    surface(s, s->control_header && s->selected == index ? 1 : 0);
+    out(s,(s->io.flags & PS_UNICODE) ? (closed ? "▸ " : "▾ ") : (closed ? "+ " : "- "));
+    grid_text(s,label,width-2);
+}
 static const ps_control *control_selected(ps_session *s) {
     const ps_control_page *p = &s->panel->pages[s->tab];
-    return s->selected < p->count ? &p->controls[s->selected] : 0;
+    return !s->control_header && s->selected < p->count ? &p->controls[s->selected] : 0;
 }
 static int control_read(ps_session *s, const ps_control *c, ps_control_value *v) {
     zero(v, sizeof *v);
@@ -161,6 +221,9 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
 static const char *control_hint(ps_session *s) {
     const ps_control *c = control_selected(s);
     ps_control_value v;
+    if (s->control_header)
+        return (s->io.flags & PS_UNICODE) ? "Enter/Space toggle  ← collapse  → expand"
+                                         : "Enter/Space toggle  Left close Right open";
     if (s->editing)
         return s->dialog ? "Tab focus   Enter apply   Esc cancel"
                          : "Enter apply  Esc cancel  ^U clear";
@@ -202,7 +265,7 @@ static void control_overlay(ps_session *s, const Grid *table) {
             x += table->widths[i] + 3;
         while (cells(s->edit + start, s->editpos - start, s->io.flags) >= w - 2)
             start = next(s->edit, start);
-        at(s, 7 + s->selected - s->scroll,
+        at(s, s->control_edit_row,
            x + 1 + cells(s->edit + start, s->editpos - start, s->io.flags));
         ansi(s, "\033[?25h");
         return;
@@ -356,6 +419,9 @@ static void control_key(ps_session *s, unsigned key) {
                  : key == PS_KEY_BACKTAB ? (s->tab + s->panel->count - 1) % s->panel->count
                                          : key - '1';
         s->selected = s->scroll = 0;
+        s->control_header = 0;
+    } else if (control_navigate(s,key,step)) {
+        return;
     } else if (key == PS_KEY_DOWN || key == 'j')
         s->selected = min(s->selected + 1, n ? n - 1 : 0);
     else if (key == PS_KEY_UP || key == 'k')
@@ -431,6 +497,8 @@ PS_API int ps_panel_attach(ps_session *s, const ps_panel *panel) {
     if (s->control_view)
         table_close(s);
     s->panel = panel;
+    zero(s->control_closed,sizeof s->control_closed);
+    s->control_header = 0;
     return 1;
 }
 PS_API int ps_panel_open(ps_session *s, unsigned page) {
@@ -438,6 +506,7 @@ PS_API int ps_panel_open(ps_session *s, unsigned page) {
         return 0;
     s->control_view = 1;
     s->dialog = 0;
+    s->control_header = 0;
     table_open(s, page);
     s->notice[0] = 0;
     return 1;

@@ -4,6 +4,23 @@ These choices are independent. The naming update leaves desktop presentation def
 
 ## Presentation
 
+Grouped control panels and rich device tables default to **collapsible section
+rows**: uppercase headings on solid surfaces spanning the two key/value columns.
+↑/↓ selects headings and values; Enter/Space toggles a heading, ← collapses it,
+and → expands it. These operations never dispatch a provider write. Fold state
+is per page and per view; a changed device row schema resets that page's folds.
+An empty category adds no heading. Repeated non-adjacent categories form separate
+sections. ASCII uses `+`/`-` disclosure markers.
+
+For the retained category-column layout, call
+`ps_set_table_style(session, PS_TABLE_DEFAULT | PS_TABLE_CATEGORY_COLUMN)` in C,
+or `view.setGroupLayout(DeviceView::CategoryColumn)` in C++. Restore the default
+with `PS_TABLE_DEFAULT` or `DeviceView::SectionRows`, respectively. Layout changes
+are deferred by the caller while an edit is active (the API preserves the draft).
+`PS_CONTROL_SECTION_ROWS=0` removes C section state; `PS_DEVICE_VIEW_SECTIONS=0`
+removes C++ section state, and `PS_DEVICE_VIEW_CATEGORY_COLUMN=1` selects the
+legacy third column by default. Narrow terminals omit that optional third column.
+
 | Choice | Full-shell command / host option | Default |
 | --- | --- | --- |
 | Violet / magenta | `theme violet` | Yes |
