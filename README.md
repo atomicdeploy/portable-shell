@@ -10,6 +10,10 @@ console, TCP/Telnet, and serial I/O. No third-party runtime is linked into the c
 [🛡️ CodeQL](https://github.com/atomicdeploy/portable-shell/actions/workflows/codeql.yml) ·
 [🔐 Security](SECURITY.md)
 
+## Reports
+
+Borderless dotted-leader reports support sections, muted annotations and right-aligned values. Run status --report or supply application rows through ps_print_report. [Actual-output preview](previews/report-leaders.png) · [Live session](previews/report-status.png)
+
 ## Help
 
 ![Command help: actual output replay, Agave](previews/help-command.png)
