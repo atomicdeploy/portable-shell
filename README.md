@@ -1,137 +1,154 @@
 # 🐚 PortableShell
 
-[🧭 Clickable architecture and data-flow diagrams](docs/wiki/Architecture.md)
+**Build command-driven consoles and interactive terminal interfaces from bytes.**
 
-A byte-driven C99 shell and terminal UI toolkit: custom commands, completion,
-history, editable tables, numbered menus, and a wrapped text editor. The reusable
-core is allocation-free and OS-independent; replaceable C adapters provide native
-console, TCP/Telnet, and serial I/O. No third-party runtime is linked into the core.
+PortableShell is a C99 framework for applications that need a shell, an editable
+control panel, or both. Register your own commands and typed settings, connect a
+byte transport, and feed input from your event loop. The reusable core has no OS
+calls, heap allocation or third-party runtime dependencies. Optional C host
+adapters provide native terminal, TCP/Telnet and serial access.
 
-[📚 Wiki](https://github.com/atomicdeploy/portable-shell/wiki) ·
-[🛠️ Builds](https://github.com/atomicdeploy/portable-shell/actions/workflows/build.yml) ·
-[🛡️ CodeQL](https://github.com/atomicdeploy/portable-shell/actions/workflows/codeql.yml) ·
-[🔐 Security](SECURITY.md)
+[Get started](#-build-and-try-it) · [Embed it](#-use-it-in-your-application) ·
+[Preview gallery](docs/wiki/Gallery.md) · [Documentation](docs/wiki/Home.md) ·
+[Builds](https://github.com/atomicdeploy/portable-shell/actions/workflows/build.yml)
 
-## Framework and consumer applications
+![Editable table with grouped settings and inline controls](previews/controls.png)
 
-The `portable_shell` library starts with an empty command registry. Consumers supply
-commands, help, completion callbacks, application titles and typed settings.
-The native demo uses the separate `portable_shell_workbench` composition; its
-application commands live under `host/workbench/`, outside the reusable core.
-Link one composition, not both. [Registration and migration guide](docs/wiki/Commands.md)
-· [Runnable consumer example](examples/consumer_commands.c)
+*Actual terminal-byte replay, rendered with pinned Agave fonts. Gallery fixtures
+use simulated application data; they are not connected-hardware captures.*
 
-## Terminal interaction
+## ✨ What you can build
 
-Shared bounded undo/redo, protected bracketed paste, and an opt-in retained screen with clipped windows, scrolling pads and changed-cell repainting. [API and compatibility boundaries](https://github.com/atomicdeploy/portable-shell/wiki/Terminal-interaction).
+| Area | Included functionality |
+| --- | --- |
+| **Command consoles** | Registered commands and help metadata, quoted arguments, completion and inline suggestions, history, key bindings, undo/redo, bracketed paste, colored multiline prompts. |
+| **Settings interfaces** | Typed settings and validation, editable tables, collapsible groups, horizontal or vertical tabs, inline values, dialogs, toggles and adjustable meters. |
+| **Interactive tools** | Numbered and filterable menus, forms, multiple panels, file trees/pickers, wrapped text editing and a binary hex editor. |
+| **Monitoring and output** | Progress styles, severity logs, filtering and follow mode, reports, rich text, seven-segment displays, terminal title/path/progress reporting through OSC. |
+| **Application integration** | Callbacks, cooperative asynchronous jobs, cancellation, explicit storage limits, byte queues, resize events and non-interactive command processing. |
+| **Terminal presentation** | Unicode frames, semantic colors, configurable palettes, ASCII/no-color output, keyboard and supported mouse interaction, alternate-screen views and optional retained-screen drawing. |
 
-![Actual retained-screen output replay](previews/retained-screen.png)
+Explore the [gallery](docs/wiki/Gallery.md) for
+[menus and lists](docs/wiki/Menus.md), [meters](docs/wiki/Meters.md),
+[monitoring](docs/wiki/Monitoring.md), [editors](docs/wiki/Text-editor.md),
+[file browsing](docs/wiki/File-picker.md) and the optional [Snake demo](docs/wiki/Snake.md).
 
-## Rich text output
+## 🚀 Build and try it
 
-Optional color conversion, ANSI styles, UTF-8 text, wrapping and alignment, bounded markup, document blocks and lexical highlighting. [Capabilities and limits](https://github.com/atomicdeploy/portable-shell/wiki/Rich-text).
-
-![Actual rich-text output replay](previews/rich-text.png)
-
-## Live monitoring and logging
-
-Optional task progress, timestamped severity logs, bounded history, pause/follow and filtering. Includes a stdin event adapter and plain pipeline output. [API and commands](https://github.com/atomicdeploy/portable-shell/wiki/Monitoring). These previews use simulated events rendered by the actual component.
-
-![Live monitor](previews/monitor-live.png)
-
-## Filterable lists
-
-Run menu --list for two-line entries, filtering, pagination and contextual help. [List](previews/menu-list.png) · [Filter](previews/menu-filtered.png) · [API](https://github.com/atomicdeploy/portable-shell/wiki/Menus#filterable-list-mode)
-
-## Meter styles and scrolling
-
-Unicode segmented bars and centered value controls share the meter API. [Styles](previews/meters-segmented.png) · [Scrolled table](previews/table-scrolled.png) · [API](https://github.com/atomicdeploy/portable-shell/wiki/Meters)
-
-## Multi-panel controls
-
-Run controls dashboard for simultaneous panels with stepped values, toggles and inline editing. [Dashboard](previews/dashboard.png) · [Inline edit](previews/dashboard-edit.png) · [API](https://github.com/atomicdeploy/portable-shell/wiki/Shell#multi-panel-dashboard)
-
-## Forms
-
-Framed text input, validation messages, radio choices and sequential steps share the existing byte editor. [Validation](previews/form-validation.png) · [Choices](previews/form-choice.png) · [Completed and active steps](previews/form-steps.png) · [API](https://github.com/atomicdeploy/portable-shell/wiki/Shell#framed-forms)
-
-## Reports
-
-Borderless dotted-leader reports support sections, muted annotations and right-aligned values. Run status --report or supply application rows through ps_print_report. [Actual-output preview](previews/report-leaders.png) · [Live session](previews/report-status.png)
-
-## Help
-
-![Command help: actual output replay, Agave](previews/help-command.png)
-
-Grouped descriptions, aligned options and examples, width-aware wrapping, and optional metadata. [Command registry](previews/help-registry.png) · [Monochrome](previews/help-plain.png) · [Help API](https://github.com/atomicdeploy/portable-shell/wiki/Shell#contextual-help)
-
-## 🚀 Build and run
-
-With GCC (MinGW-w64 on Windows), CMake and Ninja:
+Use GCC (MinGW-w64 on Windows), CMake and Ninja. The default development build also
+uses a C++ compiler for optional facade examples and checks; the core itself is C99.
 
 ```text
+git clone https://github.com/atomicdeploy/portable-shell.git
+cd portable-shell
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel
 cmake --build build
-ctest --test-dir build --output-on-failure
-build/PortableShell --controls
+build/PortableShell
 ```
 
-On Windows use `build/PortableShell.exe`. Start without an option for the prompt;
-`--menu` opens nested numbered choices and `--edit` opens session notes. Editor
-saves are in memory unless the embedding application supplies persistence.
+On Windows, run `build/PortableShell.exe`. This launches the **workbench demo**;
+its commands belong to the host application, not the framework's empty registry.
 
-[Getting started](docs/wiki/Getting-started.md) · [Build targets](docs/wiki/Building.md) ·
-[Feature flags](docs/wiki/Options.md) · [Embed the core](docs/wiki/Embedding.md)
-
-## 🖼️ Preview
-
-![Editable control panel](previews/controls.png)
-
-| Numbered menus | Text editor |
+| Try | Result |
 | --- | --- |
-| ![Numbered menus](previews/menu.png) | ![Text editor](previews/document.png) |
+| `help` | Discover commands, grouped descriptions and usage. |
+| `controls` | Open the editable control panel. |
+| `board --prompt` | Use a table and command prompt together. |
+| `menu --list` | Browse and filter a list. |
+| `edit --framed` | Open the framed session text editor. |
+| `hex --columns auto` | Inspect/edit binary session data with responsive columns. |
+| `hex --columns 8` | Keep eight bytes per row. |
 
-These are emitted-byte replay fixtures rendered with pinned Agave and antialiasing,
-not hardware captures. [Full gallery](docs/wiki/Gallery.md) includes vertical tabs,
-inline editing, dialogs, matrix controls, Cyan, One Dark and ASCII examples.
-CI regenerates all previews and rejects stale images.
+Use **Tab** for prompt completion and **↑/↓** for history. Editors expose save,
+close and discard controls. Demo buffers are session-local; persistent storage
+requires application callbacks.
+
+External process execution is **disabled by default**. It is a host-adapter option,
+not a core capability. See [host execution and PTYs](docs/wiki/Host-execution.md)
+and [local shell syntax and limits](docs/wiki/Local-shell.md) before enabling it.
+PortableShell is not a drop-in implementation of Bash or PowerShell.
+
+### Batch commands and remote terminals
 
 ```text
+build/PortableShell --command "calc 21 * 2"
+build/PortableShell --batch
+build/PortableShell --ascii --no-color
+build/PortableShell --listen 2323
+```
+
+Batch mode reads commands from stdin; redirected input/output selects it
+automatically. The Telnet server binds to loopback by default: connect with
+`telnet 127.0.0.1 2323`. Telnet is plaintext and has no built-in authentication.
+The native adapters also support explicitly selected serial ports.
+[Transport configuration and consumer examples](docs/wiki/Transports.md)
+
+## 🧩 Use it in your application
+
+The framework supplies mechanisms; **your application owns commands, descriptions,
+settings, persistence, authorization and device effects**. Choose the smallest
+composition that supplies what you need:
+
+| Need | Start here |
+| --- | --- |
+| Editing for an existing command interpreter | Header-only [byte editor](include/portable_editor.h). |
+| A compact settings/table interface | [C++ device view](include/portable_device_view.hpp). |
+| Command registration and full-session UI | Link `portable_shell`; include [portable_shell.h](include/portable_shell.h). |
+| A runnable native demonstration | Build the host, which uses `portable_shell_workbench`. Link only one session composition. |
+
+A full session has this lifecycle:
+
+1. Provide aligned storage of at least `ps_sizeof_session()` bytes and an output callback.
+2. Call `ps_init`, then register application commands with `ps_register` or `ps_register_definition`.
+3. Call `ps_start`; deliver bytes with `ps_feed` and time updates with `ps_tick`.
+4. Report viewport changes through `ps_resize`. Finish input with `ps_finish` and close with `ps_close`.
+
+Keep one event-loop owner per session. Output callbacks must consume or copy the
+bytes before returning; queueing and transport backpressure belong to the adapter.
+UART, USB CDC, sockets and native consoles can all supply the same byte interface.
+
+Start from the [runnable command/settings consumer](examples/consumer_commands.c),
+[firmware example](examples/firmware.c), or [async command example](examples/async_command.h).
+The [embedding guide](docs/wiki/Embedding.md) and
+[command registration guide](docs/wiki/Commands.md) explain the APIs and ownership rules.
+
+### Select features explicitly
+
+Consumers select features and capacities instead of relying on a device/product
+profile. Rich interfaces are not automatically removed on microcontrollers.
+The full session and compact header components have different storage and data-model
+requirements; choose and measure the relevant implementation for your target.
+
+[Consumer-owned feature selection](docs/wiki/Feature-selection.md) includes an
+[explicit editor configuration](examples/editor_config.h) with history and undo
+disabled. [Build options](docs/wiki/Options.md) cover feature guards and capacity
+limits; [portability](docs/wiki/Portability.md) covers freestanding builds,
+optional libc primitives and compiler-required runtime helpers.
+
+## 📚 Find the right guide
+
+| Goal | Guide |
+| --- | --- |
+| Understand boundaries and follow source code | [Clickable architecture diagrams](docs/wiki/Architecture.md) |
+| Configure prompts, input and terminal behavior | [Shell reference](docs/wiki/Shell.md) · [Terminal interaction](docs/wiki/Terminal-interaction.md) |
+| Build tables, controls and alternate-screen views | [Workspace](docs/wiki/Workspace.md) · [Components](docs/wiki/Components.md) |
+| Integrate callbacks, jobs and transports | [Async](docs/wiki/Async.md) · [Telnet/serial](docs/wiki/Transports.md) |
+| Build for a target or inspect verification limits | [Building](docs/wiki/Building.md) · [Verification](docs/wiki/Verification.md) |
+
+Reviewed documentation lives in [docs/wiki](docs/wiki/Home.md), is available
+offline, and is also published to the [GitHub wiki](https://github.com/atomicdeploy/portable-shell/wiki).
+
+## 🛠️ Verify and contribute
+
+```text
+ctest --test-dir build --output-on-failure
+cmake -P tools/check-public-docs.cmake
 cmake -DMODE=UPDATE -DGENERATOR=Ninja -P tools/rebuild-previews.cmake
 ```
 
-## 📚 Documentation
+The gallery rebuild uses pinned host-only fonts and rasterization tools; they are
+not linked into the library. CI checks generated previews for staleness.
+See [CI and publishing](docs/wiki/Automation.md) and [security policy](SECURITY.md).
 
-Detailed guides live in the [wiki](https://github.com/atomicdeploy/portable-shell/wiki).
-Their reviewed source is in [docs/wiki](docs/wiki/Home.md), so documentation remains
-available offline and can be checked in pull requests. Edit that source to update
-managed wiki pages; existing unmanaged wiki pages are preserved.
-
-- [Shell and keyboard reference](docs/wiki/Shell.md)
-- [Tables and workspace](docs/wiki/Workspace.md)
-- [Numbered menus](docs/wiki/Menus.md) and [text editor](docs/wiki/Text-editor.md)
-- [Telnet and serial](docs/wiki/Transports.md)
-- [Host execution, PTYs and remote files](docs/wiki/Host-execution.md)
-- [Portability](docs/wiki/Portability.md) and [consumer integration](docs/wiki/Integration.md)
-- [CI, security and publishing](docs/wiki/Automation.md)
-- [Verification boundaries](docs/wiki/Verification.md)
-
-The default uses semantic colors. Rich UI is the default on every capable target;
-smaller builds use explicit feature/capacity flags, not automatic MCU stripping.
-Application callbacks own storage, authorization and physical side effects.
-
-[License](LICENSE) · [Attribution](docs/Attribution.md)
-
-### Callbacks and async work
-
-Commands, input and device providers support callbacks. Optional cooperative jobs add deferred completion, cancellation, deadlines and fair polling; a bounded byte queue supports partial transport writes. Everything uses caller-owned storage. See [async integration](https://github.com/atomicdeploy/portable-shell/wiki/Async) and the [tested command example](examples/async_command.h).
-
-### Chromatic Snake
-
-An optional playable demo with RGB scales, directional eyes, gem food, scoring, pause/restart and standard terminal BEL feedback. Build with PORTABLE_SHELL_SNAKE_EXAMPLE=ON. [Controls and embedding](https://github.com/atomicdeploy/portable-shell/wiki/Snake).
-
-![Snake demo output replay](previews/snake.png)
-
-### Local shell language
-
-Local host adapters support native executable launch, concurrent byte pipelines, command chains, conditional execution, file redirection, environment expansion, directory changes and command scripts. The parser stays portable; processes and filesystem operations stay in the host. [Syntax, examples, feature switches and compatibility limits](https://github.com/atomicdeploy/portable-shell/wiki/Local-shell).
+[MIT license](LICENSE) · [Attribution](docs/Attribution.md) ·
+[CodeQL](https://github.com/atomicdeploy/portable-shell/actions/workflows/codeql.yml)
