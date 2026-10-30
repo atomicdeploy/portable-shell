@@ -5,7 +5,7 @@
 #include "../host/filesystem.h"
 #include <stdio.h>
 void ps_replay_reset(void);void ps_replay_feed(const unsigned char *,unsigned);unsigned ps_replay_svg(char *);
-static union{void *align;unsigned char bytes[40000];} memory;
+static union{void *align;unsigned char bytes[PS_DEFAULT_SESSION_STORAGE];} memory;
 static char svg[400000];
 static void output(void *ctx,const ps_byte *p,unsigned n){(void)ctx;ps_replay_feed(p,n);}
 static int save(const char *path){unsigned n=ps_replay_svg(svg);FILE *f=fopen(path,"wb");int bad;if(!f)return 1;bad=fwrite(svg,1,n,f)!=n;return fclose(f)||bad;}

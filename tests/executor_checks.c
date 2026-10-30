@@ -1,7 +1,7 @@
 #include "portable_shell.h"
 #include <assert.h>
 #include <string.h>
-static union {void *align;unsigned char bytes[40000];} storage;
+static union {void *align;unsigned char bytes[PS_DEFAULT_SESSION_STORAGE];} storage;
 static char output[8192];static unsigned used,calls;
 static void write_bytes(void *ctx,const ps_byte *b,unsigned n){(void)ctx;assert(used+n<sizeof output);memcpy(output+used,b,n);used+=n;output[used]=0;}
 static int execute(ps_session *s,int argc,const char *const *argv,void *ctx){(void)s;assert(ctx==&calls);assert(argc==2);assert(!strcmp(argv[0],"external"));assert(!strcmp(argv[1],"a b"));++calls;return 9;}

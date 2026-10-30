@@ -139,3 +139,10 @@ and checks that its preview remains current, including its inline-edit regressio
 `PS_TABLE_PROMPT`. This actual-output replay includes a task created from the prompt.
 
 ![Table with command prompt](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/table-prompt.png)
+
+### Hex editor
+
+Actual terminal-byte replay, rendered in Agave on a dark background.
+`PS_HEX_EDITOR=1` enables the editor; run `hex` for the session-buffer demo.
+
+![Hex editor](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/hex-editor.png)

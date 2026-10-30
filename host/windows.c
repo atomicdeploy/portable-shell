@@ -21,7 +21,7 @@ typedef struct {
 } Channel;
 typedef union {
     void *alignment;
-    ps_byte data[40000];
+    ps_byte data[PS_DEFAULT_SESSION_STORAGE];
 } Storage;
 static Storage storage[CLIENTS];
 static Channel channels[CLIENTS];

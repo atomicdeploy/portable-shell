@@ -1,3 +1,8 @@
+/* Convenience storage for shipped default hosts/examples. Custom configurations
+   must check ps_sizeof_session(); this is not an ABI size guarantee. */
+#ifndef PS_DEFAULT_SESSION_STORAGE
+#define PS_DEFAULT_SESSION_STORAGE 49152
+#endif
 /* Optional interactive history UI and whole-line event recall. */
 #ifndef PS_HISTORY_DIALOG
 #define PS_HISTORY_DIALOG 1
@@ -63,6 +68,16 @@ typedef char
 typedef unsigned int ps_u32;
 typedef char ps_requires_32_bit_unsigned[(sizeof(ps_u32) == 4) ? 1 : -1];
 typedef struct ps_session ps_session;
+#ifndef PS_HEX_EDITOR
+#define PS_HEX_EDITOR 1
+#endif
+/* Draft and title stay borrowed until close. Source and draft must not overlap.
+   Save accepts the complete binary buffer; failure keeps the editor open.
+   Fixed-length overwrite editing; no filesystem or allocation in the core. */
+typedef int (*ps_hex_save_fn)(void *, const ps_byte *, unsigned);
+PS_API int ps_hex_editor_open(ps_session *,const char *title,const ps_byte *data,
+    unsigned length,ps_byte *draft,unsigned capacity,ps_hex_save_fn,void *context);
+PS_API unsigned ps_hex_editor_active(const ps_session *);
 #ifndef PS_EDITOR
 #define PS_EDITOR 1
 #endif

@@ -4,7 +4,7 @@
 void ps_replay_reset(void);
 void ps_replay_feed(const unsigned char *,unsigned);
 unsigned ps_replay_svg(char *);
-static union {void *align;unsigned char bytes[40000];} memory;
+static union {void *align;unsigned char bytes[PS_DEFAULT_SESSION_STORAGE];} memory;
 static char svg[400000];
 static void sink(void *ctx,const ps_byte *p,unsigned n){(void)ctx;ps_replay_feed(p,n);}
 static int action(ps_session *s,void *ctx){(void)s;(void)ctx;return 0;}

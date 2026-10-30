@@ -2,7 +2,7 @@
 #include "portable_style.h"
 #include <assert.h>
 #include <string.h>
-static union {void *align;unsigned char bytes[40000];} memory;
+static union {void *align;unsigned char bytes[PS_DEFAULT_SESSION_STORAGE];} memory;
 static char output[131072];static unsigned used;
 static void sink(void *context,const ps_byte *p,unsigned n){(void)context;assert(used+n<sizeof output);memcpy(output+used,p,n);used+=n;output[used]=0;}
 static void clear(void){used=0;output[0]=0;}

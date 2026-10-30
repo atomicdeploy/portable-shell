@@ -4,7 +4,7 @@
 #include "../host/filesystem.h"
 #include <assert.h>
 #include <string.h>
-static union {void *align;unsigned char bytes[40000];} memory;
+static union {void *align;unsigned char bytes[PS_DEFAULT_SESSION_STORAGE];} memory;
 static char output[262144];static unsigned used;
 static void sink(void *ctx,const ps_byte *p,unsigned n){(void)ctx;while(n--&&used+1<sizeof output)output[used++]=(char)*p++;output[used]=0;}
 static void clear_output(void){used=0;output[0]=0;}

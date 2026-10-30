@@ -148,6 +148,16 @@ struct ps_session {
 #if PS_WORKBENCH
     char scratch[PS_EDITOR ? PS_EDITOR_CAPACITY : 1];
 #endif
+#if PS_HEX_EDITOR
+    ps_byte *hex_data;
+    const char *hex_title,*hex_notice;
+    ps_hex_save_fn hex_save;
+    void *hex_context;
+    unsigned hex_open,hex_length,hex_pos,hex_top,hex_ascii,hex_nibble,hex_dirty,hex_dialog;
+#if PS_WORKBENCH
+    ps_byte hex_sample[128],hex_draft[128];
+#endif
+#endif
     const char *document_title;
     ps_editor_save_fn document_save;
     void *document_context;
@@ -953,6 +963,7 @@ static void edit_insert(char *, unsigned *, unsigned *, unsigned, unsigned);
 static void edit_delete(char *, unsigned *, unsigned *, int);
 #include "portable_menu.inc"
 #include "portable_editor.inc"
+#include "portable_hex.inc"
 #include "portable_files.inc"
 static void enter_edit(ps_session *, unsigned, const char *);
 static void edit_insert(char *, unsigned *, unsigned *, unsigned, unsigned);
@@ -1328,7 +1339,7 @@ static void prompt(ps_session *s) {
     unsigned start = 0,
              avail = s->io.columns > prompt_width + 2 ? s->io.columns - prompt_width - 2 : 8;
     const char *hint;
-    if (!(s->io.flags & PS_INTERACTIVE) || (s->board && !table_prompt(s)) || s->menu_depth || s->file_count || s->document_open || s->exit)
+    if (!(s->io.flags & PS_INTERACTIVE) || (s->board && !table_prompt(s)) || s->menu_depth || s->file_count || s->document_open || ps_hex_editor_active(s) || s->exit)
         return;
     if(table_prompt(s)) {
         shown=0;skip=lines;s->prompt_rows_drawn=0;
@@ -1639,6 +1650,7 @@ static void shell_key(ps_session *s, unsigned key) {
     if(s->form){form_key(s,key);return;}
 #endif
     if(s->file_count){file_key(s,key);return;}
+    if(ps_hex_editor_active(s)){hex_key(s,key);return;}
     if(s->document_open){document_key(s,key);return;}
     if(s->history_dialog){
         if(key==27||key==3){history_dialog_close(s);prompt(s);return;}
@@ -1866,7 +1878,7 @@ if (key == 13) {
 }
 
 PS_API void ps_key(ps_session *s,unsigned key){
-    if(s->history_dialog){shell_key(s,key);return;}
+    if(s->history_dialog||ps_hex_editor_active(s)){shell_key(s,key);return;}
 #if PS_UNDO_DEPTH
     unsigned binding,bound=0;
     for(binding=0;binding<s->binding_count;++binding)if(s->bindings[binding].key==key){bound=1;break;}
@@ -2089,6 +2101,7 @@ static void input_byte(ps_session *s, unsigned c) {
 #if PS_FORM
         if(s->form){if(c>=32&&c!=127)form_key(s,c);return;}
 #endif
+        if(ps_hex_editor_active(s)){if(c>=32&&c<127)hex_key(s,c);return;}
         if(s->document_open){document_paste(s,c);return;}
         if(s->menu_depth||s->file_count)return; /* Pasted newlines must never activate menu actions. */
         if (c == '\r' || c == '\n' || c == '\t')
@@ -2174,7 +2187,7 @@ static void input_byte(ps_session *s, unsigned c) {
     s->suppress_lf = c == '\r';
     if (c == '\n')
         c = 13;
-    if(s->menu_depth||s->document_open||s->file_count){ps_key(s,c);return;}
+    if(ps_hex_editor_active(s)||s->menu_depth||s->document_open||s->file_count){ps_key(s,c);return;}
     if (!(s->io.flags & PS_INTERACTIVE)) {
         if (c == 13) {
             if (s->overflow) {
@@ -2249,6 +2262,7 @@ PS_API void ps_resize(ps_session *s, unsigned columns, unsigned rows) {
     if(s->form){form_render(s);return;}
 #endif
     if(s->history_dialog){history_dialog_draw(s);return;}
+    if(ps_hex_editor_active(s)){hex_render(s);return;}
     if(s->document_open){document_render(s);return;}
     if(s->file_count){file_render(s);return;}
     if(s->menu_depth){ps_menu_refresh(s);return;}
@@ -2270,6 +2284,7 @@ PS_API void ps_finish(ps_session *s) {
         ps_tick(s, s->now + 1);
 }
 PS_API void ps_close(ps_session *s) {
+    if(ps_hex_editor_active(s))hex_close(s);
     history_dialog_close(s);
     ps_terminal_report_progress(s,0,0);
     ps_form_close(s);
@@ -2290,7 +2305,7 @@ PS_API unsigned ps_terminal_state(const ps_session *s) {
     if(s->board || s->menu_screen || s->file_count || ps_form_active(s))
         state=PS_TERMINAL_ALT_SCREEN | (PS_MOUSE ? PS_TERMINAL_MOUSE : 0);
     if(s->history_dialog)return PS_TERMINAL_ALT_SCREEN;
-    if(s->document_open)state|=PS_TERMINAL_ALT_SCREEN;
+    if(s->document_open||ps_hex_editor_active(s))state|=PS_TERMINAL_ALT_SCREEN;
     return state;
 }
 PS_API int ps_exited(const ps_session *s) {
