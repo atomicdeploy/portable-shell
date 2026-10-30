@@ -1,5 +1,6 @@
 /* Shared framed workspace primitives; exact cell widths, no terminal-edge wrap. */
 static void view_color(ps_session *s,const char *code){if(s->io.flags&PS_COLOR)ansi(s,code);}
+static void view_selection(ps_session *s){if(s->io.flags&PS_COLOR)view_color(s,"\033[30;43m");else ansi(s,"\033[7m");}
 static void view_rule(ps_session *s,unsigned y,unsigned x,unsigned w,int bottom){
     unsigned i;at(s,y,x);view_color(s,"\033[31m");out(s,(s->io.flags&PS_UNICODE)?(bottom?"╰":"╭"):"+");
     for(i=0;i<w-2;++i)out(s,(s->io.flags&PS_UNICODE)?"─":"-");
@@ -23,9 +24,9 @@ static void menu_draw(ps_session *s){
     for(i=0;i<slots;++i){
         unsigned idx=s->menu_top+i;const ps_menu_item *item=m->items+idx;char number[8];unsigned n;
         at(s,4+i,x);view_side(s);
-        if(idx==s->menu_selected)view_color(s,"\033[30;43m");else view_color(s,(item->flags&PS_MENU_DISABLED)?"\033[90m":"\033[37m");
+        if(idx==s->menu_selected)view_selection(s);else view_color(s,(item->flags&PS_MENU_DISABLED)?"\033[90m":"\033[37m");
         out(s," ");
-        if(num){n=dec(number,idx+1);number[n]=0;field(s,number,3);out(s," ");view_side(s);if(idx==s->menu_selected)view_color(s,"\033[30;43m");}
+        if(num){n=dec(number,idx+1);number[n]=0;field(s,number,3);out(s," ");view_side(s);if(idx==s->menu_selected)view_selection(s);}
         field(s,item->label,w-num-6);out(s,item->submenu?" > ":"   ");reset(s);view_side(s);
     }
     view_rule(s,4+slots,x,w,1);

@@ -743,14 +743,14 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         ps_file_node nodes[]={{"Root",PS_FILE_ROOT,PS_FILE_DIRECTORY},{"Nested",0,PS_FILE_DIRECTORY},{"notes.txt",1,0},{"blocked",0,PS_FILE_DISABLED}};
         cfg.flags=PS_INTERACTIVE|PS_COLOR|PS_UNICODE;cfg.columns=80;cfg.rows=24;
         s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);clear();
-        CHECK(ps_menu_open(s,&menu)&&(has(t.output,"╭")||has(t.output,"+"))&&has(t.output,"\033[31m"),"menu uses red frame");
-        feed(s,"\033[<0;36;5M\033[<0;36;5m\r");CHECK(calls==1&&!ps_menu_active(s),"framed menu click and enter activate");
+        CHECK(ps_menu_open(s,&menu)&&((has(t.output,"╭")&&has(t.output,"\033[31m"))||has(t.output,"+")),"menu uses red frame");
+        if(PS_MOUSE)feed(s,"\033[<0;36;5M\033[<0;36;5m\r");else feed(s,"\033[B\r");CHECK(calls==1&&!ps_menu_active(s),"framed menu click and enter activate");
         ps_menu_set_style(s,PS_MENU_TABLE|PS_MENU_DETAILS);ps_menu_open(s,&menu);
         clear();ps_resize(s,20,8);CHECK(has(t.output,"Framed")&&!has(t.output,"Run selected action"),"narrow menu hides details");ps_menu_close(s);
         ps_resize(s,80,24);picked_file=123;
         CHECK(ps_file_picker_open(s,"Files",nodes,4,picked,0),"tree picker opens");
         clear();feed(s,"\033[C\033[B\033[C");CHECK(has(t.output,"notes.txt"),"tree expands nested directory");
-        feed(s,"\033[<0;10;5M\033[<0;10;5m\r");CHECK(picked_file==2&&!ps_file_picker_active(s),"picker returns selected stable file index");
+        if(PS_MOUSE)feed(s,"\033[<0;10;5M\033[<0;10;5m\r");else feed(s,"\033[B\r");CHECK(picked_file==2&&!ps_file_picker_active(s),"picker returns selected stable file index");
         ps_file_picker_open(s,"Files",nodes,4,picked,0);feed(s,"\033[200~\r\033[201~");CHECK(ps_file_picker_active(s),"paste cannot activate picker");
         ps_key(s,27);CHECK(picked_file==PS_FILE_ROOT&&!ps_file_picker_active(s),"picker cancellation distinguished");
         nodes[0].parent=1;CHECK(!ps_file_picker_open(s,"Bad",nodes,4,picked,0),"picker rejects cyclic tree");

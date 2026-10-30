@@ -23,7 +23,7 @@ static void file_render(ps_session *s){
         unsigned p=s->file_top+i;at(s,i+3,1);view_side(s);
         if(p<count){
             unsigned id=ids[p],indent=min(depths[p]*2,w-6),j;const ps_file_node *node=s->file_nodes+id;
-            if(p==s->file_selected)view_color(s,"\033[30;43m");else view_color(s,(node->flags&PS_FILE_DISABLED)?"\033[90m":"\033[37m");
+            if(p==s->file_selected)view_selection(s);else view_color(s,(node->flags&PS_FILE_DISABLED)?"\033[90m":"\033[37m");
                         for(j=0;j<indent/2;++j){
                 unsigned ancestor=id,k=depths[p]-j-1;while(k--)ancestor=s->file_nodes[ancestor].parent;
                 if(j+1==depths[p])out(s,(s->io.flags&PS_UNICODE)?(file_last(s,ancestor)?"└─":"├─"):(file_last(s,ancestor)?"`-":"+-"));
