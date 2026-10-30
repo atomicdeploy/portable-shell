@@ -180,9 +180,11 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
     grid_divide(s);
     w = g->widths[col];
     ink(s, !(v.flags & PS_CONTROL_VALID)  ? 0
-           : c->kind == PS_CONTROL_TOGGLE ? (v.number ? 5 : 3)
-           : c->kind == PS_CONTROL_ACTION ? 6
-                                          : 1);
+           : c->kind == PS_CONTROL_TOGGLE ? (v.number ? PS_INK_SUCCESS : s->theme==PS_STYLE_SEMANTIC?PS_INK_INACTIVE:3)
+           : c->kind == PS_CONTROL_ACTION ? PS_INK_ACTION
+           : c->kind == PS_CONTROL_LEVEL ? PS_INK_NUMBER
+           : c->kind == PS_CONTROL_CHOICE ? PS_INK_COMMAND
+           : c->kind == PS_CONTROL_LABEL ? PS_INK_TEXT : PS_INK_STRING);
     if (s->editing == 5 && !s->dialog && index == s->selected) {
         unsigned start = 0;
         while (cells(s->edit + start, s->editpos - start, s->io.flags) >= w - 2)
@@ -198,11 +200,11 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
         unsigned bar = w - 15;
         pct = (v.number - c->minimum) * 100 / (c->maximum - c->minimum);
         for (i = 0; i < bar; ++i) {
-            ink(s, i * 100 < pct * bar ? 1 : 0);
+            ink(s, i * 100 < pct * bar ? PS_INK_NUMBER : PS_INK_MUTED);
             out(s, (s->io.flags & PS_UNICODE) ? (i * 100 < pct * bar ? "━" : "─")
                                               : (i * 100 < pct * bar ? "#" : "."));
         }
-        ink(s, 1);
+        ink(s, PS_INK_NUMBER);
         out(s, " ");
         dec(b, pct);
         str(b + length(b), "%", sizeof b - length(b));
@@ -214,7 +216,7 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
     } else {
         control_value_text(s, c, &v, b, sizeof b);
         if (v.flags & PS_CONTROL_PENDING) {
-            ink(s, 6);
+            ink(s, s->theme==PS_STYLE_SEMANTIC?PS_INK_WARNING:6);
             str(b + length(b), " [pending]", sizeof b - length(b));
         } else if (v.flags & PS_CONTROL_LOCKED)
             str(b + length(b), " [locked]", sizeof b - length(b));
@@ -563,7 +565,7 @@ static int local_control_write(void *ctx, unsigned id, const ps_control_value *v
 }
 static void control_local_attach(ps_session *s) {
     static const char *const modes[] = {"Manual", "Automatic", "Hold"};
-    static const char *const themes[] = {"Violet", "Red", "Lumen", "One Dark"};
+    static const char *const themes[] = {"Violet", "Red", "Lumen", "One Dark", "Semantic"};
     static const ps_control outputs[] = {
         {0, "RELAYS", "Relay 1", PS_CONTROL_TOGGLE, 0, 1, 1, 0, 0},
         {1, "RELAYS", "Relay 2", PS_CONTROL_TOGGLE, 0, 1, 1, 0, 0},
@@ -575,7 +577,7 @@ static void control_local_attach(ps_session *s) {
     static const ps_control settings[] = {
         {7, "IDENTITY", "Bench name", PS_CONTROL_TEXT, 0, 0, 0, 0, 0},
         {6, "POLICY", "Mode", PS_CONTROL_CHOICE, 0, 2, 1, modes, 3},
-        {10, "APPEARANCE", "Palette", PS_CONTROL_CHOICE, 0, 3, 1, themes, 4},
+        {10, "APPEARANCE", "Color policy", PS_CONTROL_CHOICE, 0, 4, 1, themes, 5},
         {11, "APPEARANCE", "Column dividers", PS_CONTROL_TOGGLE, 0, 1, 1, 0, 0},
         {8, "STORAGE", "Backend", PS_CONTROL_LABEL, 0, 0, 0, 0, 0}};
     static const ps_control_page pages[] = {{"Outputs", outputs, 7}, {"Settings", settings, 5}};

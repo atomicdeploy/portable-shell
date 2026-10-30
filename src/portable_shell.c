@@ -125,7 +125,7 @@ typedef struct {
 } Job;
 struct ps_session {
     ps_config io;
-    unsigned theme; /* 0 violet, 1 red, 2 original Lumen, 3 One Dark */
+    unsigned theme; /* Legacy palette IDs 0..3; semantic roles are the default (4). */
     unsigned table_style;
     const ps_panel *panel;
     ps_panel local_panel;
@@ -214,6 +214,7 @@ static void color(ps_session *s, const char *p) {
 static void reset(ps_session *s) {
     ansi(s, "\033[0m");
     if (s->board) {
+        if(s->theme==PS_STYLE_SEMANTIC){color(s,ps_style_base(s->theme,(s->io.flags&PS_TRUECOLOR)!=0));return;}
         if (s->io.flags & PS_TRUECOLOR)
             color(s, s->theme == 3   ? "\033[38;2;171;178;191m\033[48;2;40;44;52m"
                      : s->theme == 2 ? "\033[38;2;220;228;238m\033[48;2;12;18;29m"
@@ -318,6 +319,10 @@ static int name_match(ps_session *s, const char *a, const char *b, int partial) 
     return partial || !*a;
 }
 static void style(ps_session *s, unsigned value) {
+    if(s->theme==PS_STYLE_SEMANTIC && value){
+        static const unsigned roles[]={PS_INK_TEXT,PS_INK_HEADING,PS_INK_SUCCESS,PS_INK_WARNING,PS_INK_ERROR,PS_INK_SUCCESS};
+        ink(s,roles[value<=PS_STYLE_GREEN?value:0]);return;
+    }
     static const char *const colors[] = {"\033[0m", "\033[1;93m", "\033[92m", "\033[93m",
                                          "\033[91m", "\033[32m"};
     color(s, colors[value <= PS_STYLE_GREEN ? value : 0]);
@@ -546,7 +551,7 @@ static const ps_command builtins[] = {
     {"args", "[ARGUMENT ...]", "Shell", builtin, 0, 0},
     {"history", "[clear]", "Shell", builtin, 0, 0},
     {"bind", "F1|F2|F3|F4 COMMAND", "Shell", builtin, 0, 0},
-    {"theme", "violet|red|lumen|onedark|color|ansi|mono|ascii|unicode", "Terminal", builtin, 0, 0},
+    {"theme", "semantic|violet|red|lumen|onedark|color|ansi|mono|ascii|unicode", "Terminal", builtin, 0, 0},
     {"clear", "", "Terminal", builtin, 0, 0},
     {"status", "", "Terminal", builtin, 0, 0},
     {"exit", "", "Shell", builtin, 0, 0}};
@@ -594,7 +599,7 @@ PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
         flags = (flags & ~layout) | (s->table_style & layout);
     if ((s->table_style ^ flags) & layout)
         s->control_header = s->scroll = 0;
-    s->table_style = flags & (PS_TABLE_DEFAULT | layout);
+    s->table_style = flags & (PS_TABLE_GRID | PS_TABLE_RED_BORDER | PS_TABLE_TITLE_BAR | layout);
     s->dirty = 1;
 }
 PS_API unsigned ps_alignof_session(void) {
@@ -613,6 +618,7 @@ PS_API ps_session *ps_init(void *memory, unsigned bytes, const ps_config *c) {
     s->history_limit = PS_HISTORY;
     s->io = *c;
     s->table_style = PS_TABLE_DEFAULT;
+    s->theme = PS_STYLE_SEMANTIC;
 #ifdef PS_ASCII_ONLY
     s->io.flags &= ~(PS_COLOR | PS_UNICODE);
 #endif
@@ -774,7 +780,7 @@ static void pair_row(ps_session *s, const char *key, const char *value, const Gr
     ink(s, 1);
     grid_text(s, key, g->widths[0]);
     grid_divide(s);
-    ink(s, 2);
+    ink(s, s->theme==PS_STYLE_SEMANTIC?PS_INK_STRING:2);
     grid_text(s, value, g->widths[1]);
 }
 static void stat_row(ps_session *s, unsigned i, const Grid *g) {
@@ -1097,6 +1103,7 @@ static void render(ps_session *s) {
         ansi(s, "\033[?25h");
     } else {
         ink(s, 5);
+        if(s->theme==PS_STYLE_SEMANTIC)ink(s,PS_INK_TEXT);
         field(s, s->notice, w - 4);
         reset(s);
     }
@@ -1532,7 +1539,7 @@ static unsigned collect_completions(ps_session *s, unsigned *start, unsigned *en
         static const char *const board[] = {"tasks", "variables", "jobs", "session"};
         static const char *const controls[] = {"open", "list", "get", "set"};
         static const char *const theme[] = {"violet", "red",   "lumen",   "color",  "ansi",
-                                            "mono",   "ascii", "unicode", "onedark"};
+                                            "mono",   "ascii", "unicode", "onedark", "semantic"};
         static const char *const txt[] = {"upper", "lower", "trim", "slug"};
         static const char *const hash_options[] = {"--rounds"};
         const char *const *opts = 0;
@@ -1564,7 +1571,7 @@ static unsigned collect_completions(ps_session *s, unsigned *start, unsigned *en
                     count = 4;
                 } else if (equal(args.argv[0], "theme")) {
                     opts = theme;
-                    count = 9;
+                    count = 10;
                 } else if (equal(args.argv[0], "text") && args.argc == 1) {
                     opts = txt;
                     count = 4;
@@ -2192,16 +2199,16 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     }
     if (equal(cmd, "theme")) {
         if (argc != 2)
-            return fail(s, "theme violet|red|lumen|onedark|color|ansi|mono|ascii|unicode");
+            return fail(s, "theme semantic|violet|red|lumen|onedark|color|ansi|mono|ascii|unicode");
 #ifdef PS_ASCII_ONLY
         if (equal(a[1], "color") || equal(a[1], "unicode") || equal(a[1], "violet") ||
-            equal(a[1], "red") || equal(a[1], "lumen") || equal(a[1], "onedark") ||
+            equal(a[1], "red") || equal(a[1], "lumen") || equal(a[1], "onedark") || equal(a[1], "semantic") ||
             equal(a[1], "ansi"))
             return fail(s, "disabled in ASCII-only build");
 #endif
         if (equal(a[1], "violet") || equal(a[1], "red") || equal(a[1], "lumen") ||
-            equal(a[1], "onedark")) {
-            s->theme = equal(a[1], "onedark") ? 3
+            equal(a[1], "onedark") || equal(a[1], "semantic")) {
+            s->theme = equal(a[1], "semantic") ? PS_STYLE_SEMANTIC : equal(a[1], "onedark") ? 3
                        : equal(a[1], "lumen") ? 2
                        : equal(a[1], "red")   ? 1
                                               : 0;

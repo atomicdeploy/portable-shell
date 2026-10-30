@@ -20,9 +20,9 @@ fixture data and pinned Agave typography with antialiasing. They are not mockups
 or proof of connected hardware. CI rebuilds every image from current source and
 rejects stale or missing files.
 
-**Task workspace — Violet**
+**Task workspace — semantic colors**
 
-![PortableShell task workspace in Violet](previews/workspace.png)
+![PortableShell task workspace with semantic colors](previews/workspace.png)
 
 **Control panel — inline value editing**
 
@@ -81,7 +81,7 @@ Build from source using the instructions below, then run `build/PortableShell`
 (`build/PortableShell.exe` on Windows). Launch with `--controls` for tabs, grouped
 tables, toggles, PWM sliders, inline values and confirmation dialogs. The optional
 `--device-commands` profile provides device-oriented prompt and command behavior.
-Violet is the default theme.
+Semantic coloring is the default; named themes are opt-in.
 
 Use **F2** for the workspace, **F1** for the command registry, and **Tab** at the
 prompt for completion. The program has no startup tutorial.
@@ -113,8 +113,7 @@ No user documents, machine settings, or external processes are modified by comma
 See [profiles, options and current defaults](OPTIONS.md) for the choice matrix
 and semantic API naming migration.
 
-The default dark theme uses violet/magenta accents, warm text, mint completion
-states and peach values. Switch with `theme red`, `theme violet`, or `theme lumen`
+The default uses semantic colors for states, values, commands and warnings. Switch with `theme red`, `theme violet`, or `theme lumen`
 for the preserved original palette. `theme ansi` selects the 256-color fallback;
 `theme mono` disables color and `theme ascii` substitutes ASCII borders and hints.
 Unicode mode uses actual ↑/↓ and ←/→ key symbols. Embedders opt into RGB output
