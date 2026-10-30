@@ -34,7 +34,7 @@ static union {
 } memory;
 char preview_tasks[400000], preview_variables[400000], preview_jobs[400000],
     preview_session[400000], preview_edit[400000], preview_ascii[400000], preview_red[400000],
-    preview_lumen[400000];
+    preview_cyan[400000];
 char preview_device_commands[400000];
 char preview_value_edit[400000];
 unsigned preview_value_edit_n;
@@ -50,7 +50,7 @@ char preview_control_compact[400000];unsigned preview_control_compact_n;
 char preview_control_inside[400000];unsigned preview_control_inside_n;
 unsigned preview_device_commands_n;
 unsigned preview_tasks_n, preview_variables_n, preview_jobs_n, preview_session_n, preview_edit_n,
-    preview_ascii_n, preview_red_n, preview_lumen_n;
+    preview_ascii_n, preview_red_n, preview_cyan_n;
 #endif
 #ifndef PS_REPLAY_ONLY
 static unsigned len(const char *p) {
@@ -429,7 +429,7 @@ int render_entry(void) {
             blank(r, c);
     ps_start(s);
     ps_execute(s, "task add 'Build the portable core'");
-    ps_execute(s, "task add 'Keep the original Lumen palette'");
+    ps_execute(s, "task add 'Keep the original Cyan palette'");
     ps_execute(s, "task add 'Polish the Agave dark theme'");
     ps_execute(s, "task add 'Choose the next TUI to bring in'");
     ps_execute(s, "task add 'Try the new workspace'");
@@ -449,11 +449,11 @@ int render_entry(void) {
     ps_tick(s, 200);
     ps_feed(s, "", 0);
     preview_red_n = svg(preview_red);
-    ps_execute(s, "theme lumen");
+    ps_execute(s, "theme cyan");
     ps_tick(s, 300);
     ps_feed(s, "", 0);
-    preview_lumen_n = svg(preview_lumen);
-    ps_execute(s, "theme semantic");
+    preview_cyan_n = svg(preview_cyan);
+    ps_execute(s, "theme default");
     ps_tick(s, 400);
     feed(s, "\r\005");
     ps_feed(s, "", 0);
@@ -476,14 +476,14 @@ int render_entry(void) {
     feed(s, "\t");
     ps_feed(s, "", 0);
     preview_session_n = svg(preview_session);
-    ps_execute(s, "theme mono");
-    ps_execute(s, "theme ascii");
+    ps_execute(s, "display color mono");
+    ps_execute(s, "display glyphs ascii");
     feed(s, "1");
     ps_feed(s, "", 0);
     preview_ascii_n = svg(preview_ascii);
-    ps_execute(s, "theme semantic");
-    ps_execute(s, "theme unicode");
-    ps_execute(s, "theme color");
+    ps_execute(s, "theme default");
+    ps_execute(s, "display glyphs unicode");
+    ps_execute(s, "display color rgb");
     ps_execute(s, "controls set 0 1");
     ps_execute(s, "controls set 3 2048");
     ps_execute(s, "controls set 4 3072");
@@ -516,7 +516,7 @@ int render_entry(void) {
     ps_tick(s, 4900);
     ps_feed(s, "", 0);
     preview_onedark_n = svg(preview_onedark);
-    ps_execute(s, "theme semantic");
+    ps_execute(s, "theme default");
     ps_tick(s, 5000);
     ps_key(s, 13);
     ps_tick(s, 5100);
@@ -555,8 +555,8 @@ int render_entry(void) {
     ps_feed(s, "", 0);
     preview_control_collapsed_n = svg(preview_control_collapsed);
 #endif
-    ps_execute(s, "theme ascii");
-    ps_execute(s, "theme mono");
+    ps_execute(s, "display glyphs ascii");
+    ps_execute(s, "display color mono");
     ps_tick(s, 5500);
     ps_feed(s, "", 0);
     preview_control_ascii_n = svg(preview_control_ascii);

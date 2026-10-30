@@ -4,9 +4,9 @@
 See [profiles, options and current defaults](Options.md) for the choice matrix
 and semantic API naming migration.
 
-The default uses semantic colors for states, values, commands and warnings. Switch with `theme red`, `theme violet`, or `theme lumen`
-for the preserved original palette. `theme ansi` selects the 256-color fallback;
-`theme mono` disables color and `theme ascii` substitutes ASCII borders and hints.
+The default uses semantic colors for states, values, commands and warnings. Switch with `theme red`, `theme violet`, or `theme cyan`
+for the preserved original palette. `display color ansi` selects the 256-color fallback;
+`display color mono` disables color and `display glyphs ascii` substitutes ASCII borders and hints.
 Unicode mode uses actual ↑/↓ and ←/→ key symbols. Embedders opt into RGB output
 with `PS_TRUECOLOR`; `PS_COLOR` alone uses ANSI palette colors.
 

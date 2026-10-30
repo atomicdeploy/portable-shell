@@ -618,10 +618,10 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         feed(s, "\033[C\r");
         CHECK(eq(ps_history_get(s, 0), "preview"), "Right accepts registry ghost");
         clear();
-        feed(s, "theme lum");
-        CHECK(has(t.output, "en"), "argument ghost uses Tab provider");
+        feed(s, "theme cya");
+        CHECK(has(t.output, "n"), "argument ghost uses Tab provider");
         feed(s, "\033[F\r");
-        CHECK(eq(ps_history_get(s, 1), "theme lumen"), "End accepts argument ghost");
+        CHECK(eq(ps_history_get(s, 1), "theme cyan"), "End accepts argument ghost");
         feed(s, "echo newest retained\r");
         feed(s, "echo n\033[F\r");
         CHECK(eq(ps_history_get(s, ps_history_count(s)-1), "echo newest retained"),
@@ -755,6 +755,21 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         ps_key(s,27);CHECK(picked_file==PS_FILE_ROOT&&!ps_file_picker_active(s),"picker cancellation distinguished");
         nodes[0].parent=1;CHECK(!ps_file_picker_open(s,"Bad",nodes,4,picked,0),"picker rejects cyclic tree");
         cfg.flags=0;s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);CHECK(!ps_file_picker_open(s,"Files",nodes,4,picked,0),"batch picker refused");
+    }
+    {
+        cfg.flags=PS_INTERACTIVE;s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);
+        CHECK(!ps_execute(s,"theme default")&&!ps_execute(s,"theme cyan"),"canonical theme names");
+        CHECK(!ps_execute(s,"theme semantic")&&!ps_execute(s,"theme lumen"),"legacy theme aliases");
+        clear();ps_message(s,PS_STYLE_SUCCESS,"plain");
+        CHECK(!has(t.output,"\033[92m")&&!has(t.output,"\033[38;"),"theme does not enable colors");
+        CHECK(!ps_execute(s,"display color ansi"),"ANSI capability");
+        ps_execute(s,"theme default");clear();ps_message(s,PS_STYLE_SUCCESS,"colored");
+        CHECK(has(t.output,"\033[")&&!has(t.output,";2;"),"theme preserves ANSI depth");
+        CHECK(!ps_execute(s,"display color mono")&&!ps_execute(s,"display glyphs ascii"),"independent plain settings");
+        CHECK(ps_execute(s,"display glyphs rgb")!=0,"reject mismatched capability");
+        cfg.flags=PS_INTERACTIVE;s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);
+        feed(s,"display color r\033[F\r");
+        CHECK(eq(ps_history_get(s,0),"display color rgb"),"color setting completion");
     }
     CHECK(!portable_terminal_checks(), "shared firmware C components");
     {

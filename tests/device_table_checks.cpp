@@ -75,7 +75,7 @@ int main(){
     }
     output.clear();v.render(s,write,true);
 #endif
-    assert(v.theme()==V::Semantic);
+    assert(v.theme()==V::Default);
     assert(output.find("\x1b[38;2;255;184;108m")!=std::string::npos); // Numeric control, not a theme accent.
     assert(output.find("\x1b[38;2;255;95;115m")==std::string::npos); // Ordinary borders are not alarms.
     rows[0].value="false";output.clear();v.render(s,write,true);
