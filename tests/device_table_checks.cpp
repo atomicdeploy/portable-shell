@@ -36,6 +36,12 @@ int main(){
     v.begin();v.render(s,write);
     assert(output.find("[Device]")==std::string::npos);
     assert(output.find(PS_KEYCAP_STYLE "Space")!=std::string::npos);
+    assert(output.find(PS_KEYCAP_PROMINENT_STYLE)==std::string::npos);
+    v.setFooterEmphasis(true);output.clear();v.render(s,write);
+    assert(output.find(PS_KEYCAP_PROMINENT_STYLE)!=std::string::npos);
+    v.setFooterEmphasis(false);v.setFooterGrid(false);output.clear();v.render(s,write);
+    assert(output.find(PS_KEYCAP_PROMINENT_STYLE)==std::string::npos);
+    v.setFooterGrid(true);
     v.setTabBrackets(true);v.setFooterKeycaps(false);output.clear();v.render(s,write);
     assert(output.find("[Device]")!=std::string::npos);
     assert(output.find(PS_KEYCAP_STYLE "Space")==std::string::npos);

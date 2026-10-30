@@ -16,7 +16,7 @@ the number. Disabled entries cannot run. Paste cannot activate actions.
 Use `ps_menu_set_style` with `PS_MENU_TABLE`, `PS_MENU_NUMBERS`, `PS_MENU_DETAILS`,
 or zero for plain mode. Set this before opening; changing style closes the current
 menu. `ps_menu_set_description` installs a callback returning borrowed text for the
-current item. Descriptions are clipped to the pane width. Numbering remains stable
+current item. Descriptions are clipped to the panel width. Numbering remains stable
 when hidden. The default callback-free description distinguishes submenus/actions.
 A leaf closes menu input before its action runs, allowing another view to open.
 
@@ -52,4 +52,4 @@ Closing through the API releases the mode; normal host input redraws the prompt.
 
 ![Centered single column](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-centered.png)
 
-![Number column and details pane](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-details.png)
+![Number column and details panel](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-details.png)

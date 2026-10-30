@@ -195,40 +195,44 @@ template<class W> void value(Writer<W> &out,const Snapshot &s,const Row &r,unsig
 
 // Exactly one context owns hints. Editing suppresses page/grid navigation.
 template<class W> void hint(Writer<W> &out,const char *text) const {
+    bool first=true;
     while(*text){
         char token[96];unsigned n=0;
         const bool space=(unsigned char)*text<=32;
         while(text[n]&&((unsigned char)text[n]<=32)==space&&n+1<sizeof token){token[n]=text[n];++n;}
         token[n]=0;
         const bool styled=ansi_&&keycaps_&&!space&&ps_style_key_token(token,n);
-        if(styled)out.raw(PS_KEYCAP_STYLE);
+        if(styled)out.raw(first&&footerEmphasis_?PS_KEYCAP_PROMINENT_STYLE:PS_KEYCAP_STYLE);
         out.raw(token);
-        if(styled){out.raw("\x1b[0m");base(out);ink(out,0);}
+        if(styled){out.raw("\x1b[0m");base(out);ink(out,0);first=false;}
+        if(space)for(unsigned i=0;i<n;++i)if(token[i]=='\n')first=true;
         text+=n;
     }
 }
 template<class W> void footer(Writer<W> &out,const Snapshot &s,unsigned w) const {
     if(ansi_){out.indent(0);out.position(s.lines-1);out.raw("\x1b[J");}
     base(out);ink(out,0);
+    char line[384]={0},aligned[512];
     if(editing_&&dialog_&&ansi_)return; // The modal owns its only Apply/Cancel hint.
-    if(editing_){hint(out,s.unicode?"\xe2\x86\x90/\xe2\x86\x92 cursor  Enter apply  Esc cancel":w<60?"Left/Right move Enter apply Esc cancel":"Left/Right cursor Enter apply Esc cancel");hint(out,"\r\n");return;}
+    if(editing_){ps_style_footer_append(line,sizeof line,s.unicode?"\xe2\x86\x90/\xe2\x86\x92 cursor  Enter apply  Esc cancel":w<60?"Left/Right move Enter apply Esc cancel":"Left/Right cursor Enter apply Esc cancel");ps_style_footer_append(line,sizeof line,"\r\n");ps_style_footer_format(aligned,sizeof aligned,line,w,footerGrid_);hint(out,aligned);return;}
     const Row *r=currentRow(s);
     if(grid_&&page_==Led){
-        hint(out,s.unicode?"\xe2\x86\x91\xe2\x86\x93\xe2\x86\x90\xe2\x86\x92 move":"Up/Down Left/Right");
-        hint(out,w>=60?"  W idle  R lost  O off":"  W/R/O state");
-    }else if(grid_&&page_==Pixel){hint(out,s.unicode?"\xe2\x86\x90/\xe2\x86\x92 test  G group  W/R/O color":"Left/Right test G group W/R/O color");}
-    else if(page_==Game&&grid_){hint(out,s.gameReady?"1-9 press  R reset":"AVR unavailable");}
-    else if(sectionFocus_){hint(out,w<60?"Enter/Space toggle":s.unicode?"Enter/Space toggle  \xe2\x86\x90 collapse  \xe2\x86\x92 expand":"Enter/Space toggle  Left close Right open");}
-    else {hint(out,s.unicode?"\xe2\x86\x91/\xe2\x86\x93 select":"Up/Down select");
+        ps_style_footer_append(line,sizeof line,s.unicode?"\xe2\x86\x91\xe2\x86\x93\xe2\x86\x90\xe2\x86\x92 move":"Up/Down Left/Right");
+        ps_style_footer_append(line,sizeof line,w>=60?"  W idle  R lost  O off":"  W/R/O state");
+    }else if(grid_&&page_==Pixel){ps_style_footer_append(line,sizeof line,s.unicode?"\xe2\x86\x90/\xe2\x86\x92 test  G group  W/R/O color":"Left/Right test G group W/R/O color");}
+    else if(page_==Game&&grid_){ps_style_footer_append(line,sizeof line,s.gameReady?"1-9 press  R reset":"AVR unavailable");}
+    else if(sectionFocus_){ps_style_footer_append(line,sizeof line,w<60?"Enter/Space toggle":s.unicode?"Enter/Space toggle  \xe2\x86\x90 collapse  \xe2\x86\x92 expand":"Enter/Space toggle  Left close Right open");}
+    else {ps_style_footer_append(line,sizeof line,s.unicode?"\xe2\x86\x91/\xe2\x86\x93 select":"Up/Down select");
         if(r&&r->editable&&!r->pending){
-            hint(out,PS_DEVICE_VIEW_WIDGETS&&r->kind==Toggle?"  Space toggle":PS_DEVICE_VIEW_WIDGETS&&r->kind==Choice?(s.unicode?"  \xe2\x86\x90/\xe2\x86\x92 choose":"  +/- choose"):PS_DEVICE_VIEW_WIDGETS&&r->kind==Level?(s.unicode?"  \xe2\x86\x90/\xe2\x86\x92 adjust":"  +/- adjust"):"  Enter edit");
-            if(w>=70&&r->kind==Level)hint(out,"  Enter edit");
-            if(w>=90&&PS_DEVICE_VIEW_DIALOGS)hint(out,"  F2 dialog");
+            ps_style_footer_append(line,sizeof line,PS_DEVICE_VIEW_WIDGETS&&r->kind==Toggle?"  Space toggle":PS_DEVICE_VIEW_WIDGETS&&r->kind==Choice?(s.unicode?"  \xe2\x86\x90/\xe2\x86\x92 choose":"  +/- choose"):PS_DEVICE_VIEW_WIDGETS&&r->kind==Level?(s.unicode?"  \xe2\x86\x90/\xe2\x86\x92 adjust":"  +/- adjust"):"  Enter edit");
+            if(w>=70&&r->kind==Level)ps_style_footer_append(line,sizeof line,"  Enter edit");
+            if(w>=90&&PS_DEVICE_VIEW_DIALOGS)ps_style_footer_append(line,sizeof line,"  F2 dialog");
         }
     }
-    hint(out,"\r\n");
-    if(page_==Led||page_==Pixel||page_==Game)hint(out,grid_?"F settings  ":page_==Led?"F matrix  ":page_==Game?"F game  ":"F pixels  ");
-    hint(out,w>=70?"Tab pages  Shift+Tab previous  Esc close":"Tab pages  Esc close");
+    ps_style_footer_append(line,sizeof line,"\r\n");
+    if(page_==Led||page_==Pixel||page_==Game)ps_style_footer_append(line,sizeof line,grid_?"F settings  ":page_==Led?"F matrix  ":page_==Game?"F game  ":"F pixels  ");
+    ps_style_footer_append(line,sizeof line,w>=70?"Tab pages  Shift+Tab previous  Esc close":"Tab pages  Esc close");
+    ps_style_footer_format(aligned,sizeof aligned,line,w,footerGrid_);hint(out,aligned);
     if(ansi_)out.raw("\x1b[K");else out.raw("\r\n");
 }
 

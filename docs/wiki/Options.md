@@ -17,6 +17,18 @@ palettes keep their existing IDs; `DeviceView::Semantic` selects the default pol
 
 ## Presentation
 
+Navigation hints use a shared 20-cell column grid when a complete row fits. Narrow
+or long-label rows retain compact spacing without dropping hints. Keycaps use one
+explicit neutral background, independent of the footer row's inherited colors.
+Prominent-action emphasis is **off by default**; enabling it accents the first
+key in each navigation row. C consumers can add `PS_TABLE_PROMINENT_KEYS` or
+`PS_TABLE_COMPACT_FOOTER` to `ps_set_table_style()`; these also style menu/editor/file
+footers. C++ consumers use `setFooterEmphasis(true)` and `setFooterGrid(false)`.
+`PS_FOOTER_GRID=0` changes the build default. Existing `PS_TABLE_PLAIN_KEYS`,
+`setFooterKeycaps(false)`, and `PS_KEYCAP_STYLE` remain supported; override
+`PS_KEYCAP_PROMINENT_STYLE` for a custom emphasis style. Monochrome C output retains
+reverse-video keycaps without emitting colors.
+
 Horizontal tabs sit immediately above the table by default, with the blank line
 between title and tabs. To put tabs inside the table as its first row, C callers
 add `PS_TABLE_TABS_INSIDE` to `ps_set_table_style()`; C++ callers use

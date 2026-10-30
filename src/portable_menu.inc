@@ -37,8 +37,8 @@ static void menu_draw(ps_session *s){
         if(s->menu_description&&m->count)d=s->menu_description(s->menu_description_context,m,s->menu_selected);
         if(!d)d=m->count&&m->items[s->menu_selected].submenu?"Open submenu":"Run selected action";
         at(s,5,px);field(s,d,pw);
-        at(s,7,px);field(s,(s->io.flags&PS_UNICODE)?"↑/↓ Select   Enter Open":"Up/Down Select  Enter Open",pw);
-        at(s,8,px);field(s,"Esc Back   Ctrl-C Close",pw);
+        at(s,7,px);footer_field(s,(s->io.flags&PS_UNICODE)?"↑/↓ Select   Enter Open":"Up/Down Select  Enter Open",pw,0);
+        at(s,8,px);footer_field(s,"Esc Back   Ctrl-C Close",pw,0);
     }
     if(!pane){at(s,s->io.rows,1);view_color(s,"\033[33m");
     footer_field(s,(s->io.flags&PS_UNICODE)?"↑/↓ Select  Enter Open  Esc Back  0 Close/back":"Up/Down Select  Enter Open  Esc Back",s->io.columns-1,0);reset(s);}

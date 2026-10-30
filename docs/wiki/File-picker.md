@@ -26,9 +26,9 @@ folders first. Automatic traversal skips symbolic links and Windows reparse poin
 they remain visibly marked, unavailable entries. Permission/enumeration failures are
 reported. There is no filesystem watcher: reopen to refresh a snapshot.
 
-Tab changes pane focus. ↑/↓, Home/End, Page Up/Down and the wheel navigate. ←/→ folds
+Tab changes panel focus. ↑/↓, Home/End, Page Up/Down and the wheel navigate. ←/→ folds
 the tree; Enter/Space toggles directories. Click selects; clicking a tree folder icon
-expands/collapses it. Enter on a file selects it; Esc/Ctrl-C cancels. Each pane scrolls
+expands/collapses it. Enter on a file selects it; Esc/Ctrl-C cancels. Each panel scrolls
 independently. Narrow terminals use listing mode in place of a squeezed split view.
 
 ## Icons and screenshots

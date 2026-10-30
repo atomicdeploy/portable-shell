@@ -7,14 +7,47 @@
 #define PS_TAB_BRACKETS 0
 #endif
 #ifndef PS_KEYCAP_STYLE
-#define PS_KEYCAP_STYLE "\033[1;7m"
+#define PS_KEYCAP_STYLE "\033[0;1;38;5;255;48;5;238m"
 #endif
+#ifndef PS_FOOTER_GRID
+#define PS_FOOTER_GRID 1
+#endif
+#ifndef PS_KEYCAP_PROMINENT_STYLE
+#define PS_KEYCAP_PROMINENT_STYLE "\033[0;1;30;43m"
+#endif
+/* Shared fixed-cell grid. Whole rows fall back to compact spacing when they do
+   not fit; no hint is dropped merely to align the columns. UTF-8 continuation
+   bytes do not consume cells (footer vocabulary uses single-cell glyphs). */
+static inline void ps_style_footer_format(char *dst,unsigned capacity,const char *src,unsigned width,int grid) {
+    unsigned at=0;
+    if(!capacity)return;
+    while(*src&&at+1<capacity){
+        const char *end=src,*p;unsigned count=1,max=0,cells=0,column=0;
+        while(*end&&*end!='\r'&&*end!='\n')++end;
+        for(p=src;p<end;){
+            if(*p==' '&&p+1<end&&p[1]==' '){if(cells>max)max=cells;cells=0;++count;while(p<end&&*p==' ')++p;}
+            else {if(((unsigned char)*p&192)!=128)++cells;++p;}
+        }
+        if(cells>max)max=cells;
+        {int aligned=grid&&max<20&&(count-1)*20+cells<=width;
+        while(src<end&&at+1<capacity){
+            if(*src==' '&&src+1<end&&src[1]==' '){unsigned spaces=2;
+                while(src<end&&*src==' ')++src;
+                if(aligned)spaces=20-column%20;
+                while(spaces--&&at+1<capacity){dst[at++]=' ';++column;}
+            }else {if(((unsigned char)*src&192)!=128)++column;dst[at++]=*src++;}
+        }}
+        while((*src=='\r'||*src=='\n')&&at+1<capacity)dst[at++]=*src++;
+    }
+    dst[at]=0;
+}
+static inline void ps_style_footer_append(char *dst,unsigned cap,const char *src){unsigned n=0;while(n<cap&&dst[n])++n;while(*src&&n+1<cap)dst[n++]=*src++;if(n<cap)dst[n]=0;}
 /* Only shortcut tokens receive keycaps; descriptions retain normal styling. */
 static inline int ps_style_key_token(const char *text,unsigned length) {
     static const char *const keys[]={"↑/↓","←/→","↑↓","↑↓←→","←","→","Space","Enter","Esc",
         "Tab","Shift+Tab","Home/End","^U","F2","Del","Up/Down","Up/Dn","Left/Right",
         "Left","Right","Enter/Space","W/R/O","+/-","1-9","n","d","c","/","W","R","O","F","G",
-        "^S","^Q/Esc","^Z","^A/^E","S","D"};
+        "^S","^Q/Esc","^Z","^A/^E","S","D","Backspace","0","Ctrl-C"};
     unsigned i,j;
     for(i=0;i<sizeof(keys)/sizeof(keys[0]);++i){
         for(j=0;j<length&&keys[i][j]&&keys[i][j]==text[j];++j){}

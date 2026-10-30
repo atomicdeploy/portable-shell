@@ -207,6 +207,8 @@ class DeviceView {
     }
     bool tabsInsideTable() const { return tabsInsideTable_; }
     void setFooterKeycaps(bool enabled){keycaps_=enabled;dirty_=full_=true;}
+    void setFooterGrid(bool enabled){footerGrid_=enabled;dirty_=full_=true;}
+    void setFooterEmphasis(bool enabled){footerEmphasis_=enabled;dirty_=full_=true;}
     void setTabBrackets(bool enabled){tabBrackets_=enabled;dirty_=full_=true;}
     void setTrueColor(bool enabled) { if (trueColor_!=enabled) {trueColor_=enabled;dirty_=full_=true;} }
     bool trueColor() const { return trueColor_; }
@@ -1200,6 +1202,7 @@ class DeviceView {
     uint32_t sectionSchema_[PS_DEVICE_VIEW_TABLE&&PS_DEVICE_VIEW_SECTIONS?PageCount:1]{};
     bool trueColor_ = true, dialog_ = false;
     bool keycaps_=PS_FOOTER_KEYCAPS!=0,tabBrackets_=PS_TAB_BRACKETS!=0;
+    bool footerGrid_=PS_FOOTER_GRID!=0,footerEmphasis_=false;
     unsigned editRow_ = 6, editColumn_ = 30, editWidth_ = 40;
     uint32_t observed_ = 0;
     uint32_t painted_[PS_DEVICE_VIEW_TABLE ? PS_DEVICE_VIEW_MAX_ROWS : 1]{};
