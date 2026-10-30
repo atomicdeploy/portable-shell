@@ -68,6 +68,10 @@ not a core capability. See [host execution and PTYs](docs/wiki/Host-execution.md
 and [local shell syntax and limits](docs/wiki/Local-shell.md) before enabling it.
 PortableShell is not a drop-in implementation of Bash or PowerShell.
 
+An optional [x86-64 UEFI application](docs/wiki/UEFI.md) builds as
+`PortableShell.efi` with `-DPORTABLE_SHELL_BUILD_UEFI=ON` and target
+`portable_shell_uefi`. Firmware console services stay in a separate adapter.
+
 ### Batch commands and remote terminals
 
 ```text

@@ -31,3 +31,4 @@
 - [Terminal OSC integration](OSC.md)
 - [Consumer commands and typed settings](Commands.md)
 - [Consumer-owned feature selection](Feature-selection.md)
+- [UEFI application](UEFI.md)
