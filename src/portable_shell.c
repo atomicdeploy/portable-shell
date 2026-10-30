@@ -145,6 +145,10 @@ struct ps_session {
     void *file_context;
     unsigned file_count, file_selected, file_top;
     unsigned char file_expanded[128];
+    unsigned char file_loaded[128];
+    ps_file_load_fn file_load;
+    unsigned file_layout, file_icons, file_directory, file_pane, file_list_selected, file_list_top;
+    const char *file_notice;
     ps_config io;
     unsigned theme; /* Legacy palette IDs 0..3; semantic roles are the default (4). */
     unsigned table_style;

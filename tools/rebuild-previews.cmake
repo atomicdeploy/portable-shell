@@ -21,6 +21,10 @@ include("${CMAKE_CURRENT_LIST_DIR}/previews/dependencies.cmake")
 preview_download("${font_url}" "${font_sha}" "${cache}/Agave.ttf")
 preview_download("${font_license_url}" "${font_license_sha}" "${cache}/Agave-LICENSE")
 
+preview_download("${nerd_url}" "${nerd_sha}" "${cache}/AgaveNerd.ttf")
+preview_download("${nerd_license_url}" "${nerd_license_sha}" "${cache}/AgaveNerd-LICENSE")
+preview_download("${emoji_url}" "${emoji_sha}" "${cache}/NotoEmoji.ttf")
+preview_download("${emoji_license_url}" "${emoji_license_sha}" "${cache}/NotoEmoji-LICENSE")
 if(NOT DEFINED RESVG)
   cmake_host_system_information(RESULT arch QUERY OS_PLATFORM)
   if(NOT arch MATCHES "^(AMD64|amd64|x86_64|x64)$")
@@ -55,7 +59,7 @@ if(DEFINED GENERATOR)
 endif()
 execute_process(COMMAND ${configure} COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${CMAKE_COMMAND}" --build "${BUILD_DIR}/native" --config Release COMMAND_ERROR_IS_FATAL ANY)
-set(frames menu-centered menu-details editor-framed files meters workspace controls inline dialog red lumen onedark ascii controls-columns controls-collapsed controls-compact controls-inside menu document device-full device-vertical device-matrix device-inline device-reduced device-inside)
+set(frames native-tree native-list native-split native-nerd native-emoji menu-centered menu-details editor-framed files meters workspace controls inline dialog red lumen onedark ascii controls-columns controls-collapsed controls-compact controls-inside menu document device-full device-vertical device-matrix device-inline device-reduced device-inside)
 set(arguments)
 set(managed)
 foreach(frame IN LISTS frames)
@@ -73,10 +77,11 @@ execute_process(COMMAND "${BUILD_DIR}/native/bin/full_preview${exe}"
 execute_process(COMMAND "${BUILD_DIR}/native/bin/reduced_preview${exe}" "${generated}/device-reduced.svg" COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${BUILD_DIR}/native/bin/meter_preview${exe}" "${generated}/meters.svg" COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${BUILD_DIR}/native/bin/layout_preview${exe}" "${generated}/menu-centered.svg" "${generated}/menu-details.svg" "${generated}/editor-framed.svg" "${generated}/files.svg" COMMAND_ERROR_IS_FATAL ANY)
+execute_process(COMMAND "${BUILD_DIR}/native/bin/filesystem_preview${exe}" "${root}/tests/fixtures/browser" "${generated}/native-tree.svg" "${generated}/native-list.svg" "${generated}/native-split.svg" "${generated}/native-nerd.svg" "${generated}/native-emoji.svg" COMMAND_ERROR_IS_FATAL ANY)
 foreach(frame IN LISTS frames)
   # One explicitly supplied font; two-times resolution for smooth display scaling.
   execute_process(COMMAND "${RESVG}" --skip-system-fonts --use-font-file "${cache}/Agave.ttf"
-    --zoom 2 "${generated}/${frame}.svg" "${generated}/${frame}.png" COMMAND_ERROR_IS_FATAL ANY)
+    --use-font-file "${cache}/AgaveNerd.ttf" --use-font-file "${cache}/NotoEmoji.ttf" --zoom 2 "${generated}/${frame}.svg" "${generated}/${frame}.png" COMMAND_ERROR_IS_FATAL ANY)
 endforeach()
 
 # All local README preview references must be managed by this rebuild.

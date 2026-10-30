@@ -8,6 +8,7 @@
 #include "portable_terminal.h"
 static unsigned use_device_commands;
 static ps_device_profile profiles[4];
+#include "filesystem.h"
 #define CLIENTS 4
 #define QUEUE 131072
 typedef struct {
@@ -521,12 +522,14 @@ int host_main(void) {
             board = 1;
         else if (equal(argv[i], "--edit"))
             board = 4;
+        else if (equal(argv[i], "--files"))
+            board = 5;
         else if (equal(argv[i], "--menu"))
             board = 3;
         else if (equal(argv[i], "--controls"))
             board = 2;
         else if (equal(argv[i], "--help")) {
-            say("PortableShell [--device-commands] [--board|--controls|--menu|--edit] [--ascii] [--no-color] [--no-bell] [--no-suggestions] [--history "
+            say("PortableShell [--device-commands] [--board|--controls|--menu|--edit|--files] [--ascii] [--no-color] [--no-bell] [--no-suggestions] [--history "
                 "FILE]\r\n     "
                 " "
                 "[--command TEXT "
@@ -611,6 +614,7 @@ int host_main(void) {
         return 1;
     if (use_device_commands)
         ps_device_attach(s, &profiles[0], 0, 0);
+    if (!serial && !use_device_commands && fs_attach(s)) return 2;
     if (command || command_at) {
         result = command ? ps_execute(s, command)
                          : ps_execute_argv(s, (int)(argc - command_at), argv + command_at);
@@ -636,7 +640,7 @@ int host_main(void) {
                                   ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS | (PS_MOUSE?ENABLE_MOUSE_INPUT:0));
     ps_start(s);
     if (board)
-        ps_execute(s, board == 4 ? "edit" : board == 3 ? "menu" : board == 2 ? "controls" : "board");
+        ps_execute(s, board == 5 ? "files" : board == 4 ? "edit" : board == 3 ? "menu" : board == 2 ? "controls" : "board");
     start = GetTickCount();
     for (;;) {
         if (ps_exited(s) || channels[0].failed)
