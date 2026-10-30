@@ -35,7 +35,11 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
 #endif
 #if PS_HEX_EDITOR
     if(equal(cmd,"hex")){
-        if(argc!=1)return fail(s,"hex");
+        int columns=0;
+        if(argc!=1){
+            if(argc!=3||!equal(a[1],"--columns")||(!equal(a[2],"auto")&&(!integer(a[2],&columns)||columns<1||columns>32)))return fail(s,"hex [--columns auto|1..32]");
+        }
+        ps_hex_editor_set_columns(s,(unsigned)columns);
         return ps_hex_editor_open(s,"Binary buffer (session memory)",s->hex_sample,sizeof s->hex_sample,
             s->hex_draft,sizeof s->hex_draft,hex_demo_save,s)?0:fail(s,"hex editor unavailable");
     }

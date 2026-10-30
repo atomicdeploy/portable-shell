@@ -57,6 +57,7 @@ target_compile_definitions(snake_preview PRIVATE PS_REPLAY_ONLY PS_RICH_REPLAY W
 target_compile_options(snake_preview PRIVATE -UNDEBUG)
 add_executable(hex_preview "${root}/tests/hex_preview.c" "${root}/tests/render.c" "${root}/src/portable_shell.c")
 target_compile_definitions(hex_preview PRIVATE PS_REPLAY_ONLY H=28)
+target_compile_options(hex_preview PRIVATE -UNDEBUG)
 foreach(target hex_preview table_prompt_preview plain_device_preview snake_preview interaction_preview rich_preview monitor_preview list_preview dashboard_preview form_preview report_preview help_preview segment_preview prompt_preview workspace_preview full_preview reduced_preview meter_preview layout_preview filesystem_preview)
   target_include_directories(${target} PRIVATE "${root}/include")
   target_compile_features(${target} PRIVATE c_std_99 cxx_std_11)

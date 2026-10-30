@@ -153,7 +153,7 @@ struct ps_session {
     const char *hex_title,*hex_notice;
     ps_hex_save_fn hex_save;
     void *hex_context;
-    unsigned hex_open,hex_length,hex_pos,hex_top,hex_ascii,hex_nibble,hex_dirty,hex_dialog;
+    unsigned hex_open,hex_length,hex_pos,hex_top,hex_ascii,hex_nibble,hex_dirty,hex_dialog,hex_fixed_columns;
 #if PS_WORKBENCH
     ps_byte hex_sample[128],hex_draft[128];
 #endif
