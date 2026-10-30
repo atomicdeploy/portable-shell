@@ -32,6 +32,29 @@ struct Screen {
         }
     }
     std::string line(unsigned r)const{std::string result;for(const auto &c:cells[r])result+=c;return result;}
+    void tableBorders(unsigned left,bool unicode)const{
+        const std::string vertical=unicode?"\xe2\x94\x82":"|";
+        assert(cells[0][left]==(unicode?"\xe2\x95\xad":"+"));
+        assert(cells[0][width-2]==(unicode?"\xe2\x95\xae":"+"));
+        for(unsigned r=1;r<height-4;++r){
+            assert(cells[r][left]==(r==2||r==4?(unicode?"\xe2\x94\x9c":"+"):vertical));
+            assert(cells[r][width-2]==(r==2||r==4?(unicode?"\xe2\x94\xa4":"+"):vertical));
+        }
+        assert(cells[height-4][left]==(unicode?"\xe2\x95\xb0":"+"));
+        assert(cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
+        // Discover actual header separators, then require connected junctions
+        // and uninterrupted rules through section, value and blank rows.
+        unsigned separators=0;
+        for(unsigned col=left+1;col<width-2;++col)if(cells[3][col]==vertical){
+            ++separators;
+            assert(cells[2][col]==(unicode?"\xe2\x94\xac":"+"));
+            assert(cells[4][col]==(unicode?"\xe2\x94\xbc":"+"));
+            for(unsigned r=5;r<height-4;++r)assert(cells[r][col]==vertical);
+            assert(cells[height-4][col]==(unicode?"\xe2\x94\xb4":"+"));
+        }
+        assert(separators==(PS_DEVICE_VIEW_CATEGORY_COLUMN&&width-1-left>=95?2U:1U));
+        if(left)for(unsigned r=1;r<height-4;++r)assert(cells[r][0]==vertical&&cells[r][19]==vertical);
+    }
 };
 
 int main(){
@@ -39,7 +62,7 @@ int main(){
     for(unsigned width:{40U,64U,80U,120U,240U})for(unsigned height:{16U,24U,40U,100U})
     for(bool vertical:{false,true})for(bool unicode:{false,true}){
         V view;V::Snapshot s;V::Action a;V::Row rows[32];
-        for(auto &r:rows)r={"Setting","setting","Observed",true};
+        for(unsigned i=0;i<32;++i){rows[i]={"Setting","setting","Observed",true};rows[i].category=i<1?"Lighting":"Connection";}
         s.rows=rows;s.rowCount=2;s.columns=uint16_t(width);s.lines=uint16_t(height);s.unicode=unicode;
         s.terminalSettings=s.cloudSettings=s.notificationSettings=s.clockSettings=true;
         view.begin();view.setTabLayout(vertical?V::VerticalTabs:V::HorizontalTabs);
@@ -48,6 +71,7 @@ int main(){
         auto feed=[&](const char *keys){while(*keys)view.feed(uint8_t(*keys++),s,a);};
         render(true);
         const unsigned left=vertical&&PS_DEVICE_VIEW_VERTICAL_TABS&&width>=64?22:0;
+        screen.tableBorders(left,unicode);
         assert(screen.cells[0][left]==(unicode?"\xe2\x95\xad":"+"));
         assert(screen.cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
         assert(screen.cells[height-5][left]==(unicode?"\xe2\x94\x82":"|"));
@@ -55,11 +79,13 @@ int main(){
         assert(screen.line(height-2).find("select")!=std::string::npos);
         if(left)assert(screen.line(2).find("[Device]")!=std::string::npos);
         feed("\x1b[B");render(false);
+        screen.tableBorders(left,unicode);
         auto incremental=screen.cells;render(true);assert(incremental==screen.cells);
         feed("\r\x15" "Draft");render(false);assert(view.editing());
         assert(screen.line(height-2).find("apply")!=std::string::npos);
         assert(screen.line(height-1).find("Tab pages")==std::string::npos);
         feed("\x1b");view.flushEscape(a);render(false);
+        screen.tableBorders(left,unicode);
 #if PS_DEVICE_VIEW_DIALOGS
         feed("\x1b[12~");render(false);assert(view.editing());
         assert(screen.line(height/2-1).find("Enter apply")!=std::string::npos);
@@ -70,9 +96,11 @@ int main(){
         feed("\x1b[Z");render(false);assert(view.page()==V::Device&&a.type==V::Action::None);
         // Shrinking populated content must erase old rows, including sidebar updates.
         s.rowCount=32;render(true);
+        screen.tableBorders(left,unicode);
         assert(screen.line(height-1).find("Tab pages")!=std::string::npos);
         assert(screen.cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
         s.rowCount=1;render(false);
+        screen.tableBorders(left,unicode);
         incremental=screen.cells;render(true);assert(incremental==screen.cells);
         s.cloudSettings=s.notificationSettings=s.clockSettings=false;render(false);
         incremental=screen.cells;render(true);assert(incremental==screen.cells);
@@ -87,6 +115,33 @@ int main(){
         feed("\t\t");render(false);assert(view.page()==V::Led);
         assert(screen.line(height-1).find("Tab pages")!=std::string::npos);
         assert(screen.cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
+    }
+#else
+    for(unsigned width:{40U,80U,100U})for(unsigned height:{16U,24U,40U,100U})
+    for(bool unicode:{false,true}){
+        V view;V::Snapshot s;V::Action a;V::Row row("Setting","setting","Observed",true);
+        s.rows=&row;s.rowCount=1;s.columns=uint16_t(width);s.lines=uint16_t(height);s.unicode=unicode;
+        view.begin();Screen screen(width,height);std::string output;
+        auto render=[&](bool force){
+            output.clear();
+            view.render(s,[&](const uint8_t *p,size_t n){output.append((const char*)p,n);},force);
+            screen.feed(output);
+            assert(output.size()<PS_DEVICE_VIEW_FRAME_BYTES);
+            assert(output.find("\x1b[48;2;")==std::string::npos);
+            assert(output.find("\x1b[48;5;")==std::string::npos);
+            if(screen.cells[height-4][width-2]!=(unicode?"\xe2\x95\xaf":"+"))
+                std::fprintf(stderr,"Incomplete retained frame %ux%u unicode=%d bytes=%zu\n",width,height,int(unicode),output.size());
+            const std::string vertical=unicode?"\xe2\x94\x82":"|";
+            for(unsigned r=3;r<height-4;++r)assert(screen.cells[r][0]==vertical&&screen.cells[r][width-2]==vertical);
+            assert(screen.cells[height-4][0]==(unicode?"\xe2\x95\xb0":"+"));
+            assert(screen.cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
+        };
+        render(true);
+        assert(screen.line(height-2).find("select")!=std::string::npos||width<60);
+        view.feed('\r',s,a);render(false);assert(view.editing());
+        view.feed('X',s,a);render(false);
+        view.feed('\x1b',s,a);view.flushEscape(a);render(false);
+        auto incremental=screen.cells;render(true);assert(incremental==screen.cells);
     }
 #endif
 }
