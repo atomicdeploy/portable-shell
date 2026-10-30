@@ -2,6 +2,10 @@
 
 These choices are independent. Semantic coloring is the default on all targets.
 
+Local host command execution is enabled by default; use `--no-exec` or build with
+`PORTABLE_SHELL_HOST_EXEC=OFF` to disable it. `--shortcuts` opts into additional
+readline-style editing keys. See [host execution and remote providers](Host-execution.md).
+
 Default colors follow meaning: green for enabled/success, gray for inactive or
 unknown, amber for warnings/pending changes, red for errors, orange for numbers,
 soft green for strings, violet for commands/choices, and cyan for headings/actions.

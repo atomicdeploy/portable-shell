@@ -13,7 +13,7 @@ ctest --test-dir build --output-on-failure
 
 Core only: add `-DPORTABLE_SHELL_BUILD_HOST=OFF -DPORTABLE_SHELL_BUILD_TESTS=OFF`.
 Small embedded buffers: add `-DPORTABLE_SHELL_COMPACT=ON` (128-byte line storage,
-4 history entries, 4 table rows, 24 commands). Definitions propagate to consumers.
+4 history entries, 4 table rows, 28 commands). Definitions propagate to consumers.
 For ESP8266, put `xtensa-lx106-elf-gcc` on PATH and select
 `-DCMAKE_TOOLCHAIN_FILE=cmake/esp8266-gcc.cmake`. This includes our optional
 freestanding compiler helpers; it does not link libc or libgcc.

@@ -56,6 +56,7 @@ managed wiki pages; existing unmanaged wiki pages are preserved.
 - [Tables and workspace](docs/wiki/Workspace.md)
 - [Numbered menus](docs/wiki/Menus.md) and [text editor](docs/wiki/Text-editor.md)
 - [Telnet and serial](docs/wiki/Transports.md)
+- [Host execution, PTYs and remote files](docs/wiki/Host-execution.md)
 - [Portability](docs/wiki/Portability.md) and [consumer integration](docs/wiki/Integration.md)
 - [CI, security and publishing](docs/wiki/Automation.md)
 - [Verification boundaries](docs/wiki/Verification.md)

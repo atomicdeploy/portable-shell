@@ -10,6 +10,7 @@
 - [📝 Text editor](Text-editor.md)
 - [⚙️ Options](Options.md)
 - [🔌 Transports](Transports.md)
+- [🖥️ Host execution and remote providers](Host-execution.md)
 - [🧩 Embedding](Embedding.md)
 - [🌍 Portability](Portability.md)
 - [🔗 Integration](Integration.md)
