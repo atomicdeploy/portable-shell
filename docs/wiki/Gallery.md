@@ -166,3 +166,16 @@ Actual terminal-byte replay, rendered in Agave on a dark background.
 `PS_HEX_EDITOR=1` enables the editor; run `hex` for the session-buffer demo.
 
 ![Hex editor](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/hex-editor.png)
+
+Unicode mode uses rounded borders with joined column separators. A dedicated
+scrollbar appears only when the buffer exceeds the visible rows. Arrow keys,
+Page Up/Down and Home/End keep the selected byte visible.
+
+`hex` or `hex --columns auto` chooses 1, 2, 4, 8, 16 or 32 bytes per row to fit
+the viewport. `hex --columns 8` fixes eight bytes per row; values 1–32 are accepted.
+Fixed mode preserves its count across resize and displays a resize notice if it
+cannot fit, without discarding edits. Embedders use
+`ps_hex_editor_set_columns(session, 0)` for responsive layout or a nonzero count
+for fixed layout. Monochrome/ASCII terminals retain an ASCII fallback.
+
+![Fixed eight-byte columns](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/hex-fixed.png)

@@ -78,6 +78,9 @@ typedef int (*ps_hex_save_fn)(void *, const ps_byte *, unsigned);
 PS_API int ps_hex_editor_open(ps_session *,const char *title,const ps_byte *data,
     unsigned length,ps_byte *draft,unsigned capacity,ps_hex_save_fn,void *context);
 PS_API unsigned ps_hex_editor_active(const ps_session *);
+/* Zero selects responsive columns (default); 1..32 fixes bytes per row.
+   A fixed layout that cannot fit displays a resize notice without changing data. */
+PS_API int ps_hex_editor_set_columns(ps_session *,unsigned bytes_per_row);
 #ifndef PS_EDITOR
 #define PS_EDITOR 1
 #endif

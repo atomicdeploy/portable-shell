@@ -1,6 +1,6 @@
 static const ps_command builtins[] = {
 #if PS_HEX_EDITOR
-    {"hex", "", "Workspace", builtin, 0, 0},
+    {"hex", "[--columns auto|1..32]", "Workspace", builtin, 0, 0},
 #endif
     {"controls", "[open [page]|dashboard|list|get ID|set ID VALUE]", "Workspace", builtin, 0, 0},
     {"help", "[--headings|--compact] [command]", "Shell", builtin, 0, 0},
