@@ -19,3 +19,4 @@
 * [Progress and values](Meters.md)
 * [File tree picker](File-picker.md)
 - [Live monitoring and logging](Monitoring.md)
+- [Rich text output](Rich-text.md)
