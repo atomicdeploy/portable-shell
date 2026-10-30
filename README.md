@@ -35,6 +35,9 @@ rejects stale or missing files.
 Select a heading with **↑/↓**, then **Enter** or **Space** to toggle it.
 **←** collapses and **→** expands. Sections retain their state when switching
 pages; inline editing remains in the value cell. [Collapsed example](previews/controls-collapsed.png).
+Headings have continuous border rows above and below by default.
+[Compact sections](previews/controls-compact.png) omit those extra rows;
+see [presentation options](OPTIONS.md#presentation).
 
 | Shared device view | Optional vertical tabs |
 | --- | --- |

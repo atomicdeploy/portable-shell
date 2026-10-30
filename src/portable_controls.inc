@@ -3,7 +3,7 @@ static int control_sections(const ps_session *s) {
     return PS_CONTROL_SECTION_ROWS && !(s->table_style & PS_TABLE_CATEGORY_COLUMN);
 }
 /* Encoded presentation rows keep provider indices stable. Headings never write. */
-static unsigned control_items(ps_session *s, unsigned short *items, unsigned *focus) {
+static unsigned control_items(ps_session *s, unsigned short *items, unsigned *focus, unsigned frame) {
     const ps_control_page *p = &s->panel->pages[s->tab];
     unsigned i, n = 0, closed = 0, start = 0;
     *focus = 0;
@@ -13,12 +13,15 @@ static unsigned control_items(ps_session *s, unsigned short *items, unsigned *fo
             start = i;
             closed = *group && (s->control_closed[s->tab][i/8] & (1U << (i%8)));
             if (*group) {
+                /* Reuse an adjacent rule (column header or closed section). */
+                if (frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS) && n && !(items[n-1]&0x2000)) items[n++] = (unsigned short)(i | 0x4000);
                 if (s->selected == i && s->control_header) *focus = n;
                 items[n++] = (unsigned short)(i | 0x8000);
+                if (frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS)) items[n++] = (unsigned short)(i | 0x2000);
             }
         }
         if (closed) {
-            if (i == s->selected) { s->selected = start; s->control_header = 1; *focus = n-1; }
+            if (i == s->selected) { s->selected = start; s->control_header = 1; *focus = n-1-(frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS)); }
         } else {
             if (i == s->selected && !s->control_header) *focus = n;
             items[n++] = (unsigned short)i;
@@ -29,7 +32,7 @@ static unsigned control_items(ps_session *s, unsigned short *items, unsigned *fo
 static int control_navigate(ps_session *s, unsigned key, unsigned step) {
     unsigned short items[256]; unsigned focus, n;
     if (!control_sections(s)) return 0;
-    n = control_items(s,items,&focus);
+    n = control_items(s,items,&focus,0);
     if (!n) return 0;
     if (s->control_header && (key == 13 || key == ' ' || key == PS_KEY_LEFT || key == PS_KEY_RIGHT)) {
         ps_byte *bits = &s->control_closed[s->tab][s->selected/8];

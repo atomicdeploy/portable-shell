@@ -272,7 +272,6 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     auto cell=[&](const char *text,unsigned n){ink(out,0);out.field(text,n);edge(out,s," \xe2\x94\x82 "," | ");};
     edge(out,s,"\xe2\x94\x82 ","| ");if(category)cell("Category",groupWidth);cell("Setting",labelWidth);
     ink(out,0);out.field("Value",valueWidth);edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");
-    gridRule(out,s,w,groupWidth,labelWidth,"\xe2\x94\xbc","\xe2\x94\x9c","\xe2\x94\xa4");
     const unsigned count=rowCount(s);if(selected_>=count)selected_=count?uint8_t(count-1):0;
     const unsigned diagnostics=page_==Led&&!PS_DEVICE_VIEW_MATRIX?(s.lines<24?5:9):page_==Game?3:page_==Pixel?2:0;
     unsigned visible=s.lines>9+diagnostics?s.lines-9-diagnostics:1;
@@ -282,21 +281,28 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     const unsigned budgetRows=(PS_DEVICE_VIEW_FRAME_BYTES > reserve ? PS_DEVICE_VIEW_FRAME_BYTES-reserve : 1)/(w+450U);
     if(visible>budgetRows)visible=budgetRows?budgetRows:1;
     // Separate logical rows from section headings without heap storage.
-    uint16_t logical[PS_DEVICE_VIEW_MAX_ROWS*2];unsigned selectedLine;
-    const unsigned total=sectionItems(s,logical,selectedLine);
+    uint16_t logical[PS_DEVICE_VIEW_MAX_ROWS*4];unsigned selectedLine;
+    const unsigned total=sectionItems(s,logical,selectedLine,true);
     if(visible>(total?total:1))visible=total?total:1;
     if(paintedRows_!=visible){paintAll=true;paintedRows_=visible;}
     const unsigned start=selectedLine>=visible?selectedLine-visible+1:0;
+    gridRule(out,s,w,groupWidth,labelWidth,total&&(logical[start]&0xe000)?"\xe2\x94\xb4":"\xe2\x94\xbc","\xe2\x94\x9c","\xe2\x94\xa4");
     for(unsigned i=0;i<visible;++i){
-        const unsigned line=start+i,at=line<total?(logical[line]&0x7fff):count;
+        const unsigned line=start+i,at=line<total?(logical[line]&0x1fff):count;
         const bool group=line<total&&(logical[line]&0x8000);
+        const unsigned border=line<total?(logical[line]&0x6000):0;
         const Row *r=at<count?s.rows+at:nullptr;const bool selected=r&&at==selected_&&!grid_&&(group==sectionFocus_);
         Snapshot single;single.rows=r;single.rowCount=r?1:0;
-        const uint32_t stamp=hash(single)^at^(group?0x80000000U:0)^(selected?0x40000000U:0)^(group&&sectionClosed(at)?0x20000000U:0);
+        const uint32_t stamp=hash(single)^uint32_t(line<total?logical[line]:0)*16777619U^(selected?0x40000000U:0)^(group&&sectionClosed(at)?0x20000000U:0);
         const bool selectionChanged=(selected_!=paintedSelection_)&&(at==selected_||at==paintedSelection_);
         if(!paintAll&&painted_[i]==stamp&&!selectionChanged&&paintedGrid_==grid_)continue;
         painted_[i]=stamp;
         out.position(6+i);
+        if(border){
+            const bool joined=border==0x4000 ? i&&!(logical[line-1]&0xe000)
+                : (line+1>=total || !(logical[line+1]&0xe000)) && 6+i<s.lines-4-diagnostics;
+            gridRule(out,s,w,groupWidth,labelWidth,!joined?"\xe2\x94\x80":border==0x4000?"\xe2\x94\xb4":"\xe2\x94\xac","\xe2\x94\x9c","\xe2\x94\xa4");continue;
+        }
         if(group){
             char label[241];terminalText(label,sizeof label,r->category);
             for(unsigned j=0;label[j];++j)if(label[j]>='a'&&label[j]<='z')label[j]=char(label[j]-'a'+'A');
@@ -319,7 +325,8 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
         if(paintAll)blankRows(out,s,6+visible,s.lines-4-diagnostics,w,groupWidth,labelWidth);
         out.position(s.lines-3-diagnostics);
     }
-    gridRule(out,s,w,groupWidth,labelWidth,"\xe2\x94\xb4","\xe2\x95\xb0","\xe2\x95\xaf");
+    const bool bottomJoin=6+visible<s.lines-3-diagnostics || !total || !(logical[start+visible-1]&0xe000);
+    gridRule(out,s,w,groupWidth,labelWidth,bottomJoin?"\xe2\x94\xb4":"\xe2\x94\x80","\xe2\x95\xb0","\xe2\x95\xaf");
     if(pageAvailable(page_,s)&&!(PS_DEVICE_VIEW_MATRIX&&page_==Led))renderDiagnostics(out,s,w);
     if(ansi_){out.indent(0);out.position(s.lines-2);}
     base(out);ink(out,0);

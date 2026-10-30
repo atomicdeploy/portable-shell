@@ -191,6 +191,10 @@ class DeviceView {
     }
     GroupLayout groupLayout() const { return groups_; }
     bool sectionSelected() const { return sectionFocus_; }
+    void setSectionBorders(bool enabled) {
+        if(!editing_ && sectionBorders_!=enabled){sectionBorders_=enabled;dirty_=full_=true;}
+    }
+    bool sectionBorders() const { return sectionBorders_; }
     void setTrueColor(bool enabled) { if (trueColor_!=enabled) {trueColor_=enabled;dirty_=full_=true;} }
     bool trueColor() const { return trueColor_; }
     void feedback(const char *text) {
@@ -716,14 +720,17 @@ class DeviceView {
             if(i==selected_ && closed){selected_=uint8_t(start);sectionFocus_=true;break;}
         }
     }
-    unsigned sectionItems(const Snapshot &s,uint16_t *items,unsigned &focus) const {
+    unsigned sectionItems(const Snapshot &s,uint16_t *items,unsigned &focus,bool frame=false) const {
         unsigned total=0;bool closed=false;focus=0;
         for(unsigned i=0;i<rowCount(s);++i){
             if(sections() && (!i || !ps_text_equal(s.rows[i].category,s.rows[i-1].category))){
                 closed=false;
                 if(sectionStart(s,i)){
+                    // Adjacent headings share a rule; the column header frames the first.
+                    if(frame&&sectionBorders_&&total&&!(items[total-1]&0x2000))items[total++]=uint16_t(i|0x4000);
                     if(selected_==i&&sectionFocus_)focus=total;
                     items[total++]=uint16_t(i|0x8000);closed=sectionClosed(i);
+                    if(frame&&sectionBorders_)items[total++]=uint16_t(i|0x2000);
                 }
             }
             if(!closed){
@@ -1155,6 +1162,7 @@ class DeviceView {
     TabLayout tabs_ = HorizontalTabs;
     GroupLayout groups_ = PS_DEVICE_VIEW_CATEGORY_COLUMN ? CategoryColumn : SectionRows;
     bool sectionFocus_ = false;
+    bool sectionBorders_ = true;
     uint8_t closed_[PS_DEVICE_VIEW_TABLE&&PS_DEVICE_VIEW_SECTIONS?PageCount:1][PS_DEVICE_VIEW_TABLE&&PS_DEVICE_VIEW_SECTIONS?(PS_DEVICE_VIEW_MAX_ROWS+7)/8:1]{};
     uint32_t sectionSchema_[PS_DEVICE_VIEW_TABLE&&PS_DEVICE_VIEW_SECTIONS?PageCount:1]{};
     bool trueColor_ = true, dialog_ = false;

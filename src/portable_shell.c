@@ -590,10 +590,10 @@ PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsi
 }
 PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
     if (s->editing)
-        flags = (flags & ~PS_TABLE_CATEGORY_COLUMN) | (s->table_style & PS_TABLE_CATEGORY_COLUMN);
-    if ((s->table_style ^ flags) & PS_TABLE_CATEGORY_COLUMN)
+        flags = (flags & ~(PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS)) | (s->table_style & (PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS));
+    if ((s->table_style ^ flags) & (PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS))
         s->control_header = s->scroll = 0;
-    s->table_style = flags & (PS_TABLE_DEFAULT | PS_TABLE_CATEGORY_COLUMN);
+    s->table_style = flags & (PS_TABLE_DEFAULT | PS_TABLE_CATEGORY_COLUMN | PS_TABLE_COMPACT_SECTIONS);
     s->dirty = 1;
 }
 PS_API unsigned ps_alignof_session(void) {
@@ -707,7 +707,7 @@ static void grid_border(ps_session *s, const Grid *g, unsigned kind, int joined)
     unsigned i, j;
     const char *left = kind == 0 ? "╭" : kind == 2 ? "╰" : "├";
     const char *right = kind == 0 ? "╮" : kind == 2 ? "╯" : "┤";
-    const char *middle = kind == 0 ? "┬" : (kind == 2 || kind == 3) ? "┴" : "┼";
+    const char *middle = kind == 0 || kind == 4 ? "┬" : (kind == 2 || kind == 3) ? "┴" : "┼";
     ink(s, 7);
     out(s, (s->io.flags & PS_UNICODE) ? left : "+");
     for (i = 0; i < g->count; ++i) {
@@ -833,7 +833,7 @@ static void progress_bar(ps_session *s, unsigned width_) {
 static void render(ps_session *s) {
     unsigned w = s->io.columns, h = s->io.rows, i, count, slots, ids[PS_ROWS], inner;
     unsigned displayCount, focus;
-    unsigned short controlItems[256];
+    unsigned short controlItems[512];
     Grid grid;
     static const char *const tabs[] = {"Tasks", "Variables", "Jobs", "Session"};
     if (!s->board || !(s->io.flags & PS_INTERACTIVE))
@@ -861,7 +861,7 @@ static void render(ps_session *s) {
     if (s->selected >= count)
         s->selected = count ? count - 1 : 0;
     focus = s->selected;
-    displayCount = s->control_view ? control_items(s,controlItems,&focus) : count;
+    displayCount = s->control_view ? control_items(s,controlItems,&focus,1) : count;
     if (s->scroll > focus)
         s->scroll = focus;
     if (focus >= s->scroll + slots)
@@ -904,7 +904,7 @@ static void render(ps_session *s) {
         out(s, " complete");
     }
     reset(s);
-    at(s, 2, 1);
+    at(s, 3, 1);
     ansi(s, "\033[2K");
     out(s, "  ");
     for (i = 0; i < (s->control_view ? s->panel->count : 4); ++i) {
@@ -930,7 +930,7 @@ static void render(ps_session *s) {
         reset(s);
         out(s, " ");
     }
-    at(s, 3, 1);
+    at(s, 2, 1);
     ansi(s, "\033[2K");
     if (s->control_view && !control_sections(s) && count && grid.count == 2) {
         out(s, "  ");
@@ -955,17 +955,24 @@ static void render(ps_session *s) {
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
     reset(s);
     at(s, 6, 2);
-    grid_border(s, &grid, 1, 1);
+    grid_border(s, &grid, s->control_view && s->scroll<displayCount && (controlItems[s->scroll]&0xe000) ? 3 : 1, 1);
     if (!s->control_view && s->tab == 0)
         visible(s, ids);
     for (i = 0; i < slots; ++i) {
         unsigned idx = s->scroll + i;
-        unsigned heading = 0;
+        unsigned heading = 0, rule = 0;
         if (s->control_view && idx < displayCount) {
             heading = controlItems[idx] & 0x8000;
-            idx = controlItems[idx] & 0x7fff;
+            rule = controlItems[idx] & 0x6000;
+            idx = controlItems[idx] & 0x1fff;
         } else if (s->control_view) idx = count;
         at(s, 7 + i, 2);
+        if (rule) {
+            unsigned line = s->scroll+i;
+            unsigned joined = rule == 0x4000 ? (i && !(controlItems[line-1]&0xe000))
+                : (i+1<slots && (line+1>=displayCount || !(controlItems[line+1]&0xe000)));
+            grid_border(s,&grid,rule==0x4000?3:4,joined);continue;
+        }
         ink(s, 7);
         out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
         if (heading) {
@@ -1021,7 +1028,7 @@ static void render(ps_session *s) {
         reset(s);
     }
     at(s, h - 6, 2);
-    grid_border(s, &grid, 3, 1);
+    grid_border(s, &grid, 3, !(s->control_view && s->scroll+slots-1<displayCount && (controlItems[s->scroll+slots-1]&0xe000)));
     at(s, h - 5, 2);
     grid_vertical(s);
     spaces(s, w - 4);

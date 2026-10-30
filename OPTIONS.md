@@ -12,6 +12,12 @@ is per page and per view; a changed device row schema resets that page's folds.
 An empty category adds no heading. Repeated non-adjacent categories form separate
 sections. ASCII uses `+`/`-` disclosure markers.
 
+Continuous border rows frame each section heading above and below by default.
+For higher density, C callers add `PS_TABLE_COMPACT_SECTIONS` to their table style;
+C++ callers use `view.setSectionBorders(false)`. Restore framing by removing that
+flag or calling `setSectionBorders(true)`. The compact mode keeps section selection,
+folding, colors and inline value editing. Changes during an active edit are ignored.
+
 For the retained category-column layout, call
 `ps_set_table_style(session, PS_TABLE_DEFAULT | PS_TABLE_CATEGORY_COLUMN)` in C,
 or `view.setGroupLayout(DeviceView::CategoryColumn)` in C++. Restore the default

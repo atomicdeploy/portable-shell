@@ -37,8 +37,11 @@ struct Screen {
         assert(cells[0][left]==(unicode?"\xe2\x95\xad":"+"));
         assert(cells[0][width-2]==(unicode?"\xe2\x95\xae":"+"));
         for(unsigned r=1;r<height-4;++r){
-            assert(cells[r][left]==(r==2||r==4?(unicode?"\xe2\x94\x9c":"+"):vertical));
-            assert(cells[r][width-2]==(r==2||r==4?(unicode?"\xe2\x94\xa4":"+"):vertical));
+            const bool rule=cells[r][left]==(unicode?"\xe2\x94\x9c":"+");
+            assert(cells[r][left]==(rule?(unicode?"\xe2\x94\x9c":"+"):vertical));
+            assert(cells[r][width-2]==(rule?(unicode?"\xe2\x94\xa4":"+"):vertical));
+            if(rule)for(unsigned c=left+1;c<width-2;++c)
+                assert(cells[r][c]==(unicode?"─":"-")||cells[r][c]==(unicode?"┬":"+")||cells[r][c]==(unicode?"┴":"+")||cells[r][c]==(unicode?"┼":"+"));
         }
         assert(cells[height-4][left]==(unicode?"\xe2\x95\xb0":"+"));
         assert(cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
@@ -48,13 +51,19 @@ struct Screen {
         for(unsigned col=left+1;col<width-2;++col)if(cells[3][col]==vertical){
             ++separators;
             assert(cells[2][col]==(unicode?"\xe2\x94\xac":"+"));
-            assert(cells[4][col]==(unicode?"\xe2\x94\xbc":"+"));
+            assert(cells[4][col]==(unicode?"┼":"+")||cells[4][col]==(unicode?"┴":"+"));
             for(unsigned r=5;r<height-4;++r){
                 const auto &marker=cells[r][left+2];
                 const bool section=marker=="▾"||marker=="▸"||marker=="-"||marker=="+";
-                if(!section)assert(cells[r][col]==vertical);
+                const bool rule=cells[r][left]==(unicode?"├":"+");
+                if(!section&&!rule)assert(cells[r][col]==vertical);
+                if(rule&&unicode){
+                    const bool above=cells[r-1][col]==vertical;
+                    const bool below=cells[r+1][col]==vertical;
+                    assert(cells[r][col]==(above?(below?"┼":"┴"):(below?"┬":"─")));
+                }
             }
-            assert(cells[height-4][col]==(unicode?"\xe2\x94\xb4":"+"));
+            assert(cells[height-4][col]==(unicode?(cells[height-5][col]==vertical?"┴":"─"):"+"));
         }
         assert(separators==(PS_DEVICE_VIEW_CATEGORY_COLUMN&&width-1-left>=95?2U:1U));
         if(left)for(unsigned r=1;r<height-4;++r)assert(cells[r][0]==vertical&&cells[r][19]==vertical);
@@ -64,12 +73,13 @@ struct Screen {
 int main(){
 #if PS_DEVICE_VIEW_TABLE
     for(unsigned width:{40U,64U,80U,120U,240U})for(unsigned height:{16U,24U,40U,100U})
-    for(bool vertical:{false,true})for(bool unicode:{false,true}){
+    for(bool vertical:{false,true})for(bool unicode:{false,true})for(bool borders:{false,true}){
         V view;V::Snapshot s;V::Action a;V::Row rows[32];
         for(unsigned i=0;i<32;++i){rows[i]={"Setting","setting","Observed",true};rows[i].category=i<1?"Lighting":"Connection";}
         s.rows=rows;s.rowCount=2;s.columns=uint16_t(width);s.lines=uint16_t(height);s.unicode=unicode;
         s.terminalSettings=s.cloudSettings=s.notificationSettings=s.clockSettings=true;
         view.begin();view.setTabLayout(vertical?V::VerticalTabs:V::HorizontalTabs);
+        view.setSectionBorders(borders);
         Screen screen(width,height);std::string output;
         auto render=[&](bool force){output.clear();view.render(s,[&](const uint8_t *p,size_t n){output.append((const char*)p,n);},force);assert(output.size()<PS_DEVICE_VIEW_FRAME_BYTES);screen.feed(output);};
         auto feed=[&](const char *keys){while(*keys)view.feed(uint8_t(*keys++),s,a);};
@@ -78,7 +88,6 @@ int main(){
         screen.tableBorders(left,unicode);
         assert(screen.cells[0][left]==(unicode?"\xe2\x95\xad":"+"));
         assert(screen.cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
-        assert(screen.cells[height-5][left]==(unicode?"\xe2\x94\x82":"|"));
         assert(screen.line(height-1).find("Tab pages")!=std::string::npos);
         assert(screen.line(height-2).find("select")!=std::string::npos);
         if(left)assert(screen.line(2).find("[Device]")!=std::string::npos);
