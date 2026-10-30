@@ -25,7 +25,7 @@ include(GNUInstallDirs)
 install(TARGETS portable_shell ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES include/portable_shell.h include/portable_shell_device.h include/portable_remote.h
   include/portable_terminal.h include/portable_editor.h
-  include/portable_segments.h include/portable_meter.h include/portable_monitor.h include/portable_rich.h include/portable_undo.h include/portable_screen.h include/portable_async.h include/portable_osc.h include/portable_command_line.h include/portable_parse.h include/portable_probe.h
+  include/portable_segments.h include/portable_meter.h include/portable_monitor.h include/portable_rich.h include/portable_undo.h include/portable_screen.h include/portable_async.h include/portable_table_policy.h include/portable_osc.h include/portable_command_line.h include/portable_parse.h include/portable_probe.h
   include/portable_shell_editor.hpp include/portable_device_view.hpp
   include/portable_device_table.hpp include/portable_style.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -443,6 +443,17 @@ if(PORTABLE_SHELL_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
 endif()
 
 if(PORTABLE_SHELL_BUILD_TESTS)
+  add_executable(table_policy_checks tests/table_policy_checks.c)
+  target_link_libraries(table_policy_checks PRIVATE portable_shell)
+  if(PORTABLE_SHELL_ASCII_ONLY)
+    target_compile_definitions(table_policy_checks PRIVATE PS_ASCII_ONLY)
+  endif()
+  if(NOT MSVC)
+    target_compile_options(table_policy_checks PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+  else()
+    target_compile_options(table_policy_checks PRIVATE /UNDEBUG)
+  endif()
+  add_test(NAME table_policy_checks COMMAND table_policy_checks)
   add_executable(osc_checks tests/osc_checks.c)
   target_link_libraries(osc_checks PRIVATE portable_shell)
   if(NOT MSVC)

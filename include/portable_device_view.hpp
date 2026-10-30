@@ -1,3 +1,4 @@
+#include "portable_table_policy.h"
 #ifndef PORTABLE_DEVICE_VIEW_HPP
 #define PORTABLE_DEVICE_VIEW_HPP
 #include "portable_shell_editor.hpp"
@@ -216,9 +217,13 @@ class DeviceView {
     }
     bool tabsInsideTable() const { return tabsInsideTable_; }
     void setFooterKeycaps(bool enabled){keycaps_=enabled;dirty_=full_=true;}
+    // Indicators: 0 chevrons (ASCII +/-), 1 +/-, 2 none.
+    void setSectionIndicators(unsigned style){if(!editing_&&style<3){sectionIndicators_=style;dirty_=full_=true;}}
+    void setSectionsCollapsible(bool enabled){if(!editing_){sectionsCollapsible_=enabled;dirty_=full_=true;}}
+    void setReserveScrollbar(bool enabled){reserveScrollbar_=enabled;dirty_=full_=true;}
     void setCompactScrollbar(bool enabled){compactScrollbar_=enabled;dirty_=full_=true;}
     // Caller retains the marker string for the lifetime of this setting.
-    void setSelectionMarker(const char *marker){selectionMarker_=marker?marker:"";dirty_=full_=true;}
+    void setSelectionMarker(const char *marker){selectionMarker_=marker;dirty_=full_=true;}
     void setFooterGrid(bool enabled){footerGrid_=enabled;dirty_=full_=true;}
     void setSynchronizedOutput(bool enabled){syncOutput_=enabled;}
     void setFooterEmphasis(bool enabled){footerEmphasis_=enabled;dirty_=full_=true;}
@@ -569,7 +574,7 @@ class DeviceView {
             (!i || !ps_text_equal(s.rows[i].category,s.rows[i-1].category));
     }
     bool sectionClosed(unsigned i) const {
-        return sections() && (closed_[page_][i/8] & (1U<<(i%8)));
+        return sectionsCollapsible_ && sections() && (closed_[page_][i/8] & (1U<<(i%8)));
     }
     void syncSections(const Snapshot &s) {
         if (!sections()) return;
@@ -618,7 +623,7 @@ class DeviceView {
         return total;
     }
     void toggleSection(const Snapshot &s,int direction) {
-        if(!sections()||!sectionFocus_||selected_>=rowCount(s)||!sectionStart(s,selected_))return;
+        if(!sectionsCollapsible_||!sections()||!sectionFocus_||selected_>=rowCount(s)||!sectionStart(s,selected_))return;
         uint8_t &bits=closed_[page_][selected_/8];const unsigned mask=1U<<(selected_%8);
         if(direction<0)bits|=uint8_t(mask);else if(direction>0)bits&=uint8_t(~mask);else bits^=uint8_t(mask);
         notice_[0]=0;dirty_=full_=true;
@@ -991,7 +996,9 @@ class DeviceView {
     bool trueColor_ = true, dialog_ = false;
     bool keycaps_=PS_FOOTER_KEYCAPS!=0,tabBrackets_=PS_TAB_BRACKETS!=0;
     bool compactScrollbar_=false;
-    const char *selectionMarker_="";
+    const char *selectionMarker_=nullptr;
+    bool sectionsCollapsible_=true,reserveScrollbar_=false;
+    unsigned sectionIndicators_=0,paintedGutter_=0;
     bool footerGrid_=PS_FOOTER_GRID!=0,footerEmphasis_=false;
     bool syncOutput_=PS_SYNC_OUTPUT!=0;
     unsigned editRow_ = 6, editColumn_ = 30, editWidth_ = 40;

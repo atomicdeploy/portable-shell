@@ -73,10 +73,26 @@ struct Screen {
     }
 };
 
+static void adaptiveGutter(){
+    V view;V::Snapshot s;V::Row rows[32];V::Action a;
+    for(auto &r:rows)r={"Item","item","value",true};
+    s.rows=rows;s.rowCount=1;s.columns=100;s.lines=24;s.unicode=true;
+    view.begin();Screen screen(100,24);
+    auto paint=[&](bool force){std::string out;view.render(s,[&](const uint8_t *p,size_t n){out.append((const char*)p,n);},force);screen.feed(out);};
+    paint(true);assert(screen.cells[3][98]=="╮"); // No gutter for a fitting table.
+    s.rowCount=32;paint(false);assert(screen.cells[3][96]=="╮");
+    auto incremental=screen.cells;paint(true);assert(incremental==screen.cells);
+    s.rowCount=1;paint(false);assert(screen.cells[3][98]=="╮");
+    incremental=screen.cells;paint(true);assert(incremental==screen.cells);
+    view.setReserveScrollbar(true);paint(false);assert(screen.cells[3][96]=="╮");
+    view.setReserveScrollbar(false);paint(false);assert(screen.cells[3][98]=="╮");
+    (void)a;
+}
 int main(){
+    adaptiveGutter();
     for(unsigned width:{40U,64U,80U,120U,240U})for(unsigned height:{16U,24U,40U,100U})
     for(bool compact:{false,true})for(bool vertical:{false,true})for(bool unicode:{false,true})for(bool borders:{false,true})for(bool inside:{false,true}){
-        V view;view.setCompactScrollbar(compact);V::Snapshot s;V::Action a;V::Row rows[32];
+        V view;view.setReserveScrollbar(true);view.setCompactScrollbar(compact);V::Snapshot s;V::Action a;V::Row rows[32];
         for(unsigned i=0;i<32;++i){rows[i]={"Setting","setting","Observed",true};rows[i].category=i<1?"Lighting":"Connection";}
         s.rows=rows;s.rowCount=2;s.columns=uint16_t(width);s.lines=uint16_t(height);s.unicode=unicode;
         s.terminalSettings=s.cloudSettings=s.notificationSettings=s.clockSettings=true;

@@ -51,7 +51,7 @@ int main(){
                 assert(label==std::string(PS_TAB_BRACKETS?"[":" ")+names[view.page()]+(PS_TAB_BRACKETS?"]":" "));
             }
 #endif
-            const unsigned expected=width-1-(ansi&&width>=64?2:0);
+            const unsigned expected=width-1;
             for(unsigned row=0;row<3;++row){
                 if(rows[row].size()!=expected)std::fprintf(stderr,"Header width=%u row=%u actual=%u inside=%d ansi=%d page=%u\n",width,row,unsigned(rows[row].size()),int(inside),int(ansi),unsigned(view.page()));
                 assert(rows[row].size()==expected);

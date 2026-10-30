@@ -265,12 +265,26 @@ Set the C table flag `PS_TABLE_COMPACT_SCROLLBAR` or call
 `DeviceView::setCompactScrollbar(true)` to keep the border scrollbar at any width.
 Both C++ profiles share these scrollbar options.
 
-Ordinary editable rows have an empty selection marker by default; their
-background indicates selection. Only expandable category headings keep their
-disclosure arrows. Customize with `ps_set_selection_marker(session, "* ")` or
-`view.setSelectionMarker("* ")`; `""` removes the marker, and `" "` reserves
-blank space. The C API copies up to 31 bytes; the C++ setting borrows a string
-that must remain valid. Markers are clipped to the label area in all profiles.
+Selection markers are automatic by default: the arrow appears when the table
+has no category headings, categories are static (not collapsible), or the
+disclosure indicators use +/- or no icons. Unicode collapsible chevrons suppress
+the row arrow to avoid ambiguity; the selected background remains.
+
+An explicit marker always wins: ps_set_selection_marker(session, "* ") or
+view.setSelectionMarker("* "). An empty string hides it; a space reserves blank
+space. Pass NULL/nullptr to restore automatic behavior. The C API copies up to
+31 bytes; C++ borrows the string.
+
+C section flags: PS_TABLE_STATIC_SECTIONS, PS_TABLE_SECTION_PLUS_MINUS and
+PS_TABLE_SECTION_NO_ICONS. C++ equivalents: setSectionsCollapsible(false) and
+setSectionIndicators(0) for chevrons, (1) for +/-, or (2) for no icons.
+Static headings do not collapse, and do not advertise toggle shortcuts.
+
+A fitting table does not reserve scrollbar space. Set PS_TABLE_RESERVE_SCROLLBAR
+or call view.setReserveScrollbar(true) when a dynamic table is expected to grow
+and should retain a stable width. Otherwise the gutter follows the actual
+displayed row count, including section headings and separators. Compact
+border-scrollbar mode still takes no extra columns.
 
 Actual-output comparison fixtures: [separate scrollbar](https://github.com/atomicdeploy/portable-shell/blob/main/previews/device-scrollbar.png)
 and [compact scrollbar](https://github.com/atomicdeploy/portable-shell/blob/main/previews/device-scrollbar-compact.png).

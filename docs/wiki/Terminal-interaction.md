@@ -56,6 +56,6 @@ This deterministic fixture uses the new screen API, including a viewport copied 
 
 ## Local footprint checkpoint
 
-On x86-64 Windows with the default capacities after the OSC integration addition, the host executable is 130,560 bytes on disk; status reports 39,440 caller-owned session bytes and zero core heap bytes. The event editor occupies 6,928 bytes. A cell occupies 24 bytes, so two 96 by 24 canvas arrays occupy 110,592 bytes. These are binary/storage measurements, not process working-set or board-runtime measurements; target ABI, compiler flags and selected features change them.
+On x86-64 Windows with the default capacities after the contextual table layout addition, the host executable is 130,560 bytes on disk; status reports 39,448 caller-owned session bytes and zero core heap bytes. The event editor occupies 6,928 bytes. A cell occupies 24 bytes, so two 96 by 24 canvas arrays occupy 110,592 bytes. These are binary/storage measurements, not process working-set or board-runtime measurements; target ABI, compiler flags and selected features change them.
 
 See [Terminal OSC integration](OSC.md) for window titles, terminal progress and working-directory reporting.
