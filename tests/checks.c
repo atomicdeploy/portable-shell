@@ -522,6 +522,32 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         before = probe.writes;
         ps_key(s, 13);
         CHECK(probe.writes == before, "label cannot be edited");
+#if PS_MOUSE
+        ps_key(s,27);
+        ps_set_table_style(s,PS_TABLE_DEFAULT|PS_TABLE_CATEGORY_COLUMN);
+        ps_resize(s,100,30);
+        probe.mode=0;probe.values[0].flags=probe.values[1].flags=PS_CONTROL_VALID;
+        probe.values[0].number=0;probe.values[1].number=0;
+        ps_panel_open(s,0);ps_feed(s,"",0);
+        before=probe.writes;
+        feed(s,"\033[<0;75;7M\033[<0;75;7m");
+        CHECK(probe.values[0].number==1&&probe.writes==before+1,"mouse value click toggles once, release does not toggle");
+        feed(s,"\033[<0;75;8M\033[<32;90;8M\033[<0;90;8m");
+        CHECK(probe.values[1].number>0,"mouse press and drag adjusts level through provider");
+        before=probe.writes;
+        feed(s,"\033[<32;95;8M\033[<0;99999;8M\033[<0;0;8M");
+        CHECK(probe.writes==before,"released drag and invalid coordinates cannot write");
+        probe.values[1].flags=PS_CONTROL_VALID|PS_CONTROL_LOCKED;
+        feed(s,"\033[<0;90;8M\033[<0;90;8m");
+        CHECK(probe.writes==before,"mouse cannot bypass locked control");
+        clear();feed(s,"\033[<2;75;9M\033[<2;75;9m");
+        CHECK(has(t.output,"Apply")&&has(t.output,"Cancel"),"right click opens value dialog");
+        feed(s,"\033[<2;75;9M\033[<2;75;9m");
+        clear();feed(s,"\033[<0;26;3M\033[<0;26;3m");
+        CHECK(has(t.output,"Backend"),"mouse switches tabs");
+        ps_key(s,27);clear();feed(s,"echo mouse-clean\r");
+        CHECK(has(t.output,"mouse-clean"),"mouse teardown leaves prompt usable");
+#endif
         CHECK(ps_panel_attach(s, 0), "provider detaches cleanly");
         cfg.flags = 0;
         s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);

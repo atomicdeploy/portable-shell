@@ -270,6 +270,8 @@ static void control_overlay(ps_session *s, const Grid *table) {
             x += table->widths[i] + 3;
         while (cells(s->edit + start, s->editpos - start, s->io.flags) >= w - 2)
             start = next(s->edit, start);
+        s->mouse_edit_x=x+1;s->mouse_edit_y=s->control_edit_row;
+        s->mouse_edit_start=start;s->mouse_edit_width=w-2;
         at(s, s->control_edit_row,
            x + 1 + cells(s->edit + start, s->editpos - start, s->io.flags));
         ansi(s, "\033[?25h");
@@ -319,6 +321,8 @@ static void control_overlay(ps_session *s, const Grid *table) {
     }
     cursor_x = x + 13 + cells(s->edit + start, s->editpos - start, s->io.flags);
     cursor_y = y + 4;
+    s->mouse_edit_x=x+13;s->mouse_edit_y=cursor_y;
+    s->mouse_edit_start=start;s->mouse_edit_width=w-17;
     at(s, y + 5, x + 3);
     ink(s, 0);
     if (c->kind == PS_CONTROL_LEVEL) {

@@ -12,6 +12,13 @@ int portable_terminal_checks(void) {
     unsigned char decoded;
     unsigned i;
     char safe[32], fmt[6];
+    {
+        ps_mouse_event event;
+        if(!ps_mouse_parse("<32;120;40M",&event)||event.button!=32||event.column!=120||event.row!=40||event.release)return 11;
+        if(!ps_mouse_parse("<0;1;1m",&event)||!event.release)return 12;
+        if(ps_mouse_parse("<0;0;1M",&event)||ps_mouse_parse("<0;65536;1M",&event)||
+           ps_mouse_parse("<0;;1M",&event)||ps_mouse_parse("<0;1;1Mx",&event))return 13;
+    }
     const unsigned char malformed[] = {255, 250, 31, 0, 80, 255, 241, 'x', '\r', 255, 240};
     ps_telnet_init(&telnet, PS_TN_BINARY, 80, 24);
     writes = 0;

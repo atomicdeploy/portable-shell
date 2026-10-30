@@ -5,6 +5,7 @@
 #include <windows.h>
 #include "portable_shell.h"
 #include "portable_shell_device.h"
+#include "portable_terminal.h"
 static unsigned use_device_commands;
 static ps_device_profile profiles[4];
 #define CLIENTS 4
@@ -208,6 +209,7 @@ static void keyboard(ps_session *s) {
     unsigned used = 0;
     DWORD n, i;
     static unsigned high = 0;
+    static DWORD mouse_buttons=0;
     if (!ReadConsoleInputW(input, events, 32, &n))
         return;
     for (i = 0; i < n; ++i) {
@@ -220,6 +222,33 @@ static void keyboard(ps_session *s) {
                 used = 0;
             }
             resize(s);
+            continue;
+        }
+        if(PS_MOUSE && events[i].EventType==MOUSE_EVENT){
+            MOUSE_EVENT_RECORD *m=&events[i].Event.MouseEvent;
+            CONSOLE_SCREEN_BUFFER_INFO info;
+            unsigned code,release=0;char packet[48];
+            DWORD buttons=m->dwButtonState&0xffff;
+            if(m->dwEventFlags==DOUBLE_CLICK)continue; /* Press already handled. */
+            if(m->dwEventFlags==MOUSE_WHEELED)code=(SHORT)HIWORD(m->dwButtonState)>0?64:65;
+            else if(m->dwEventFlags==MOUSE_HWHEELED)continue;
+            else {
+                DWORD held=buttons?buttons:mouse_buttons;
+                code=(held&FROM_LEFT_1ST_BUTTON_PRESSED)?0:(held&RIGHTMOST_BUTTON_PRESSED)?2:1;
+                release=buttons==0;
+                if(m->dwEventFlags==MOUSE_MOVED){if(!buttons)continue;code|=32;}
+                mouse_buttons=buttons;
+            }
+            if(m->dwControlKeyState&SHIFT_PRESSED)code|=4;
+            if(m->dwControlKeyState&(LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))code|=8;
+            if(m->dwControlKeyState&(LEFT_CTRL_PRESSED|RIGHT_CTRL_PRESSED))code|=16;
+            if(!GetConsoleScreenBufferInfo(output,&info))continue;
+            {
+                int x=m->dwMousePosition.X-info.srWindow.Left+1,y=m->dwMousePosition.Y-info.srWindow.Top+1;
+                if(x<1||y<1)continue;
+                ps_terminal_format(packet,sizeof packet,"\033[<%u;%u;%u%s",code,(unsigned)x,(unsigned)y,release?"m":"M");
+                keyboard_append(s,batch,&used,(const ps_byte*)packet,length(packet));
+            }
             continue;
         }
         if (events[i].EventType != KEY_EVENT || !k->bKeyDown)
@@ -600,7 +629,7 @@ int host_main(void) {
     if (console_in && (flags & PS_INTERACTIVE))
         SetConsoleMode(input, (input_mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT |
                                               ENABLE_PROCESSED_INPUT | ENABLE_QUICK_EDIT_MODE)) |
-                                  ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS);
+                                  ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS | (PS_MOUSE?ENABLE_MOUSE_INPUT:0));
     ps_start(s);
     if (board)
         ps_execute(s, board == 2 ? "controls" : "board");

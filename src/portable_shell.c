@@ -159,6 +159,9 @@ struct ps_session {
     int status;
     unsigned esc, esc_len;
     char escbuf[32];
+    unsigned mouse_edit_x, mouse_edit_y, mouse_edit_start, mouse_edit_width;
+    unsigned mouse_tab_left[8], mouse_tab_right[8];
+    unsigned mouse_drag;
     ps_u32 esc_time, now, last_paint;
     unsigned paste, paste_match, suppress_lf, overflow;
     unsigned search, search_index;
@@ -744,10 +747,13 @@ static void table_open(ps_session *s, unsigned tab) {
         s->board = 1;
         reset(s);
         ansi(s, "\033[?1049h\033[?25l\033[2J");
+    if(PS_MOUSE)ansi(s,"\033[?1002h\033[?1006h");
     }
     s->dirty = 1;
 }
 static void table_close(ps_session *s) {
+    if(PS_MOUSE)ansi(s,"\033[?1002l\033[?1006l");
+    s->mouse_drag=0;
     s->editing = 0;
     s->dialog = s->control_view = 0;
     s->board = 0;
@@ -852,6 +858,9 @@ static void render(ps_session *s) {
     if (!s->board || !(s->io.flags & PS_INTERACTIVE))
         return;
     s->dirty = 0;
+    s->mouse_edit_width=0;
+    zero(s->mouse_tab_left,sizeof s->mouse_tab_left);
+    zero(s->mouse_tab_right,sizeof s->mouse_tab_right);
     s->last_paint = s->now;
     reset(s);
     ansi(s, "\033[?25l");
@@ -928,6 +937,8 @@ static void render(ps_session *s) {
         if (((s->control_view && w < 80) || (inside && w<60)) && i != s->tab)
             continue;
         if(inside&&tabUsed+segment>w-4)continue;
+        s->mouse_tab_left[i]=tabUsed+2+(inside?1:0);
+        s->mouse_tab_right[i]=s->mouse_tab_left[i]+segment-1;
         if (i == s->tab) {
             surface(s, 1);
             if (!(s->io.flags & PS_COLOR))
@@ -1158,6 +1169,8 @@ static void render(ps_session *s) {
             x += grid.widths[i] + 3;
         while (cells(s->edit + start, s->editpos - start, s->io.flags) >= width)
             start = next(s->edit, start);
+        s->mouse_edit_x=x;s->mouse_edit_y=body+s->selected-s->scroll;
+        s->mouse_edit_start=start;s->mouse_edit_width=width;
         at(s, body + s->selected - s->scroll, x);
         if (s->io.flags & PS_COLOR)
             surface(s, 1);
@@ -2319,9 +2332,15 @@ PS_API void ps_progress(ps_session *s, const char *name, unsigned done, unsigned
     s->job.cancelled = 0;
     s->dirty = 1;
 }
+#include "portable_mouse.inc"
 static void escape_key(ps_session *s) {
     const char *p = s->escbuf;
     unsigned key = 0;
+    if(p[0]=='['&&p[1]=='<'){
+        ps_mouse_event event;
+        if(PS_MOUSE&&ps_mouse_parse(p+1,&event))table_mouse(s,&event);
+        return;
+    }
     if (equal(p, "[A") || equal(p, "OA"))
         key = PS_KEY_UP;
     else if (equal(p, "[B") || equal(p, "OB"))
@@ -2556,6 +2575,7 @@ PS_API void ps_finish(ps_session *s) {
         ps_tick(s, s->now + 1);
 }
 PS_API void ps_close(ps_session *s) {
+    if(PS_MOUSE && s->board)ansi(s,"\033[?1002l\033[?1006l");
     if (s->board) {
         ansi(s, "\033[?1049l");
         s->board = 0;

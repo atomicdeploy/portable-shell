@@ -1,5 +1,8 @@
 #ifndef PORTABLE_SHELL_H
 #define PORTABLE_SHELL_H
+#ifndef PS_MOUSE
+#define PS_MOUSE 1
+#endif
 #ifdef __cplusplus
 extern "C" {
 #endif
