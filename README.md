@@ -114,3 +114,9 @@ Application callbacks own storage, authorization and physical side effects.
 ### Callbacks and async work
 
 Commands, input and device providers support callbacks. Optional cooperative jobs add deferred completion, cancellation, deadlines and fair polling; a bounded byte queue supports partial transport writes. Everything uses caller-owned storage. See [async integration](https://github.com/atomicdeploy/portable-shell/wiki/Async) and the [tested command example](examples/async_command.h).
+
+### Chromatic Snake
+
+An optional playable demo with RGB scales, directional eyes, gem food, scoring, pause/restart and standard terminal BEL feedback. Build with PORTABLE_SHELL_SNAKE_EXAMPLE=ON. [Controls and embedding](https://github.com/atomicdeploy/portable-shell/wiki/Snake).
+
+![Snake demo output replay](previews/snake.png)

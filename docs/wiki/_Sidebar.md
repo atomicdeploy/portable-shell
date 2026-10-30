@@ -23,3 +23,5 @@
 - [Terminal interaction and compatibility](Terminal-interaction.md)
 
 - [Callbacks and async](Async.md)
+
+- [Snake demo](Snake.md)
