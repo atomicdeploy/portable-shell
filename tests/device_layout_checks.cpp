@@ -65,6 +65,19 @@ int main(){
         // Shrinking populated content must erase old rows, including sidebar updates.
         s.rowCount=32;render(false);s.rowCount=1;render(false);
         incremental=screen.cells;render(true);assert(incremental==screen.cells);
+        s.cloudSettings=s.notificationSettings=s.clockSettings=false;render(false);
+        incremental=screen.cells;render(true);assert(incremental==screen.cells);
+        // Keep a draft across a resize that changes the sidebar fallback.
+        feed("\r\x15" "Resize");render(false);
+        s.columns=width==40?80:40;screen=Screen(s.columns,height);render(false);
+        assert(std::string(view.draft())=="Resize");
+        assert(screen.line(height-2).find("apply")!=std::string::npos);
+        feed("\x1b");view.flushEscape(a);s.columns=uint16_t(width);screen=Screen(width,height);render(false);
+        // Matrix and settings pages share the same window footer in both layouts.
+        s.canLeds=true;uint8_t states[80]={};s.cellStates=states;
+        feed("\t\t");render(false);assert(view.page()==V::Led);
+        assert(screen.line(height-1).find("Tab pages")!=std::string::npos);
+        assert(screen.cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
     }
 #endif
 }

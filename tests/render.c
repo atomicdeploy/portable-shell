@@ -16,6 +16,7 @@ typedef struct {
 } Cell;
 static Cell screen[H][W];
 static unsigned row, col, fg = 0xf1e7ff, bg = 0x17131f, escape, used;
+static unsigned saved_row, saved_col;
 static unsigned default_fg = 0xf1e7ff, default_bg = 0x17131f;
 static char sequence[64], utf[5];
 static unsigned utf_n, utf_left;
@@ -89,6 +90,14 @@ static void csi(char end) {
         col = a[0] ? a[0] - 1 : 0;
     else if (end == 'C')
         col += a[0] ? a[0] : 1;
+    else if (end == 'D') {
+        unsigned amount = a[0] ? a[0] : 1;
+        col = col > amount ? col - amount : 0;
+    } else if (end == 's') {
+        saved_row = row; saved_col = col;
+    } else if (end == 'u') {
+        row = saved_row; col = saved_col;
+    }
     else if (end == 'J') {
         for (r = 0; r < H; ++r)
             for (c = 0; c < W; ++c)
@@ -167,6 +176,7 @@ static void sink(void *ctx, const unsigned char *p, unsigned count) {
             col = 0;
             continue;
         }
+        if (c == 8) { if (col) --col; continue; }
         if (c == 10) {
             ++row;
             continue;
@@ -350,7 +360,7 @@ static void feed(ps_session *s, const char *p) {
 /* Shared ANSI replay surface for the optional device-view regression pictures. */
 void ps_replay_reset(void) {
     unsigned r,c;
-    row=col=escape=used=utf_n=utf_left=0;fg=default_fg=0xabb2bf;bg=default_bg=0x282c34;
+    row=col=saved_row=saved_col=escape=used=utf_n=utf_left=0;fg=default_fg=0xabb2bf;bg=default_bg=0x282c34;
     for(r=0;r<H;++r)for(c=0;c<W;++c)blank(r,c);
 }
 void ps_replay_feed(const unsigned char *bytes,unsigned count) { sink(0,bytes,count); }

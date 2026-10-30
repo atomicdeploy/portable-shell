@@ -144,6 +144,7 @@ template<class W> void blankRows(Writer<W> &out,const Snapshot &s,unsigned first
                                  unsigned w,unsigned group=0,unsigned label=0) const {
     if(!ansi_)return;
     base(out);ink(out,7);
+    if(!PS_DEVICE_VIEW_TABLE)out.raw("\x1b[31m");
     for(unsigned row=first;row<=last;++row){
         out.position(row);out.raw("\x1b[K");
         out.raw(s.unicode?"\xe2\x94\x82":"|");
@@ -232,6 +233,7 @@ template<class W> void matrix(Writer<W> &out,const Snapshot &s,unsigned w){
         for(unsigned i=0;i<6;++i)hex[i+1]=digits[(rgb>>(20-4*i))&15];
         if(state<4){out.raw("  ");out.raw(hex);}ink(out,0);out.raw("  ");
         out.safe(*notice_?notice_:"Configured state colors",w-35);}
+    else if(*notice_){const unsigned n=unsigned(ps_text_length(status));if(n+2<w){out.raw("  ");out.safe(notice_,w-n-2);}}
     out.raw("\r\n");footer(out,s,s.columns-1);
 }
 template<class Write> bool renderTable(const Snapshot &s,Write write) {
@@ -250,8 +252,9 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     ink(out,7);out.raw(" ");for(unsigned i=titleSize+4;i<w-1;++i)out.raw(s.unicode?"\xe2\x94\x80":"-");out.raw(s.unicode?"\xe2\x95\xae":"+");base(out);out.raw("\r\n");
     edge(out,s,"\xe2\x94\x82 ","| ");
     unsigned used=0,tabTotal=0;for(unsigned i=0;i<PageCount;++i)if(pageAvailable(i,s))tabTotal+=unsigned(ps_text_length(pageName(i)))+3;
+    if(offset){ink(out,4);out.raw(pageName(page_));used=unsigned(ps_text_length(pageName(page_)));}
     for(unsigned i=0;i<PageCount;++i){
-        if(!pageAvailable(i,s)||((offset||tabTotal>w-4)&&i!=page_))continue;
+        if(offset||!pageAvailable(i,s)||(tabTotal>w-4&&i!=page_))continue;
         if(i==page_&&ansi_)out.raw(ps_style_surface(theme_,trueColor_,1));else ink(out,0);
         out.raw(i==page_?"[":" ");out.raw(pageName(i));out.raw(i==page_?"]":" ");base(out);
         out.raw(" "); // Inter-tab spacing is outside the selected surface.

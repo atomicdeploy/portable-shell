@@ -40,11 +40,48 @@ to retain the respective older below-table editor layout.
 | Compact full shell | `PORTABLE_SHELL_COMPACT=ON`, same features | 128-byte line storage, 4 history entries, 4 rows, 24 commands |
 | Device commands | `--device-commands`; `portable_shell_device.h`, `ps_device_attach()`; raw-tail, case-insensitive registry with host callbacks | Full/compact session bounds |
 | Event editor | `portable_editor.h`; application owns dispatch | 512 characters, 8 history entries |
-| Small MCU console | `portable_console.h` in the serial example repository; shared editor/parser/probe, callback commands, optional Telnet | 64 characters, 2 history entries, 8 parsed arguments |
-| MCU device view | `portable_console_view.hpp`; snapshot/action tabs, inline edits, alternate screen | Off on AVR by default; explicit Mega opt-in; on for STM32 |
+| Small console | `portable_console.h` in the serial example repository; shared editor/parser/probe, callback commands, optional Telnet | 64 characters, 2 history entries, 8 parsed arguments |
+| Device view | `portable_console_view.hpp`; shared snapshot/action rich tables, controls, inline edits, alternate screen | Enabled by default on every architecture; the documented Uno command explicitly disables it |
 
 The full session requires 32-bit `unsigned int`. AVR uses the small components;
 compact full shell alone does not make the full session AVR-compatible.
+
+There is no automatic MCU presentation mode. ESP32, STM32 and larger AVR consumers
+use the same `DeviceView` as other hosts. The small console is a separate command
+provider, so it does not acquire the full shell's task/job/variable workbench by
+enabling its view. Applications supply their own rows, commands and capabilities.
+The serial example exposes only its actual LED, transport and terminal settings;
+that small data set is not a reduced renderer.
+
+`DeviceView::setTabLayout(DeviceView::VerticalTabs)` opts into a 20-column page
+sidebar (plus a two-column gap). Horizontal tabs remain the default. Tab and
+Shift+Tab navigate pages; arrows continue to operate the selected row or matrix.
+The sidebar falls back to horizontal tabs below 64 columns, without ANSI, or
+with `PS_DEVICE_VIEW_VERTICAL_TABS=0`. The requested layout is retained across
+resizes and restored when space permits. `PS_DEVICE_VIEW_TABLE=0` retains the
+older horizontal view. The serial example exposes `view vertical` and
+`view horizontal` (`view` defaults to horizontal).
+
+Rich interactive tables reserve the window's final three lines for status and
+contextual navigation and extend their borders to that area. Plain output stays
+sequential and compact. Row caches and `PS_DEVICE_VIEW_FRAME_BYTES` bound the
+number of populated rows per frame; navigation scrolls through the rest rather
+than losing rows. These capacities are independent of CPU architecture.
+
+| Explicit device-view flag | Default | Setting to 0 removes |
+| --- | --- | --- |
+| `PS_DEVICE_VIEW_TABLE` | 1 | Rich grid, section headings and sidebar; retained layout remains |
+| `PS_DEVICE_VIEW_WIDGETS` | 1 | Toggle/choice shortcuts, level meters and typed validation |
+| `PS_DEVICE_VIEW_DIALOGS` | 1 | Optional F2 modal editing |
+| `PS_DEVICE_VIEW_MATRIX` | 1 | Dedicated matrix layout; retained diagnostics remain |
+| `PS_DEVICE_VIEW_DIAGNOSTICS` | 1 | Matrix/pixel/game diagnostics (the simple serial adapter sets 0 because it has no such devices) |
+| `PS_STYLE_THEMES` | 1 | Rich theme palettes |
+| `PS_DEVICE_VIEW_VERTICAL_TABS` | 1 | Sidebar implementation; enabling this flag does not select it by default |
+
+The comparison pictures in the serial example build one identical observation
+fixture with all rich features, and again with TABLE/WIDGETS/DIALOGS/MATRIX/
+STYLE_THEMES/VERTICAL_TABS explicitly set to 0. A third fixture builds only the
+C prompt. They are host byte replays, not claims of board RAM/flash fit.
 
 The MCU console does not have the full shell's `theme` command. It currently
 uses a magenta prompt (`PS_EDITOR_PROMPT_STYLE`), the device view's red border

@@ -16,5 +16,11 @@ int main(void) {
     assert(strstr(svg,"v 26"));
     ps_replay_reset();n=ps_replay_svg(svg);svg[n]=0;
     assert(!strstr(svg,">X</text>"));
+    /* Ghost suggestions save/restore the insertion cursor, then overwrite the
+       suggestion as each key arrives. A missing restore renders HELPELPLPP. */
+    {const unsigned char prompt[]="H\033[sELP\033[uE\033[sLP\033[uL\033[sP\033[uP\033[K";
+     ps_replay_feed(prompt,sizeof(prompt)-1);n=ps_replay_svg(svg);svg[n]=0;
+     assert(strstr(svg,"x=\"68\" y=\"52\""));
+     assert(!strstr(svg,"x=\"80\" y=\"52\""));}
     return 0;
 }
