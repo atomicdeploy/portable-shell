@@ -37,6 +37,10 @@ char preview_controls[400000], preview_control_settings[400000], preview_control
     preview_control_dialog[400000], preview_control_confirm[400000], preview_control_ascii[400000];
 unsigned preview_controls_n, preview_control_settings_n, preview_control_inline_n,
     preview_control_dialog_n, preview_control_confirm_n, preview_control_ascii_n;
+char preview_control_columns[400000],preview_control_collapsed[400000];
+unsigned preview_control_columns_n,preview_control_collapsed_n;
+char preview_control_compact[400000];unsigned preview_control_compact_n;
+char preview_control_inside[400000];unsigned preview_control_inside_n;
 unsigned preview_device_commands_n;
 unsigned preview_tasks_n, preview_variables_n, preview_jobs_n, preview_session_n, preview_edit_n,
     preview_ascii_n, preview_red_n, preview_lumen_n;
@@ -392,34 +396,43 @@ int render_entry(void) {
     ps_execute(s, "board");
     ps_tick(s, 100);
     feed(s, "\033[B\033[B ");
+    ps_feed(s, "", 0);
     preview_tasks_n = svg(preview_tasks);
     ps_execute(s, "theme red");
     ps_tick(s, 200);
+    ps_feed(s, "", 0);
     preview_red_n = svg(preview_red);
     ps_execute(s, "theme lumen");
     ps_tick(s, 300);
+    ps_feed(s, "", 0);
     preview_lumen_n = svg(preview_lumen);
     ps_execute(s, "theme violet");
     ps_tick(s, 400);
     feed(s, "\r\005");
+    ps_feed(s, "", 0);
     preview_edit_n = svg(preview_edit);
     feed(s, "\033");
     ps_tick(s, 500);
     feed(s, "\t");
+    ps_feed(s, "", 0);
     preview_variables_n = svg(preview_variables);
     feed(s, "\r\025serial-console");
+    ps_feed(s, "", 0);
     preview_value_edit_n = svg(preview_value_edit);
     ps_key(s, 27);
     ps_execute(s, "hash 'Portable bytes, useful tools' --rounds 10000");
     feed(s, "\t");
     for (r = 0; r < 29; ++r)
         ps_tick(s, 600 + r * 100);
+    ps_feed(s, "", 0);
     preview_jobs_n = svg(preview_jobs);
     feed(s, "\t");
+    ps_feed(s, "", 0);
     preview_session_n = svg(preview_session);
     ps_execute(s, "theme mono");
     ps_execute(s, "theme ascii");
     feed(s, "1");
+    ps_feed(s, "", 0);
     preview_ascii_n = svg(preview_ascii);
     ps_execute(s, "theme violet");
     ps_execute(s, "theme unicode");
@@ -429,40 +442,76 @@ int render_entry(void) {
     ps_execute(s, "controls set 4 3072");
     ps_execute(s, "controls set 5 192");
     ps_execute(s, "controls");
+#if PS_CONTROL_SECTION_ROWS
+    ps_key(s, PS_KEY_DOWN);
+#endif
     ps_key(s, PS_KEY_DOWN);
     ps_key(s, PS_KEY_DOWN);
     ps_key(s, PS_KEY_DOWN);
     ps_tick(s, 4800);
+    ps_feed(s, "", 0);
     preview_controls_n = svg(preview_controls);
+    ps_set_table_style(s, PS_TABLE_DEFAULT | PS_TABLE_TABS_INSIDE);
+    ps_feed(s, "", 0);
+    preview_control_inside_n = svg(preview_control_inside);
+    ps_set_table_style(s, PS_TABLE_DEFAULT | PS_TABLE_COMPACT_SECTIONS);
+    ps_feed(s, "", 0);
+    preview_control_compact_n = svg(preview_control_compact);
+    ps_set_table_style(s, PS_TABLE_DEFAULT | PS_TABLE_CATEGORY_COLUMN);
+    ps_tick(s, 4801);
+    ps_feed(s, "", 0);
+    ps_feed(s, "", 0);
+    preview_control_columns_n = svg(preview_control_columns);
+    ps_set_table_style(s, PS_TABLE_DEFAULT);
+    ps_tick(s, 4802);
+    ps_feed(s, "", 0);
     ps_execute(s, "theme onedark");
     ps_tick(s, 4900);
+    ps_feed(s, "", 0);
     preview_onedark_n = svg(preview_onedark);
     ps_execute(s, "theme violet");
     ps_tick(s, 5000);
     ps_key(s, 13);
     ps_tick(s, 5100);
+    ps_feed(s, "", 0);
     preview_control_inline_n = svg(preview_control_inline);
     ps_key(s, 27);
     ps_key(s, PS_KEY_F2);
     ps_key(s, 21);
     feed(s, "2800");
     ps_tick(s, 5200);
+    ps_feed(s, "", 0);
     preview_control_dialog_n = svg(preview_control_dialog);
     ps_key(s, 27);
+#if PS_CONTROL_SECTION_ROWS
+    ps_key(s, PS_KEY_DOWN);
+    ps_key(s, PS_KEY_DOWN);
+#endif
     ps_key(s, PS_KEY_DOWN);
     ps_key(s, PS_KEY_DOWN);
     ps_key(s, PS_KEY_DOWN);
     ps_key(s, 13);
     ps_tick(s, 5300);
+    ps_feed(s, "", 0);
     preview_control_confirm_n = svg(preview_control_confirm);
     ps_key(s, 27);
     ps_key(s, 9);
     ps_tick(s, 5400);
+    ps_feed(s, "", 0);
     preview_control_settings_n = svg(preview_control_settings);
     ps_key(s, 9);
+#if PS_CONTROL_SECTION_ROWS
+    ps_key(s, PS_KEY_UP);
+    ps_key(s, ' ');
+    ps_tick(s, 5401);
+    ps_feed(s, "", 0);
+    ps_feed(s, "", 0);
+    preview_control_collapsed_n = svg(preview_control_collapsed);
+#endif
     ps_execute(s, "theme ascii");
     ps_execute(s, "theme mono");
     ps_tick(s, 5500);
+    ps_feed(s, "", 0);
     preview_control_ascii_n = svg(preview_control_ascii);
     {
         ps_device_profile profile;

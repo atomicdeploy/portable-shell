@@ -28,6 +28,9 @@ extern "C" {
 #ifndef PS_WORKSPACE_INLINE_EDIT
 #define PS_WORKSPACE_INLINE_EDIT 1
 #endif
+#ifndef PS_CONTROL_SECTION_ROWS
+#define PS_CONTROL_SECTION_ROWS 1
+#endif
 #if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 20
 #error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 20"
 #endif
@@ -86,7 +89,9 @@ typedef struct {
     const char *title;
     unsigned minimum, maximum, weight; /* maximum=0 means flexible; weight 0..16 */
 } ps_column;
-enum { PS_TABLE_GRID = 1, PS_TABLE_RED_BORDER = 2, PS_TABLE_TITLE_BAR = 4, PS_TABLE_DEFAULT = 7 };
+enum { PS_TABLE_GRID = 1, PS_TABLE_RED_BORDER = 2, PS_TABLE_TITLE_BAR = 4,
+       PS_TABLE_CATEGORY_COLUMN = 8, PS_TABLE_COMPACT_SECTIONS = 16,
+       PS_TABLE_TABS_INSIDE = 32, PS_TABLE_DEFAULT = 7 };
 /* Fits 1..8 columns into a framed width (max 240), including padding/separators.
    Returns occupied width, or 0 if minima do not fit / definitions are invalid. */
 PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsigned count,

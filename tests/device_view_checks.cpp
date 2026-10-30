@@ -36,7 +36,7 @@ int main(){
   assert(!feed("\x15" "lamp"));assert(model.render(snapshot,write));
   assert(output.find("\x1b[2J")==std::string::npos); // Edit only, never full repaint.
 #if PS_DEVICE_VIEW_TABLE
-  assert(output.find("\x1b[6;30H")!=std::string::npos || output.find("\x1b[6;18H")!=std::string::npos);
+  assert(output.find("\x1b[7;30H")!=std::string::npos || output.find("\x1b[7;18H")!=std::string::npos);
 #elif PS_DEVICE_VIEW_INLINE_EDIT
   assert(output.find("\x1b[4;29H")!=std::string::npos && output.find("lamp")!=std::string::npos);
   assert(output.find("Edit Hostname:")==std::string::npos && output.find("\x1b[2K")==std::string::npos);
@@ -89,7 +89,7 @@ int main(){
   T game;T::Snapshot keys;keys.canGame=true;keys.gameReady=true;keys.enabledKeys=3;keys.unicode=true;keys.terminalSettings=true;
   game.begin();game.feed('\t',keys,action);game.feed('\t',keys,action);
   assert(game.page()==T::Game&&action.type==T::Action::None);
-  output.clear();assert(game.render(keys,write));assert(output.find("\xe2\x95\xad\xe2\x94\x80 ")!=std::string::npos);
+  output.clear();assert(game.render(keys,write));assert(output.find("\xe2\x95\xad\xe2\x94\x80")!=std::string::npos);
   assert(output.find("1-9 press")!=std::string::npos&&output.size()<PS_DEVICE_VIEW_FRAME_BYTES);
   assert(game.feed('1',keys,action)&&action.type==T::Action::Press&&action.index==1);
   assert(!game.feed('3',keys,action)&&action.type==T::Action::None);
@@ -158,7 +158,7 @@ int main(){
   output.clear();resized.render(narrow,write);narrow.columns=40;
   output.clear();assert(resized.render(narrow,write));assert(savedDraft==resized.draft());
 #if PS_DEVICE_VIEW_TABLE
-  assert(output.find("\x1b[6;30H")!=std::string::npos || output.find("\x1b[6;18H")!=std::string::npos);
+  assert(output.find("\x1b[7;30H")!=std::string::npos || output.find("\x1b[7;18H")!=std::string::npos);
 #elif PS_DEVICE_VIEW_INLINE_EDIT
   assert(output.find("\x1b[4;19H")!=std::string::npos && output.find("savedx")!=std::string::npos);
   assert(output.find("Edit Device label:")==std::string::npos);
@@ -190,7 +190,7 @@ int main(){
   assert(!key("\x1b[15~\r")&&std::string(compact.draft())=="abc"); // F5 isn't Home/Delete.
   output.clear();compact.render(small,write);
 #if PS_DEVICE_VIEW_TABLE
-  assert(output.find("\x1b[6;30H")!=std::string::npos || output.find("\x1b[6;18H")!=std::string::npos);
+  assert(output.find("\x1b[7;30H")!=std::string::npos || output.find("\x1b[7;18H")!=std::string::npos);
 #elif PS_DEVICE_VIEW_INLINE_EDIT
   assert(output.find("\x1b[4;29H")!=std::string::npos && output.find("\x1b[15;")==std::string::npos);
   output.clear();key("\025abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");

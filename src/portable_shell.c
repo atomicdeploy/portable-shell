@@ -130,6 +130,8 @@ struct ps_session {
     const ps_panel *panel;
     ps_panel local_panel;
     unsigned control_view, dialog, dialog_focus;
+    unsigned control_header, control_edit_row;
+    ps_byte control_closed[PS_CONTROL_SECTION_ROWS ? 8 : 1][PS_CONTROL_SECTION_ROWS ? 16 : 1];
     ps_u32 draft_revision, local_revision;
     unsigned local_values[7];
     char local_label[64];
@@ -587,7 +589,12 @@ PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsi
     return width - left;
 }
 PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
-    s->table_style = flags & PS_TABLE_DEFAULT;
+    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE;
+    if (s->editing)
+        flags = (flags & ~layout) | (s->table_style & layout);
+    if ((s->table_style ^ flags) & layout)
+        s->control_header = s->scroll = 0;
+    s->table_style = flags & (PS_TABLE_DEFAULT | layout);
     s->dirty = 1;
 }
 PS_API unsigned ps_alignof_session(void) {
@@ -670,8 +677,9 @@ static Grid grid_for(ps_session *s) {
     g.columns = s->tab == 0 ? tasks : s->tab == 1 ? pairs : s->tab == 2 ? jobs : stats;
     g.count = (s->tab == 0 || s->tab == 2) ? 3 : 2;
     if (s->control_view) {
-        g.columns = s->io.columns >= 64 ? controls : compact;
-        g.count = s->io.columns >= 64 ? 3 : 2;
+        unsigned category = (!PS_CONTROL_SECTION_ROWS || (s->table_style & PS_TABLE_CATEGORY_COLUMN)) && s->io.columns >= 64;
+        g.columns = category ? controls : compact;
+        g.count = category ? 3 : 2;
     }
     ps_layout_columns(s->io.columns - 2, g.columns, g.count, g.widths);
     return g;
@@ -679,6 +687,10 @@ static Grid grid_for(ps_session *s) {
 static void grid_vertical(ps_session *s) {
     ink(s, 7);
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
+}
+static unsigned table_slots(const ps_session *s) {
+    unsigned reserved=13+((s->table_style&PS_TABLE_TABS_INSIDE)&&s->io.rows>=15?1:0);
+    return s->io.rows>reserved?s->io.rows-reserved:1;
 }
 static void grid_divide(ps_session *s) {
     out(s, " ");
@@ -700,7 +712,7 @@ static void grid_border(ps_session *s, const Grid *g, unsigned kind, int joined)
     unsigned i, j;
     const char *left = kind == 0 ? "╭" : kind == 2 ? "╰" : "├";
     const char *right = kind == 0 ? "╮" : kind == 2 ? "╯" : "┤";
-    const char *middle = kind == 0 ? "┬" : (kind == 2 || kind == 3) ? "┴" : "┼";
+    const char *middle = kind == 0 || kind == 4 ? "┬" : (kind == 2 || kind == 3) ? "┴" : "┼";
     ink(s, 7);
     out(s, (s->io.flags & PS_UNICODE) ? left : "+");
     for (i = 0; i < g->count; ++i) {
@@ -825,6 +837,10 @@ static void progress_bar(ps_session *s, unsigned width_) {
 }
 static void render(ps_session *s) {
     unsigned w = s->io.columns, h = s->io.rows, i, count, slots, ids[PS_ROWS], inner;
+    unsigned inside = !!(s->table_style & PS_TABLE_TABS_INSIDE) && h>=15;
+    unsigned body = 7+inside, tabUsed = 1;
+    unsigned displayCount, focus;
+    unsigned short controlItems[512];
     Grid grid;
     static const char *const tabs[] = {"Tasks", "Variables", "Jobs", "Session"};
     if (!s->board || !(s->io.flags & PS_INTERACTIVE))
@@ -848,13 +864,16 @@ static void render(ps_session *s) {
     inner = w - 6;
     grid = grid_for(s);
     count = tab_count(s);
-    slots = h - 13;
+    slots = table_slots(s);
     if (s->selected >= count)
         s->selected = count ? count - 1 : 0;
-    if (s->scroll > s->selected)
-        s->scroll = s->selected;
-    if (s->selected >= s->scroll + slots)
-        s->scroll = s->selected - slots + 1;
+    focus = s->selected;
+    displayCount = s->control_view ? control_items(s,controlItems,&focus,1) : count;
+    if (s->scroll > focus)
+        s->scroll = focus;
+    if (focus >= s->scroll + slots)
+        s->scroll = focus - slots + 1;
+    s->scroll = min(s->scroll,displayCount>slots?displayCount-slots:0);
     at(s, 1, 1);
     ansi(s, "\033[2K");
     out(s, "  ");
@@ -893,12 +912,16 @@ static void render(ps_session *s) {
         out(s, " complete");
     }
     reset(s);
-    at(s, 2, 1);
+    at(s, 3+inside, 1);
     ansi(s, "\033[2K");
-    out(s, "  ");
+    if(inside){out(s," ");grid_vertical(s);out(s," ");}else out(s,"  ");
     for (i = 0; i < (s->control_view ? s->panel->count : 4); ++i) {
-        if (s->control_view && w < 80 && i != s->tab)
+        const char *title = s->control_view ? s->panel->pages[i].title : w<60?(i==1?"Vars":i==3?"Info":tabs[i]):tabs[i];
+        unsigned titleWidth=s->control_view?min(16,w>=80?(w-3)/s->panel->count-6:w-12):length(title);
+        unsigned segment=titleWidth+5+((i==s->tab&&!(s->io.flags&PS_COLOR))?2:0);
+        if (((s->control_view && w < 80) || (inside && w<60)) && i != s->tab)
             continue;
+        if(inside&&tabUsed+segment>w-4)continue;
         if (i == s->tab) {
             surface(s, 1);
             if (!(s->io.flags & PS_COLOR))
@@ -908,28 +931,27 @@ static void render(ps_session *s) {
         out(s, " ");
         ps_number(s, i + 1);
         out(s, " ");
-        if (s->control_view)
-            grid_text(s, s->panel->pages[i].title,
-                      min(16, w >= 80 ? (w - 3) / s->panel->count - 6 : w - 12));
-        else
-            out(s, w < 60 ? (i == 1 ? "Vars" : i == 3 ? "Info" : tabs[i]) : tabs[i]);
+        grid_text(s,title,titleWidth);
         out(s, " ");
         if (i == s->tab && !(s->io.flags & PS_COLOR))
             out(s, "]");
         reset(s);
         out(s, " ");
+        tabUsed+=segment;
     }
-    at(s, 3, 1);
+    if(inside){spaces(s,w-4-tabUsed);grid_vertical(s);reset(s);}
+    at(s, 2, 1);
     ansi(s, "\033[2K");
-    if (s->control_view && count && grid.count == 2) {
+    if (s->control_view && !control_sections(s) && count && grid.count == 2) {
         out(s, "  ");
         ink(s, 0);
         grid_text(s, s->panel->pages[s->tab].controls[s->selected].group, w - 4);
         reset(s);
     }
-    at(s, 4, 2);
-    grid_border(s, &grid, 0, 1);
-    at(s, 5, 2);
+    at(s, inside?3:4, 2);
+    grid_border(s, &grid, 0, !inside);
+    if(inside){at(s,5,2);grid_border(s,&grid,4,1);}
+    at(s, 5+inside, 2);
     ink(s, 7);
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
     out(s, " ");
@@ -943,26 +965,45 @@ static void render(ps_session *s) {
     out(s, " ");
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
     reset(s);
-    at(s, 6, 2);
-    grid_border(s, &grid, 1, 1);
+    at(s, 6+inside, 2);
+    grid_border(s, &grid, s->control_view && s->scroll<displayCount && (controlItems[s->scroll]&0xe000) ? 3 : 1, 1);
     if (!s->control_view && s->tab == 0)
         visible(s, ids);
     for (i = 0; i < slots; ++i) {
         unsigned idx = s->scroll + i;
-        at(s, 7 + i, 2);
+        unsigned heading = 0, rule = 0;
+        if (s->control_view && idx < displayCount) {
+            heading = controlItems[idx] & 0x8000;
+            rule = controlItems[idx] & 0x6000;
+            idx = controlItems[idx] & 0x1fff;
+        } else if (s->control_view) idx = count;
+        at(s, body + i, 2);
+        if (rule) {
+            unsigned line = s->scroll+i;
+            unsigned joined = rule == 0x4000 ? (i && !(controlItems[line-1]&0xe000))
+                : (i+1<slots && (line+1>=displayCount || !(controlItems[line+1]&0xe000)));
+            grid_border(s,&grid,rule==0x4000?3:4,joined);continue;
+        }
         ink(s, 7);
         out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
+        if (heading) {
+            surface(s, s->control_header && s->selected == idx ? 1 : 0);
+            if (!(s->io.flags & PS_COLOR) && s->control_header && s->selected == idx) ansi(s,"\033[7m");
+            out(s," ");control_section_row(s,idx,inner);out(s," ");
+            reset(s);grid_vertical(s);reset(s);continue;
+        }
         out(s, " ");
         if (idx < count) {
-            if (idx == s->selected) {
+            if (idx == s->selected && (!s->control_view || !s->control_header)) {
                 if (s->io.flags & PS_COLOR)
                     surface(s, 2);
                 else
                     ansi(s, "\033[7m");
             }
-            if (s->control_view)
+            if (s->control_view) {
+                if (idx == s->selected) s->control_edit_row = body+i;
                 control_row(s, idx, &grid);
-            else if (s->tab == 0)
+            } else if (s->tab == 0)
                 task_row(s, ids[idx], &grid);
             else if (s->tab == 1)
                 pair_row(s, s->vars[idx].key, s->vars[idx].value, &grid);
@@ -997,18 +1038,32 @@ static void render(ps_session *s) {
         out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
         reset(s);
     }
+    if (displayCount > slots) {
+        unsigned thumb = slots * slots / displayCount;
+        if (!thumb) thumb=1;
+        unsigned top = s->scroll * (slots-thumb) / (displayCount-slots);
+        for(i=0;i<slots;++i){
+            unsigned active = i>=top && i<top+thumb;
+            unsigned rule = s->control_view && s->scroll+i<displayCount && (controlItems[s->scroll+i]&0x6000);
+            at(s,body+i,w-1);ink(s,active?1:7);
+            out(s,(s->io.flags&PS_UNICODE)?(rule?(active?"┫":"┤"):(active?"┃":"│")):(active?"#":rule?"+":"|"));
+        }
+        reset(s);
+    }
     at(s, h - 6, 2);
-    grid_border(s, &grid, 3, 1);
+    grid_border(s, &grid, 3, !(s->control_view && s->scroll+slots-1<displayCount && (controlItems[s->scroll+slots-1]&0xe000)));
     at(s, h - 5, 2);
     grid_vertical(s);
     spaces(s, w - 4);
     grid_vertical(s);
     at(s, h - 5, 4);
     ink(s, 0);
-    out(s, "Row ");
-    ps_number(s, count ? s->selected + 1 : 0);
-    out(s, "/");
-    ps_number(s, count);
+    if (s->control_view && s->control_header) {
+        out(s,"Section: ");grid_text(s,s->panel->pages[s->tab].controls[s->selected].group,w-15);
+    } else {
+        out(s, "Row ");ps_number(s, count ? s->selected + 1 : 0);
+        out(s, "/");ps_number(s, count);
+    }
     if (!s->control_view && s->filter[0] && s->tab == 0)
         out(s, " filtered");
     if (!s->control_view && s->tab == 0) {
@@ -1096,14 +1151,14 @@ static void render(ps_session *s) {
             x += grid.widths[i] + 3;
         while (cells(s->edit + start, s->editpos - start, s->io.flags) >= width)
             start = next(s->edit, start);
-        at(s, 7 + s->selected - s->scroll, x);
+        at(s, body + s->selected - s->scroll, x);
         if (s->io.flags & PS_COLOR)
             surface(s, 1);
         else
             ansi(s, "\033[7m");
         field(s, s->edit + start, width);
         reset(s);
-        at(s, 7 + s->selected - s->scroll,
+        at(s, body + s->selected - s->scroll,
            x + cells(s->edit + start, s->editpos - start, s->io.flags));
         ansi(s, "\033[?25h");
     } else if (s->editing) {
@@ -1321,10 +1376,10 @@ static void table_key(ps_session *s, unsigned key) {
     else if (key == PS_KEY_END)
         s->selected = n ? n - 1 : 0;
     else if (key == PS_KEY_PAGEDOWN)
-        s->selected = min(s->selected + (s->io.rows > 13 ? s->io.rows - 13 : 1), n ? n - 1 : 0);
+        s->selected = min(s->selected + table_slots(s), n ? n - 1 : 0);
     else if (key == PS_KEY_PAGEUP)
-        s->selected = s->selected > (s->io.rows > 13 ? s->io.rows - 13 : 1)
-                          ? s->selected - (s->io.rows > 13 ? s->io.rows - 13 : 1)
+        s->selected = s->selected > table_slots(s)
+                          ? s->selected - table_slots(s)
                           : 0;
     else if (s->tab == 0) {
         if (key == 'n')

@@ -34,7 +34,10 @@ int main(){
     std::string output;auto write=[&](const uint8_t *p,size_t n){output.append((const char*)p,n);};
     auto feed=[&](const char *keys){bool emitted=false;while(*keys)emitted=v.feed(uint8_t(*keys++),s,a)||emitted;return emitted;};
     v.begin();v.render(s,write);
-    assert(output.find("Category")==std::string::npos);assert(output.find("Lighting")!=std::string::npos);assert(output.find("Lighting",output.find("Lighting")+1)==std::string::npos);assert(output.find("[x]")==std::string::npos);
+    assert(output.find("Category")==std::string::npos);assert(output.find("[x]")==std::string::npos);
+#if PS_DEVICE_VIEW_SECTIONS
+    assert(output.find("LIGHTING")!=std::string::npos);assert(output.find("LIGHTING",output.find("LIGHTING")+1)==std::string::npos);
+#endif
     assert(output.find("1 / 64")!=std::string::npos);widths(output,119);
     assert(feed(" ")&&std::string(a.value)=="false");assert(std::string(rows[0].value)=="true");
     rows[0].pending=true;assert(!feed(" "));rows[0].pending=false;

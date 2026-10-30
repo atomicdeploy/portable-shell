@@ -4,6 +4,45 @@ These choices are independent. The naming update leaves desktop presentation def
 
 ## Presentation
 
+Horizontal tabs sit immediately above the table by default, with the blank line
+between title and tabs. To put tabs inside the table as its first row, C callers
+add `PS_TABLE_TABS_INSIDE` to `ps_set_table_style()`; C++ callers use
+`view.setTabsInsideTable(true)`. It is **off by default** and independent of the
+section-density and category-column options. Changes during editing are ignored.
+At the C workbench's minimum 14-line height it falls back outside to retain a
+usable body row; the requested placement returns when height permits. The
+retained C++ `PS_DEVICE_VIEW_TABLE=0` renderer keeps its original placement.
+
+Grouped control panels and rich device tables default to **collapsible section
+rows**: uppercase headings on solid surfaces spanning the two key/value columns.
+↑/↓ selects headings and values; Enter/Space toggles a heading, ← collapses it,
+and → expands it. These operations never dispatch a provider write. Fold state
+is per page and per view; a changed device row schema resets that page's folds.
+An empty category adds no heading. Repeated non-adjacent categories form separate
+sections. ASCII uses `+`/`-` disclosure markers.
+
+Continuous border rows frame each section heading above and below by default.
+For higher density, C callers add `PS_TABLE_COMPACT_SECTIONS` to their table style;
+C++ callers use `view.setSectionBorders(false)`. Restore framing by removing that
+flag or calling `setSectionBorders(true)`. The compact mode keeps section selection,
+folding, colors and inline value editing. Changes during an active edit are ignored.
+
+Overflowing tables display a proportional scrollbar in the right border, with
+an accent-colored heavy-line thumb (`#` in ASCII). It tracks visible presentation
+rows, including section headings, and updates after folding, navigation or resizing.
+Tables that fit have no scrollbar; it consumes no key/value column width.
+Rich frames permit up to 65,535 streamed terminal bytes (32 KiB for the retained
+view); this limit allocates no framebuffer or additional session RAM.
+
+For the retained category-column layout, call
+`ps_set_table_style(session, PS_TABLE_DEFAULT | PS_TABLE_CATEGORY_COLUMN)` in C,
+or `view.setGroupLayout(DeviceView::CategoryColumn)` in C++. Restore the default
+with `PS_TABLE_DEFAULT` or `DeviceView::SectionRows`, respectively. Layout changes
+are deferred by the caller while an edit is active (the API preserves the draft).
+`PS_CONTROL_SECTION_ROWS=0` removes C section state; `PS_DEVICE_VIEW_SECTIONS=0`
+removes C++ section state, and `PS_DEVICE_VIEW_CATEGORY_COLUMN=1` selects the
+legacy third column by default. Narrow terminals omit that optional third column.
+
 | Choice | Full-shell command / host option | Default |
 | --- | --- | --- |
 | Violet / magenta | `theme violet` | Yes |

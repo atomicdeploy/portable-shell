@@ -11,7 +11,7 @@ static int save(const char *path){
 }
 int main(int argc,char **argv){
     using V=PortableShell::DeviceView;
-    if(argc!=(PS_DEVICE_VIEW_TABLE?5:2))return 2;
+    if(argc!=(PS_DEVICE_VIEW_TABLE?6:2))return 2;
     V view;V::Snapshot s;V::Action a;
     V::Row rows[]={ {"Output","output","on",true},{"Brightness","brightness","160",true},
         {"Effect","effect","breathe",true},{"Hostname","hostname","workbench",true},
@@ -31,6 +31,8 @@ int main(int argc,char **argv){
     render();if(save(argv[1]))return 3;
     std::printf("DeviceView state: %u bytes; table=%d widgets=%d dialogs=%d matrix=%d\n",unsigned(sizeof(view)),PS_DEVICE_VIEW_TABLE,PS_DEVICE_VIEW_WIDGETS,PS_DEVICE_VIEW_DIALOGS,PS_DEVICE_VIEW_MATRIX);
 #if PS_DEVICE_VIEW_TABLE
+    view.setTabsInsideTable(true);render();if(save(argv[5]))return 7;
+    view.setTabsInsideTable(false);
     view.setTabLayout(V::VerticalTabs);render();if(save(argv[2]))return 4;
     view.feed('\t',s,a);view.feed('\t',s,a);render();if(save(argv[3]))return 5;
     view.feed(27,s,a);view.feed('[',s,a);view.feed('Z',s,a);

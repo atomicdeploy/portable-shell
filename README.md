@@ -28,6 +28,20 @@ rejects stale or missing files.
 
 ![PortableShell control panel with inline value editing](previews/inline.png)
 
+| Optional category column (before) | Default collapsible sections (after) |
+| --- | --- |
+| ![Category-column layout](previews/controls-columns.png) | ![Uppercase full-width section rows](previews/controls.png) |
+
+Select a heading with **↑/↓**, then **Enter** or **Space** to toggle it.
+**←** collapses and **→** expands. Sections retain their state when switching
+pages; inline editing remains in the value cell. [Collapsed example](previews/controls-collapsed.png).
+Headings have continuous border rows above and below by default.
+[Compact sections](previews/controls-compact.png) omit those extra rows;
+see [presentation options](OPTIONS.md#presentation).
+
+Tabs are outside by default. Optional first-row tabs:
+[control panel](previews/controls-inside.png), [device table](previews/device-inside.png).
+
 | Shared device view | Optional vertical tabs |
 | --- | --- |
 | ![Full device table](previews/device-full.png) | ![Vertical navigation and inline editing](previews/device-inline.png) |
