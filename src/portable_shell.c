@@ -546,6 +546,7 @@ PS_API int ps_register(ps_session *s, const ps_command *c) {
             if(!s->commands[i].usage)s->commands[i].usage="";
             s->raw_commands[i] = 0;
             s->command_help[i] = 0;
+            s->completion=s->match_count=s->match_index=0;s->dirty=1;
             return 0;
         }
     if (s->command_count == PS_COMMANDS)
@@ -555,6 +556,7 @@ PS_API int ps_register(ps_session *s, const ps_command *c) {
     s->commands[s->command_count] = *c;
     if(!s->commands[s->command_count].usage)s->commands[s->command_count].usage="";
     ++s->command_count;
+    s->completion=s->match_count=s->match_index=0;s->dirty=1;
     return 0;
 }
 PS_API void ps_set_application_title(ps_session *s,const char *title){if(s){s->application_title=title?title:"";s->dirty=1;}}
