@@ -288,6 +288,18 @@ PS_API void ps_newline(ps_session *s);
    The receiving terminal decides whether to sound or visually indicate the bell. */
 PS_API void ps_ring_bell(ps_session *s);
 enum { PS_HELP_HEADINGS, PS_HELP_COMPACT };
+#ifndef PS_HELP_DETAILS
+#define PS_HELP_DETAILS 1
+#endif
+/* Immutable borrowed metadata; keep alive while attached. */
+typedef struct { const char *label, *description; } ps_help_item;
+typedef struct {
+    const char *name, *description;
+    const ps_help_item *arguments; unsigned argument_count;
+    const ps_help_item *options; unsigned option_count;
+    const ps_help_item *examples; unsigned example_count;
+} ps_help_document;
+PS_API void ps_set_help_documents(ps_session *, const ps_help_document *, unsigned);
 /* NULL name lists the registry; non-NULL prints Usage. Returns entries printed. */
 PS_API int ps_print_help(ps_session *s, const char *name, unsigned layout);
 PS_API void ps_number(ps_session *s, ps_u32 value);

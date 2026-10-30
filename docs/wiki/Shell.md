@@ -112,3 +112,27 @@ Actual-output fixtures (dark Agave, generated in CI):
 [Colored](https://github.com/atomicdeploy/portable-shell/blob/main/previews/prompt-colored.png) ·
 [Multiline](https://github.com/atomicdeploy/portable-shell/blob/main/previews/prompt-multiline.png) ·
 [ASCII monochrome](https://github.com/atomicdeploy/portable-shell/blob/main/previews/prompt-ascii.png).
+
+## Contextual help
+
+Run help for grouped command descriptions, help segments for a detailed
+command page, or help --compact for the original category/syntax listing.
+Descriptions wrap beneath their own column; narrow layouts move long labels
+onto a separate line. Plain output contains no terminal escapes.
+
+Attach borrowed immutable ps_help_document records using
+ps_set_help_documents(session, documents, count). Each record can supply a
+description plus argument, option and example arrays of ps_help_item.
+Keep the records and their strings alive until detached with
+ps_set_help_documents(session, 0, 0). Existing ps_command initializers are
+unchanged. Only registered commands are listed; undocumented commands retain
+their usage text. Metadata describes callbacks; it does not add parser flags.
+
+Build with PS_HELP_DETAILS=0 to omit descriptions, metadata storage and
+detailed sections while retaining grouped/compact help and usage. Colors follow
+the existing semantic roles and terminal settings. Wrapping reuses the shell UTF-8 decoder and cell-width rules; terminal-dependent emoji clusters may still vary in width.
+
+The [command page](https://github.com/atomicdeploy/portable-shell/blob/main/previews/help-command.png),
+[registry](https://github.com/atomicdeploy/portable-shell/blob/main/previews/help-registry.png)
+and [monochrome wrapped page](https://github.com/atomicdeploy/portable-shell/blob/main/previews/help-plain.png)
+are actual output replays rendered with Agave.

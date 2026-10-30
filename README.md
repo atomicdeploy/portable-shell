@@ -10,6 +10,12 @@ console, TCP/Telnet, and serial I/O. No third-party runtime is linked into the c
 [🛡️ CodeQL](https://github.com/atomicdeploy/portable-shell/actions/workflows/codeql.yml) ·
 [🔐 Security](SECURITY.md)
 
+## Help
+
+![Command help: actual output replay, Agave](previews/help-command.png)
+
+Grouped descriptions, aligned options and examples, width-aware wrapping, and optional metadata. [Command registry](previews/help-registry.png) · [Monochrome](previews/help-plain.png) · [Help API](https://github.com/atomicdeploy/portable-shell/wiki/Shell#contextual-help)
+
 ## 🚀 Build and run
 
 With GCC (MinGW-w64 on Windows), CMake and Ninja:
