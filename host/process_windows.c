@@ -47,6 +47,7 @@ int ps_host_process(int argc,const char *const *argv,int terminal) {
     int ic=GetConsoleMode(in,&im),oc=GetConsoleMode(out,&om),ok=0,i,attributes=0;
     CreatePty create=0;ClosePty close=0;ResizePty resize=0;Pump receive,send;
     COORD size={100,28};CONSOLE_SCREEN_BUFFER_INFO info;
+    UINT input_cp=GetConsoleCP(),output_cp=GetConsoleOutputCP();
     if(argc<1||!quote(command,16384,argc,argv))return 2;
     clear(&si,sizeof si);clear(&pi,sizeof pi);si.StartupInfo.cb=sizeof si;
     if(terminal){
@@ -69,6 +70,8 @@ int ps_host_process(int argc,const char *const *argv,int terminal) {
         if(!UpdateProcThreadAttribute(si.lpAttributeList,0,PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,pty,sizeof pty,0,0))goto done;
         if(ic)SetConsoleMode(in,(im|ENABLE_VIRTUAL_TERMINAL_INPUT)&~(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT|ENABLE_PROCESSED_INPUT|ENABLE_MOUSE_INPUT|ENABLE_WINDOW_INPUT));
         if(oc)SetConsoleMode(out,om|ENABLE_VIRTUAL_TERMINAL_PROCESSING|ENABLE_PROCESSED_OUTPUT);
+        if(ic)SetConsoleCP(CP_UTF8);
+        if(oc)SetConsoleOutputCP(CP_UTF8);
     }else{
         si.StartupInfo.dwFlags=STARTF_USESTDHANDLES;
         for(i=0;i<3;++i){HANDLE h=GetStdHandle(i==0?STD_INPUT_HANDLE:i==1?STD_OUTPUT_HANDLE:STD_ERROR_HANDLE);
@@ -105,5 +108,7 @@ done:
     if(si.lpAttributeList){if(attributes)DeleteProcThreadAttributeList(si.lpAttributeList);HeapFree(GetProcessHeap(),0,si.lpAttributeList);}
     SetConsoleCtrlHandler(control,FALSE);
     if(ic)SetConsoleMode(in,im);if(oc)SetConsoleMode(out,om);
+    if(terminal&&ic)SetConsoleCP(input_cp);
+    if(terminal&&oc)SetConsoleOutputCP(output_cp);
     return (int)code;
 }

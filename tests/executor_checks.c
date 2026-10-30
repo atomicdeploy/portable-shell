@@ -14,5 +14,6 @@ int main(void){
     feed(s,"echo ab\024\r");assert(!strcmp(ps_history_get(s,0),"echo ba"));
     feed(s,"echo one two\033b\033d\031\r");assert(!strcmp(ps_history_get(s,1),"echo one two"));
     feed(s,"echo one two\033\177\r");assert(!strcmp(ps_history_get(s,2),"echo one "));
+    feed(s,"echo a\xc3\xa9\024\r");assert(!strcmp(ps_history_get(s,3),"echo \xc3\xa9" "a"));
     return 0;
 }
