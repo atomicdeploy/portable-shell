@@ -866,6 +866,7 @@ static void render(ps_session *s) {
         s->scroll = focus;
     if (focus >= s->scroll + slots)
         s->scroll = focus - slots + 1;
+    s->scroll = min(s->scroll,displayCount>slots?displayCount-slots:0);
     at(s, 1, 1);
     ansi(s, "\033[2K");
     out(s, "  ");
@@ -1025,6 +1026,18 @@ static void render(ps_session *s) {
         ink(s, 7);
         out(s, " ");
         out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
+        reset(s);
+    }
+    if (displayCount > slots) {
+        unsigned thumb = slots * slots / displayCount;
+        if (!thumb) thumb=1;
+        unsigned top = s->scroll * (slots-thumb) / (displayCount-slots);
+        for(i=0;i<slots;++i){
+            unsigned active = i>=top && i<top+thumb;
+            unsigned rule = s->control_view && s->scroll+i<displayCount && (controlItems[s->scroll+i]&0x6000);
+            at(s,7+i,w-1);ink(s,active?1:7);
+            out(s,(s->io.flags&PS_UNICODE)?(rule?(active?"┫":"┤"):(active?"┃":"│")):(active?"#":rule?"+":"|"));
+        }
         reset(s);
     }
     at(s, h - 6, 2);

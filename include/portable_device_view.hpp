@@ -36,7 +36,7 @@
 #define PS_DEVICE_VIEW_MAX_ROWS 64
 #endif
 #ifndef PS_DEVICE_VIEW_FRAME_BYTES
-#define PS_DEVICE_VIEW_FRAME_BYTES 32768
+#define PS_DEVICE_VIEW_FRAME_BYTES (PS_DEVICE_VIEW_TABLE ? 65535UL : 32768UL)
 #endif
 #if PS_DEVICE_VIEW_TABLE && PS_DEVICE_VIEW_FRAME_BYTES < 16384
 #error Rich tables require a frame budget of at least 16384 bytes
@@ -540,7 +540,10 @@ class DeviceView {
                     out.field("", width - 5);
                 if (ansi_)
                     out.raw("\x1b[31m");
-                out.raw(snapshot.unicode ? " \xe2\x94\x82" : " |");
+                const unsigned thumb=count>visible?(unsigned(visible)*visible/count?unsigned(visible)*visible/count:1):0;
+                const unsigned top=thumb?unsigned(start)*(visible-thumb)/(count-visible):0;
+                const bool scroll=thumb&&i>=top&&i<top+thumb;
+                out.raw(snapshot.unicode ? (scroll?" ┃":" │") : (scroll?" #":" |"));
                 if (ansi_)
                     out.raw("\x1b[0m");
                 out.raw("\r\n");

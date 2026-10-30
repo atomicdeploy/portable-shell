@@ -18,6 +18,13 @@ C++ callers use `view.setSectionBorders(false)`. Restore framing by removing tha
 flag or calling `setSectionBorders(true)`. The compact mode keeps section selection,
 folding, colors and inline value editing. Changes during an active edit are ignored.
 
+Overflowing tables display a proportional scrollbar in the right border, with
+an accent-colored heavy-line thumb (`#` in ASCII). It tracks visible presentation
+rows, including section headings, and updates after folding, navigation or resizing.
+Tables that fit have no scrollbar; it consumes no key/value column width.
+Rich frames permit up to 65,535 streamed terminal bytes (32 KiB for the retained
+view); this limit allocates no framebuffer or additional session RAM.
+
 For the retained category-column layout, call
 `ps_set_table_style(session, PS_TABLE_DEFAULT | PS_TABLE_CATEGORY_COLUMN)` in C,
 or `view.setGroupLayout(DeviceView::CategoryColumn)` in C++. Restore the default

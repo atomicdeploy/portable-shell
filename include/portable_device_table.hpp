@@ -323,6 +323,19 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     paintedSelection_=selected_;paintedGrid_=grid_;
     if(ansi_){
         if(paintAll)blankRows(out,s,6+visible,s.lines-4-diagnostics,w,groupWidth,labelWidth);
+        if(total>visible){
+            const unsigned height=s.lines-9-diagnostics;
+            const unsigned thumb=height*visible/total?height*visible/total:1;
+            const unsigned top=start*(height-thumb)/(total-visible);
+            base(out);int previous=-1;
+            for(unsigned i=0;i<height;++i){
+                const bool active=i>=top&&i<top+thumb;
+                const bool border=i<visible&&(logical[start+i]&0x6000);
+                out.position(6+i,w);
+                if(previous!=int(active)){ink(out,active?1:7);previous=int(active);}
+                out.raw(s.unicode?(border?(active?"┫":"┤"):(active?"┃":"│")):(active?"#":border?"+":"|"));
+            }
+        }
         out.position(s.lines-3-diagnostics);
     }
     const bool bottomJoin=6+visible<s.lines-3-diagnostics || !total || !(logical[start+visible-1]&0xe000);

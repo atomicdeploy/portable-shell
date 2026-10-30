@@ -39,7 +39,7 @@ struct Screen {
         for(unsigned r=1;r<height-4;++r){
             const bool rule=cells[r][left]==(unicode?"\xe2\x94\x9c":"+");
             assert(cells[r][left]==(rule?(unicode?"\xe2\x94\x9c":"+"):vertical));
-            assert(cells[r][width-2]==(rule?(unicode?"\xe2\x94\xa4":"+"):vertical));
+            assert(cells[r][width-2]==(rule?(unicode?"\xe2\x94\xa4":"+"):vertical)||cells[r][width-2]==(unicode?(rule?"┫":"┃"):"#"));
             if(rule)for(unsigned c=left+1;c<width-2;++c)
                 assert(cells[r][c]==(unicode?"─":"-")||cells[r][c]==(unicode?"┬":"+")||cells[r][c]==(unicode?"┴":"+")||cells[r][c]==(unicode?"┼":"+"));
         }
@@ -118,6 +118,16 @@ int main(){
         // Shrinking populated content must erase old rows, including sidebar updates.
         s.rowCount=32;render(true);
         screen.tableBorders(left,unicode);
+        const unsigned presentation=32+(PS_DEVICE_VIEW_SECTIONS&&!PS_DEVICE_VIEW_CATEGORY_COLUMN?(borders?5:2):0);
+        if(presentation>height-9){
+            feed("\x1b[F");render(false);
+            const auto &last=screen.cells[height-5][width-2];
+            assert(last==(unicode?"┃":"#")||last==(unicode?"┫":"#"));
+            feed("\x1b[H");render(false);
+            const auto &first=screen.cells[5][width-2];
+            assert(first==(unicode?"┃":"#")||first==(unicode?"┫":"#"));
+            if(view.sectionSelected())feed("\x1b[B");
+        }
         assert(screen.line(height-1).find("Tab pages")!=std::string::npos);
         assert(screen.cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
         s.rowCount=1;render(false);
