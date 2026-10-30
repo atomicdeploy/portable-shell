@@ -118,7 +118,7 @@ The default uses semantic colors. Rich UI is the default on every capable target
 smaller builds use explicit feature/capacity flags, not automatic MCU stripping.
 Application callbacks own storage, authorization and physical side effects.
 
-[License](LICENSE) · [Preserved source history and attribution](docs/provenance/README.md)
+[License](LICENSE) · [Attribution](docs/Attribution.md)
 
 ### Callbacks and async work
 

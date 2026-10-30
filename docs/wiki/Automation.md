@@ -37,8 +37,7 @@ See the [security policy](https://github.com/atomicdeploy/portable-shell/blob/ma
 Edit `docs/wiki/*.md` in the main repository. These are the canonical, reviewable,
 offline sources. The wiki is the published reading surface; direct edits to managed
 wiki pages are replaced on the next publication. Unknown wiki pages are preserved.
-Historical source identity, licenses and archived design evidence remain in
-`docs/provenance/` and `docs/legacy/`, rather than becoming current user guidance.
+Required source credits live in [Attribution](https://github.com/atomicdeploy/portable-shell/blob/main/docs/Attribution.md); license notices remain in LICENSE.
 Root `OPTIONS.md`, `PORTABILITY.md` and `CONSUMERS.md` remain forwarding pages.
 
 ```text

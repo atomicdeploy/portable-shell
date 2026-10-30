@@ -138,5 +138,4 @@ had no undefined references. This is additional evidence, not a substitute for t
 supported build settings.
 
 PTY and Telnet checks exercise real host input/output. Human and exhaustive terminal
-acceptance remain open. See [verification history](https://github.com/atomicdeploy/portable-shell/blob/main/docs/provenance/verification-history.md)
-for sizes and sampled process memory.
+acceptance remain open. Measure sizes and process memory for the selected feature flags and target build.

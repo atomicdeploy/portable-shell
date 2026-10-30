@@ -1,29 +1,0 @@
-[?2004h[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0m[21G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mh[38;2;120;129;149melp[0m[22G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mhe[38;2;120;129;149mlp[0m[23G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mhel[38;2;120;129;149mp[0m[24G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mhelp[25G
-[38;2;198;120;221mWorkspace:[0m
-  [38;2;152;195;121mcontrols  [0m[open [page]|list|get ID|set ID VALUE]
-  [38;2;152;195;121mboard     [0m[tasks|variables|jobs|session]
-  [38;2;152;195;121mtask      [0madd TITLE | done ID | remove ID | rename ID TITLE | list
-  [38;2;152;195;121mset       [0mKEY VALUE
-  [38;2;152;195;121mget       [0m[KEY]
-  [38;2;152;195;121munset     [0mKEY
-
-[38;2;198;120;221mShell:[0m
-  [38;2;152;195;121mhelp      [0m[--headings|--compact] [command]
-  [38;2;152;195;121mbell      [0m
-  [38;2;152;195;121mecho      [0m[TEXT ...]
-  [38;2;152;195;121margs      [0m[ARGUMENT ...]
-  [38;2;152;195;121mhistory   [0m[clear]
-  [38;2;152;195;121mbind      [0mF1|F2|F3|F4 COMMAND
-  [38;2;152;195;121mexit      [0m
-
-[38;2;198;120;221mTools:[0m
-  [38;2;152;195;121mtext      [0mupper|lower|trim|slug TEXT
-  [38;2;152;195;121mcalc      [0mINTEGER +|-|*|/|% INTEGER
-  [38;2;152;195;121mhash      [0mTEXT [--rounds N]
-  [38;2;152;195;121mjobs      [0m[cancel]
-
-[38;2;198;120;221mTerminal:[0m
-  [38;2;152;195;121mtheme     [0mviolet|red|lumen|onedark|color|ansi|mono|ascii|unicode
-  [38;2;152;195;121mclear     [0m
-  [38;2;152;195;121mstatus    [0m
-[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0m[21G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mt[38;2;120;129;149mask[0m[22G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mth[38;2;120;129;149meme[0m[23G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mthe[38;2;120;129;149mme[0m[24G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mthem[38;2;120;129;149me[0m[25G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mtheme[26G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mtheme [27G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mtheme l[38;2;120;129;149mumen[0m[28G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mtheme lu[38;2;120;129;149mmen[0m[29G[2K[38;2;198;120;221mPortableShell[38;2;120;129;149m [0] [38;2;152;195;121m> [0mtheme lum[38;2;120;129;149men[0m[30G

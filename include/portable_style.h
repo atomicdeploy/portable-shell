@@ -63,8 +63,8 @@ static inline int ps_style_key_token(const char *text,unsigned length) {
 #define PS_STYLE_THEMES 1
 #endif
 /* Stable role IDs: color follows meaning, never the target architecture. */
-/* Compatibility spelling; canonical palette name is Default. */
-#define PS_STYLE_SEMANTIC PS_THEME_DEFAULT
+
+
 enum { PS_THEME_DEFAULT=4, PS_INK_MUTED=0, PS_INK_COMMAND=1,
        PS_INK_WARNING=2, PS_INK_ERROR=3, PS_INK_TEXT=4, PS_INK_SUCCESS=5,
        PS_INK_HEADING=6, PS_INK_BORDER=7, PS_INK_STRING=8,
@@ -95,7 +95,7 @@ static inline const char *ps_style_ink(unsigned theme, int rgb, int red_border, 
         if(kind==PS_INK_BORDER&&red_border)kind=PS_INK_ERROR;
         return (rgb?semantic_rgb:semantic_ansi)[kind%12];
     }
-    if(kind>=8)kind=1; /* Preserve explicitly selected legacy palettes. */
+    if(kind>=8)kind=1; /* Preserve explicitly selected named palettes. */
     static const char *const original[] = {"\033[38;5;245m", "\033[38;5;80m",    "\033[38;5;223m",
                                            "\033[38;5;203m", "\033[1;38;5;231m", "\033[38;5;151m",
                                            "\033[38;5;80m",  "\033[38;5;245m"};
