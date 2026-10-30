@@ -8,6 +8,7 @@ static void view_rule_color(ps_session *s,unsigned y,unsigned x,unsigned w,int b
 }
 static void view_rule(ps_session *s,unsigned y,unsigned x,unsigned w,int bottom){view_rule_color(s,y,x,w,bottom,"\033[31m");}
 static void view_side(ps_session *s){view_color(s,"\033[31m");out(s,(s->io.flags&PS_UNICODE)?"│":"|");reset(s);}
+#include "portable_list.inc"
 static unsigned menu_framed(ps_session *s){return (s->menu_style&PS_MENU_TABLE)&&(s->io.flags&PS_INTERACTIVE)&&s->io.rows>=8&&s->io.columns>=16;}
 static void menu_draw(ps_session *s){
     const ps_menu *m=s->menu_stack[s->menu_depth-1];unsigned i,w=8,x,slots=s->io.rows-6,num=(s->menu_style&PS_MENU_NUMBERS)?5:0;
@@ -60,6 +61,9 @@ PS_API unsigned ps_menu_active(const ps_session *s){return s?s->menu_depth:0;}
 PS_API void ps_menu_refresh(ps_session *s){
     unsigned i,w;const ps_menu *m;
     if(!s||!s->menu_depth)return;
+#if PS_MENU_LIST_VIEW
+    if(menu_list(s)){if(!s->menu_screen){ansi(s,"\033[?1049h");s->menu_screen=1;}if(PS_MOUSE)ansi(s,"\033[?1002h\033[?1006h");list_draw(s);return;}
+#endif
     if(menu_framed(s)){if(!s->menu_screen){ansi(s,"\033[?1049h");s->menu_screen=1;}if(PS_MOUSE)ansi(s,"\033[?1002h\033[?1006h");s->menu_length=s->menu_bad=0;menu_draw(s);return;}
     m=s->menu_stack[s->menu_depth-1];w=s->io.columns>24?s->io.columns-24:8;
     s->menu_length=s->menu_bad=0;
@@ -80,7 +84,7 @@ PS_API void ps_menu_close(ps_session *s){
     if(!s)return;
     s->canvas_kind=0;
     if(s->menu_screen){if(PS_MOUSE)ansi(s,"\033[?1002l\033[?1006l");ansi(s,"\033[0m\033[?25h\033[?1049l");s->menu_screen=0;}
-    s->menu_depth=s->menu_length=s->menu_bad=0;
+    s->menu_depth=s->menu_length=s->menu_bad=0;list_reset(s);
 }
 PS_API int ps_menu_open(ps_session *s,const ps_menu *menu){
     if(!s||ps_form_active(s)||s->exit||s->document_open||!menu_valid(menu))return 0;
@@ -94,17 +98,20 @@ PS_API int ps_menu_choose(ps_session *s,unsigned number){
     const ps_menu *m;const ps_menu_item *item;
     if(!s||!s->menu_depth)return 2;
     m=s->menu_stack[s->menu_depth-1];
-    if(!number){s->menu_selected=s->menu_top=0;if(--s->menu_depth)ps_menu_refresh(s);else ps_menu_close(s);return 0;}
+    if(!number){s->menu_selected=s->menu_top=0;list_reset(s);if(--s->menu_depth)ps_menu_refresh(s);else ps_menu_close(s);return 0;}
     if(number>m->count)return 2;
     item=m->items+number-1;
     if((item->flags&PS_MENU_DISABLED)||(!item->submenu&&!item->run))return 2;
     if(item->submenu){
         if(s->menu_depth==PS_MENU_DEPTH||!menu_valid(item->submenu))return 2;
-        s->menu_selected=s->menu_top=0;s->menu_stack[s->menu_depth++]=item->submenu;ps_menu_refresh(s);return 0;
+        s->menu_selected=s->menu_top=0;list_reset(s);s->menu_stack[s->menu_depth++]=item->submenu;ps_menu_refresh(s);return 0;
     }
     ps_menu_close(s);s->status=item->run(s,item->context);return s->status;
 }
 static void menu_key(ps_session *s,unsigned key){
+#if PS_MENU_LIST_VIEW
+    if(menu_list(s)){list_key(s,key);return;}
+#endif
     if(menu_framed(s)){
         unsigned count=s->menu_stack[s->menu_depth-1]->count;
         if(key==PS_KEY_UP||key==PS_KEY_DOWN||key==PS_KEY_HOME||key==PS_KEY_END){

@@ -145,6 +145,10 @@ struct ps_session {
     const ps_menu *menu_stack[PS_MENU_DEPTH];
     unsigned menu_depth, menu_length, menu_bad;
     char menu_input[4];
+#if PS_MENU_LIST_VIEW
+    char menu_filter[64];
+    unsigned menu_filtering, menu_filter_pos, menu_help;
+#endif
     unsigned menu_style, menu_selected, menu_top, menu_screen, menu_x, menu_width, menu_slots;
     ps_menu_description_fn menu_description;
     void *menu_description_context;
@@ -627,7 +631,7 @@ static const ps_command builtins[] = {
     {"help", "[--headings|--compact] [command]", "Shell", builtin, 0, 0},
     {"board", "[tasks|variables|jobs|session]", "Workspace", builtin, 0, 0},
     {"edit", "[--framed]", "Workspace", builtin, 0, 0},
-    {"menu", "[--plain|--no-numbers|--details] [NUMBER ...]", "Workspace", builtin, 0, 0},
+    {"menu", "[--plain|--list|--no-numbers|--details] [NUMBER ...]", "Workspace", builtin, 0, 0},
     {"files", "", "Workspace", builtin, 0, 0},
     {"task", "add TITLE | done ID | remove ID | rename ID TITLE | list", "Workspace", builtin, 0,
      0},
@@ -865,6 +869,8 @@ static void table_close(ps_session *s) {
     ansi(s, "\033[0m\033[?25h\033[?1049l");
     prompt(s);
 }
+static void edit_insert(char *, unsigned *, unsigned *, unsigned, unsigned);
+static void edit_delete(char *, unsigned *, unsigned *, int);
 #include "portable_menu.inc"
 #include "portable_editor.inc"
 #include "portable_files.inc"
@@ -2076,7 +2082,7 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     }
     if(equal(cmd,"menu")){
         int result=0;unsigned first=1,style=PS_MENU_TABLE|PS_MENU_NUMBERS;
-        for(;first<(unsigned)argc;++first){if(equal(a[first],"--plain"))style=0;else if(equal(a[first],"--no-numbers"))style&=~PS_MENU_NUMBERS;else if(equal(a[first],"--details"))style|=PS_MENU_DETAILS;else break;}
+        for(;first<(unsigned)argc;++first){if(equal(a[first],"--list")&&PS_MENU_LIST_VIEW)style=PS_MENU_LIST;else if(equal(a[first],"--plain"))style=0;else if(equal(a[first],"--no-numbers"))style&=~PS_MENU_NUMBERS;else if(equal(a[first],"--details"))style|=PS_MENU_DETAILS;else break;}
         ps_menu_set_style(s,style);ps_menu_open(s,&default_menu);
         for(i=first;i<(unsigned)argc;++i){
             int n;const ps_menu *m=s->menu_depth?s->menu_stack[s->menu_depth-1]:0;

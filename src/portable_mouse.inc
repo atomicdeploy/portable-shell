@@ -90,6 +90,16 @@ static void workspace_mouse(ps_session *s,const ps_mouse_event *e){
 #if PS_FORM && PS_MOUSE
     if(s->form){form_mouse(s,x,y);return;}
 #endif
+#if PS_MENU_LIST_VIEW
+    if(s->menu_depth&&menu_list(s)){
+        unsigned total;list_index(s,0,&total);
+        if(y>=5&&y<5+s->menu_slots*3&&x>=3&&x<s->io.columns-2){
+            unsigned selected=s->menu_top+(y-5)/3;
+            if(selected<total){s->menu_selected=selected;s->menu_bad=0;list_draw(s);}
+        }
+        return;
+    }
+#endif
     if(s->file_count&&s->io.rows>=7&&y>=3&&y<s->io.rows-3&&x>1&&x<s->io.columns-1){
         file_mouse(s,x,y);
     }else if(s->menu_depth&&menu_framed(s)&&y>=4&&y<4+s->menu_slots&&x>s->menu_x&&x<s->menu_x+s->menu_width-1){

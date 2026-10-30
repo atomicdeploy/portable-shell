@@ -53,3 +53,39 @@ Closing through the API releases the mode; normal host input redraws the prompt.
 ![Centered single column](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-centered.png)
 
 ![Number column and details panel](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-details.png)
+
+## Filterable list mode
+
+Run menu --list or call ps_menu_set_style(session, PS_MENU_LIST) before opening
+a menu. The same menu items, submenu tree, disabled flags, action callbacks and
+description callback are used; no separate item model is required.
+
+The borderless list shows a title, item count, two-line items, a selected-item
+rail, numeric/dot pagination and optional expanded keyboard help. Descriptions
+come from ps_menu_set_description. Empty results and unavailable selections are
+handled without dispatching an action.
+
+- ↑/↓ or j/k select; ←/→ or Page Up/Page Down change pages.
+- Home/End selects the first/last match; Enter opens the selected item.
+- / edits the filter; Enter accepts it. Esc clears an active filter before
+  returning to the parent menu. Ctrl-C closes the entire menu.
+- ? toggles extended help. Clicking selects an item; wheel input moves selection.
+- Filter editing supports ←/→, Home/End, Backspace, Delete and Ctrl-U. It uses the
+  existing byte editor and bounded storage.
+
+Filtering is stable-order subsequence matching on titles and descriptions, with
+ASCII case folding and exact UTF-8 byte matching. It does not rank matches or
+implement locale-aware Unicode case folding. Refresh/resizing preserves the filter.
+Tiny terminals and non-interactive sessions use the existing numbered fallback.
+
+PS_MENU_LIST_VIEW=0 removes the list renderer and its filter state. Numbered and
+framed menus remain available. Existing defaults are unchanged.
+
+This is an original C implementation inspired by the interaction pattern documented
+by [Charm's list component](https://github.com/charmbracelet/bubbles#list), with no
+Go code or dependencies imported. It does not yet include a list activity spinner
+or automatic match highlighting.
+
+![List and pagination, actual byte-output replay](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-list.png)
+
+![Filtering, actual byte-output replay](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-filtered.png)
