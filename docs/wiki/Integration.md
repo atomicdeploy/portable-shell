@@ -48,5 +48,4 @@ is not SSH. Report build-disabled/unsupported transport accurately rather than
 silently enabling an alternate protocol.
 
 Keep consumer source locks and review ledgers; do not create divergent copies of
-shared headers. [Recorded integrations](https://github.com/atomicdeploy/portable-shell/blob/main/docs/provenance/README.md#recorded-consumers)
-retain their repository identities and attribution.
+shared headers. Consumers own their application commands and deployment validation.

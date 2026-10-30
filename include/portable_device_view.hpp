@@ -61,7 +61,7 @@
 namespace PortableShell {
 class DeviceView {
   public:
-    enum Theme : uint8_t { Violet, Red, Cyan, OneDark, Default, Lumen=Cyan, Semantic=Default };
+    enum Theme : uint8_t { Violet, Red, Cyan, OneDark, Default };
     enum TabLayout : uint8_t { HorizontalTabs, VerticalTabs };
     enum GroupLayout : uint8_t { SectionRows, CategoryColumn };
     enum Kind : uint8_t { Text, Toggle, Level, Choice };

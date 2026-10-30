@@ -49,8 +49,7 @@ cmake -DGENERATOR=Ninja -P tools/rebuild-previews.cmake
 ```
 
 The script verifies the downloaded Agave/font-license and rasterizer hashes.
-These tools are never linked into PortableShell. Historical captures and source
-attribution are preserved separately under [provenance](https://github.com/atomicdeploy/portable-shell/blob/main/docs/provenance/README.md).
+These tools are never linked into PortableShell. Source credits are in [Attribution](https://github.com/atomicdeploy/portable-shell/blob/main/docs/Attribution.md).
 
 
 ## Progress and values

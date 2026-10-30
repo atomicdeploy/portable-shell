@@ -393,7 +393,9 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
             else return fail(s,"unknown display setting");
         }else{
             if(argc!=2)return fail(s,"theme default|cyan|violet|red|onedark");
-            choice=equal(a[1],"semantic")?"default":equal(a[1],"lumen")?"cyan":a[1];
+            choice=a[1];
+            if(!equal(choice,"default")&&!equal(choice,"cyan")&&!equal(choice,"violet")&&
+               !equal(choice,"red")&&!equal(choice,"onedark"))return fail(s,"unknown theme");
         }
 #ifdef PS_ASCII_ONLY
         if (equal(choice, "color") || equal(choice, "unicode") || equal(choice, "ansi"))

@@ -9,11 +9,11 @@
 - Default presentation uses semantic color roles, not an accent theme. Neutral surfaces
   and borders, green success/enabled, gray inactive/unknown, amber warning/pending,
   red errors, orange numbers, green strings, violet commands/choices, cyan headings/actions.
-  Selection uses contrast independently of value meaning. Legacy themes are opt-in.
-- Preserve the original cyan color scheme as the Cyan theme; old names belong only in compatibility aliases or provenance.
+  Selection uses contrast independently of value meaning. Named palettes are opt-in.
+- Use the canonical Default and Cyan palette names. Keep aliases only for demonstrated current consumer needs.
 - Name implementation APIs, files, macros and profiles by their function, never by
-  a donor product. Keep exact donor identities, legal attribution and old-name
-  migration mappings in provenance documents and Git history.
+  a donor product. Keep required source attribution in docs/Attribution.md; do not
+  archive obsolete reports, naming maps or screenshots in the current tree.
 - Use actual key symbols in Unicode UI hints: ↑/↓, ←/→ and related characters rather than
   generic words such as "Arrows". Supply legible text fallbacks in ASCII mode.
 - Terminal pictures must come from emitted program output. Include a dark Agave rendition,

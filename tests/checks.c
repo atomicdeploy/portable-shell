@@ -777,7 +777,8 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
     {
         cfg.flags=PS_INTERACTIVE;s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);
         CHECK(!ps_execute(s,"theme default")&&!ps_execute(s,"theme cyan"),"canonical theme names");
-        CHECK(!ps_execute(s,"theme semantic")&&!ps_execute(s,"theme lumen"),"legacy theme aliases");
+        CHECK(ps_execute(s,"theme semantic")&&ps_execute(s,"theme lumen"),"obsolete theme names rejected");
+        CHECK(ps_execute(s,"theme color")&&ps_execute(s,"theme ansi")&&ps_execute(s,"theme mono")&&ps_execute(s,"theme unicode")&&ps_execute(s,"theme ascii"),"display controls are not themes");
         clear();ps_message(s,PS_STYLE_SUCCESS,"plain");
         CHECK(!has(t.output,"\033[92m")&&!has(t.output,"\033[38;"),"theme does not enable colors");
 #ifdef PS_ASCII_ONLY
