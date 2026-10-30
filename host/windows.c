@@ -422,6 +422,9 @@ static int server(unsigned port, const char *bind_addr, unsigned flags) {
                     sessions[i] = ps_init(storage[i].data, sizeof storage[i].data, &cfg);
                     if (use_device_commands)
                         ps_device_attach(sessions[i], &profiles[i], 0, 0);
+#ifdef PS_HOST_SESSION_READY
+                    PS_HOST_SESSION_READY(sessions[i]);
+#endif
                     ps_start(sessions[i]);
                 }
             }
