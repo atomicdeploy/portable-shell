@@ -118,6 +118,9 @@ static int probe_write(void *ctx, unsigned id, const ps_control_value *v, ps_u32
     ++p->values[id].revision;
     return 1;
 }
+static int menu_test_action(ps_session *s,void *context){
+    unsigned *calls=context;++*calls;ps_write(s,"menu-action");return 0;
+}
 int portable_shell_checks(ps_write_fn report, void *ctx) {
     ps_args a;
     ps_session *s;
@@ -667,6 +670,30 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
         clear(); ps_execute(s, "bell"); feed(s, "echo batch\n");
         CHECK(eq(t.output, "batch\n"), "batch emits neither BEL nor ghost escapes");
+    }
+    {
+        unsigned calls=0;
+        ps_menu_item children[]={{"Run",0,menu_test_action,&calls,0},{"Disabled",0,menu_test_action,&calls,PS_MENU_DISABLED}};
+        ps_menu child={"Child",children,2};
+        ps_menu_item parents[]={{"Child",&child,0,0,0}};
+        ps_menu root={"Root",parents,1};
+        cfg.flags=PS_INTERACTIVE|PS_COLOR;s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);
+        clear();CHECK(ps_menu_open(s,&root)&&has(t.output,"1. ")&&has(t.output,"Root"),"numbered menu renders without table");
+        feed(s,"9\r");CHECK(ps_menu_active(s)==1&&!calls,"invalid menu choice does not execute");
+        feed(s,"1\r\n");CHECK(ps_menu_active(s)==2&&!calls,"CRLF enters submenu once");
+        feed(s,"2\r");CHECK(ps_menu_active(s)==2&&!calls,"disabled menu action blocked");
+        feed(s,"0\r");CHECK(ps_menu_active(s)==1,"zero returns to parent menu");
+        feed(s,"1\r1000\r");CHECK(ps_menu_active(s)==2&&!calls,"overflowed menu number cannot execute prefix");
+        feed(s,"1x\r");CHECK(!calls,"non-numeric menu input cannot execute numeric prefix");
+        feed(s,"2\b1\r");CHECK(calls==1&&!ps_menu_active(s),"backspace and callback action leave menu mode");
+        ps_menu_open(s,&root);ps_key(s,3);CHECK(!ps_menu_active(s),"Ctrl-C closes menu");
+        cfg.flags=0;s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);
+        clear();CHECK(!ps_execute(s,"menu 2 1")&&!ps_menu_active(s)&&!has(t.output,"\033"),"batch menu path executes without terminal escapes");
+        CHECK(ps_execute(s,"menu 2 1 1")==2,"extra path cannot execute an early leaf");
+        parents[0].submenu=&root;
+        ps_menu_open(s,&root);for(i=1;i<PS_MENU_DEPTH;++i)ps_menu_choose(s,1);
+        CHECK(ps_menu_choose(s,1)==2&&ps_menu_active(s)==PS_MENU_DEPTH,"cyclic menu depth is bounded");
+        ps_menu_close(s);
     }
     CHECK(!portable_terminal_checks(), "shared firmware C components");
     {

@@ -373,6 +373,7 @@ unsigned ps_replay_svg(char *buffer) { return svg(buffer); }
 __attribute__((noinline, noipa)) int render_complete(void) {
     return 0;
 }
+char preview_menu[400000];unsigned preview_menu_n;
 int render_entry(void) {
     unsigned r, c;
     ps_config cfg = {sink, 0, W, H, PS_INTERACTIVE | PS_COLOR | PS_UNICODE | PS_TRUECOLOR};
@@ -526,6 +527,11 @@ int render_entry(void) {
         ps_message(s, PS_STYLE_WARNING, "Serial event fixture");
         preview_device_commands_n = svg(preview_device_commands);
     }
+    ps_replay_reset();
+    cfg.flags=PS_INTERACTIVE|PS_COLOR|PS_UNICODE|PS_TRUECOLOR;
+    s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);
+    ps_execute(s,"menu");feed(s,"2\r3\r");
+    preview_menu_n=svg(preview_menu);
     return render_complete();
 }
 #endif
