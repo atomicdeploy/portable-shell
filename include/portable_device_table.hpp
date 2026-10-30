@@ -79,7 +79,7 @@ bool mouse(const ps_mouse_event &e,const Snapshot &s,Action &a){
     if(button!=0&&button!=2)return false;
     if(drag&&!mouseDrag_)return false;
     if(!drag)mouseDrag_=true;
-    const unsigned width=s.columns>240?240:s.columns;
+    const unsigned width=s.columns>(PS_DEVICE_VIEW_TABLE?240:100)?(PS_DEVICE_VIEW_TABLE?240:100):s.columns;
     const unsigned offset=PS_DEVICE_VIEW_TABLE&&PS_DEVICE_VIEW_VERTICAL_TABS&&tabs_==VerticalTabs&&width>=64?22:0;
     const unsigned w=width-1-offset,shift=tabsInsideTable_?0:1,body=PS_DEVICE_VIEW_TABLE?6+shift:4;
     if(editing_){
@@ -106,6 +106,17 @@ bool mouse(const ps_mouse_event &e,const Snapshot &s,Action &a){
         }
         if(hit<PageCount){page_=Page(hit);selected_=0;sectionFocus_=grid_=false;dirty_=full_=true;return false;}
     }
+    if(!PS_DEVICE_VIEW_TABLE&&!drag&&y==2){
+        unsigned left=3;
+        for(unsigned p=0;p<PageCount;++p){
+            if(!pageAvailable(p,s)||(width<80&&p!=page_))continue;
+            const char *label=p==Led?"LEDs":p==TerminalPage?"Term":p==Clock?"Time":p==Notifications?"Notify":pageName(p);
+            const unsigned n=unsigned(ps_text_length(label))+2;
+            if(left+n>width-2)continue;
+            if(x>=left&&x<left+n){page_=Page(p);selected_=0;sectionFocus_=grid_=false;dirty_=full_=true;return false;}
+            left+=n;
+        }
+    }
     if(grid_)return false;
     if(x<=offset+1||y<body||y>=body+mouseVisible_)return false;
     uint16_t items[PS_DEVICE_VIEW_MAX_ROWS*4];unsigned focus;
@@ -122,7 +133,7 @@ bool mouse(const ps_mouse_event &e,const Snapshot &s,Action &a){
     const Row *r=currentRow(s);if(!r)return false;
     if(button==2&&!drag)return startDialog(s,a);
     const unsigned labelWidth=PS_DEVICE_VIEW_TABLE?(w<59?12:w<95?24:28):(width<60?12:22);
-    const unsigned valueX=offset+labelWidth+6+(PS_DEVICE_VIEW_TABLE&&groups_==CategoryColumn&&w>=95?19:0);
+    const unsigned valueX=offset+labelWidth+(PS_DEVICE_VIEW_TABLE?6:7)+(PS_DEVICE_VIEW_TABLE&&groups_==CategoryColumn&&w>=95?19:0);
     if(x<valueX)return false;
     if(!r->editable||r->pending||r->secret||!keySafe(r->key))return false;
     if(PS_DEVICE_VIEW_WIDGETS&&r->kind==Level&&r->maximum>r->minimum&&r->step){
