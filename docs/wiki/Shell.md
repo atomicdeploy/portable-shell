@@ -78,6 +78,7 @@ Try these commands in the hosted shell or over Telnet:
 
 ~~~text
 prompt success "operator@workbench " muted "/configuration\n" command "❯ "
+prompt success "╭─ operator@workbench" muted "  /configuration\n" command "╰─❯ "
 prompt heading "controller\n" success "-> "
 prompt reset
 ~~~
