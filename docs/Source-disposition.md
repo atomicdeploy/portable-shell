@@ -16,6 +16,8 @@ historical revision, other repository or gallery image.
   for zero history and 344 bytes for two entries. These are not AVR stack totals.
 - Signed decimal formatting and percent-pattern substitution are now small shared
   helpers. INT_MIN is tested without signed overflow.
+  They accept native int: on 16-bit-int targets they are not an S32 ABI replacement.
+  Keep the donor's 32-bit formatting for out-of-range values until explicitly ported.
 - Bare bright-yellow prompts remain configurable without a device command profile.
   Raw argument tails and raw terminal output remain possible at explicit boundaries.
 - The optional compatibility catalogue registers its entire command set when

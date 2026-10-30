@@ -55,6 +55,9 @@ not permission to change command semantics or drop validation.
 `ps_terminal_number_pattern(write, context, pattern, value)` substitutes the signed
 value for **every** `%`; `%%` substitutes twice. This explicitly preserves that
 small formatter behavior without a new general printf engine.
+These APIs use native `int`, not a fixed 32-bit type. On targets with 16-bit `int`,
+they do not replace a device's 32-bit formatter for values outside that range;
+retain that consumer formatter rather than narrowing its arguments.
 
 These terminal helpers emit trusted application bytes. `ps_write` is sanitized
 text, not a drop-in raw ANSI writer. Keep raw output at an explicit callback boundary.
