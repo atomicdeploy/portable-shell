@@ -363,7 +363,8 @@ static unsigned svg(char *p) {
                 if(v->attributes&(1u<<3))add("font-style=\"italic\" ");
                 if(v->attributes&(1u<<4))add("text-decoration=\"underline\" ");
                 else if(v->attributes&(1u<<9))add("text-decoration=\"line-through\" ");
-                if((unsigned char)v->text[0]>=0xe1&&(unsigned char)v->text[0]<=0xef)add("font-family=\"Noto Sans CJK JP\" ");
+                { uint32_t cp; ps_rich_decode(v->text,ps_text_length(v->text),&cp);
+                if((cp>=0x2e80&&cp<=0x9fff)||(cp>=0xac00&&cp<=0xd7af)||(cp>=0xf900&&cp<=0xfaff))add("font-family=\"Noto Sans CJK JP\" "); }
 #endif
                 if((unsigned char)v->text[0]==0xef && ((unsigned char)v->text[1]&0xc0)==0x80)add("font-family=\"Agave Nerd Font Mono\" ");
                 if((unsigned char)v->text[0]==0xf0)add("font-family=\"Noto Emoji\" ");
