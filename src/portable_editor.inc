@@ -80,7 +80,7 @@ static void document_close(ps_session *s){
     ansi(s,"\033[0m\033[?25h\033[?1049l");prompt(s);
 }
 PS_API int ps_editor_open(ps_session *s,const char *title,const char *text,ps_editor_save_fn save,void *ctx){
-    unsigned i,n;if(!s||!title||!text||s->document_open||s->exit||!(s->io.flags&PS_INTERACTIVE))return 0;
+    unsigned i,n;if(!s||ps_form_active(s)||!title||!text||s->document_open||s->exit||!(s->io.flags&PS_INTERACTIVE))return 0;
     n=length(text);if(n>=PS_EDITOR_CAPACITY)return 0;
     for(i=0;i<n;++i)if(((unsigned char)text[i]<32||text[i]==127)&&text[i]!='\n'&&text[i]!='\t')return 0;
     if(s->board)table_close(s);

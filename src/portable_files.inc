@@ -89,7 +89,7 @@ static void file_render(ps_session *s){
 }
 PS_API void ps_file_picker_style(ps_session *s,unsigned layout,unsigned icons){if(s){s->file_layout=layout<=PS_FILE_SPLIT?layout:PS_FILE_TREE;s->file_icons=icons<=PS_FILE_ICONS_ASCII?icons:PS_FILE_ICONS_UNICODE;if(s->file_count)file_render(s);}}
 PS_API int ps_file_browser_open(ps_session *s,const char *title,const ps_file_node *nodes,unsigned count,ps_file_pick_fn fn,ps_file_load_fn load,void *ctx){
-    if(!s||!title||!file_valid(nodes,count)||s->document_open||s->exit||!(s->io.flags&PS_INTERACTIVE))return 0;
+    if(!s||ps_form_active(s)||!title||!file_valid(nodes,count)||s->document_open||s->exit||!(s->io.flags&PS_INTERACTIVE))return 0;
     if(s->board)table_close(s);
     ps_menu_close(s);ps_file_picker_close(s);
     s->file_nodes=nodes;s->file_count=count;s->file_title=title;s->file_pick=fn;s->file_load=load;s->file_context=ctx;

@@ -514,7 +514,7 @@ PS_API int ps_panel_attach(ps_session *s, const ps_panel *panel) {
     return 1;
 }
 PS_API int ps_panel_open(ps_session *s, unsigned page) {
-    if (!s || !s->panel || page >= s->panel->count || !(s->io.flags & PS_INTERACTIVE))
+    if (!s || ps_form_active(s) || !s->panel || page >= s->panel->count || !(s->io.flags & PS_INTERACTIVE))
         return 0;
     s->control_view = 1;
     s->dialog = 0;

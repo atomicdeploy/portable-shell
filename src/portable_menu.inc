@@ -1,11 +1,12 @@
 /* Shared framed workspace primitives; exact cell widths, no terminal-edge wrap. */
 static void view_color(ps_session *s,const char *code){if(s->io.flags&PS_COLOR)ansi(s,code);}
 static void view_selection(ps_session *s){if(s->io.flags&PS_COLOR)view_color(s,"\033[30;43m");else ansi(s,"\033[7m");}
-static void view_rule(ps_session *s,unsigned y,unsigned x,unsigned w,int bottom){
-    unsigned i;at(s,y,x);view_color(s,"\033[31m");out(s,(s->io.flags&PS_UNICODE)?(bottom?"╰":"╭"):"+");
+static void view_rule_color(ps_session *s,unsigned y,unsigned x,unsigned w,int bottom,const char *code){
+    unsigned i;at(s,y,x);view_color(s,code);out(s,(s->io.flags&PS_UNICODE)?(bottom?"╰":"╭"):"+");
     for(i=0;i<w-2;++i)out(s,(s->io.flags&PS_UNICODE)?"─":"-");
     out(s,(s->io.flags&PS_UNICODE)?(bottom?"╯":"╮"):"+");reset(s);
 }
+static void view_rule(ps_session *s,unsigned y,unsigned x,unsigned w,int bottom){view_rule_color(s,y,x,w,bottom,"\033[31m");}
 static void view_side(ps_session *s){view_color(s,"\033[31m");out(s,(s->io.flags&PS_UNICODE)?"│":"|");reset(s);}
 static unsigned menu_framed(ps_session *s){return (s->menu_style&PS_MENU_TABLE)&&(s->io.flags&PS_INTERACTIVE)&&s->io.rows>=8&&s->io.columns>=16;}
 static void menu_draw(ps_session *s){
@@ -82,7 +83,7 @@ PS_API void ps_menu_close(ps_session *s){
     s->menu_depth=s->menu_length=s->menu_bad=0;
 }
 PS_API int ps_menu_open(ps_session *s,const ps_menu *menu){
-    if(!s||s->exit||s->document_open||!menu_valid(menu))return 0;
+    if(!s||ps_form_active(s)||s->exit||s->document_open||!menu_valid(menu))return 0;
     if(s->board)table_close(s);
     ps_file_picker_close(s);ps_menu_close(s);s->menu_selected=s->menu_top=0;
     if(menu_framed(s)){ansi(s,"\033[?1049h");s->menu_screen=1;}

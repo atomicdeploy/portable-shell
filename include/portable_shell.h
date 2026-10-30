@@ -298,6 +298,29 @@ typedef struct { const char *label, *annotation, *value; unsigned flags; } ps_re
 /* Returns rows rendered, or 0 for invalid input / PS_REPORT=0. Width follows
    terminal columns; long content wraps without truncation. No session storage. */
 PS_API unsigned ps_print_report(ps_session *,const ps_report_row *,unsigned count,unsigned style);
+#ifndef PS_FORM
+#define PS_FORM 1
+#endif
+enum { PS_FORM_TEXT, PS_FORM_CHOICE };
+typedef const char *(*ps_form_validate_fn)(void *,unsigned field,const char *value);
+typedef void (*ps_form_done_fn)(ps_session *,void *,int accepted);
+typedef struct {
+    const char *label;
+    unsigned kind;
+    char *value; unsigned capacity; /* writable, initially NUL-terminated */
+    unsigned minimum, maximum; /* text code points; maximum=0 means storage limit */
+    const char *const *choices; unsigned choice_count;
+} ps_form_field;
+typedef struct {
+    const ps_form_field *fields; unsigned count;
+    ps_form_validate_fn validate; ps_form_done_fn done; void *context;
+} ps_form;
+/* Descriptors and value buffers remain alive until completion. Each accepted
+   step writes its value; cancelled forms retain accepted steps for the caller
+   to discard or reuse. The completion callback is not invoked for a rejected step. */
+PS_API int ps_form_open(ps_session *,const ps_form *);
+PS_API void ps_form_close(ps_session *); /* cancel, callback receives accepted=0 */
+PS_API unsigned ps_form_active(const ps_session *);
 enum { PS_HELP_HEADINGS, PS_HELP_COMPACT };
 #ifndef PS_HELP_DETAILS
 #define PS_HELP_DETAILS 1
