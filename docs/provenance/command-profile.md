@@ -19,7 +19,7 @@ until requested. This is not a claim of an installed or hardware-validated repla
   [Shell.h](https://github.com/atomicdeploy/pu850-esp/blob/431104072952f694a35b3a83c19f13fbb098ca5b/LocalLib/Shell.h),
   [Commands.cpp](https://github.com/atomicdeploy/pu850-esp/blob/431104072952f694a35b3a83c19f13fbb098ca5b/LocalLib/Commands.cpp),
   [Telnet.cpp](https://github.com/atomicdeploy/pu850-esp/blob/431104072952f694a35b3a83c19f13fbb098ca5b/LocalLib/Telnet.cpp).
-  File hashes and local paths are recorded in `donor-inventory.json`.
+  File hashes and local paths are recorded in `command-sources.json`.
 
 ## Behavior traced
 

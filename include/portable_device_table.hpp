@@ -280,7 +280,7 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     const unsigned reserve=8192U+unsigned(s.lines)*110U;
     const unsigned budgetRows=(PS_DEVICE_VIEW_FRAME_BYTES > reserve ? PS_DEVICE_VIEW_FRAME_BYTES-reserve : 1)/(w+450U);
     if(visible>budgetRows)visible=budgetRows?budgetRows:1;
-    // PCController's logical-row/section-line separation, without heap storage.
+    // Separate logical rows from section headings without heap storage.
     uint8_t logical[PS_DEVICE_VIEW_MAX_ROWS*2];bool section[PS_DEVICE_VIEW_MAX_ROWS*2];
     unsigned total=0,selectedLine=0;
     for(unsigned i=0;i<count;++i){

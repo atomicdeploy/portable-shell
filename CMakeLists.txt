@@ -10,7 +10,7 @@ option(PORTABLE_SHELL_BUILD_HOST "Build the optional native terminal/TCP/serial 
 option(PORTABLE_SHELL_BUILD_TESTS "Build brief byte-level checks" ON)
 option(PORTABLE_SHELL_COMPACT "Explicit smaller buffers; features unchanged" OFF)
 option(PORTABLE_SHELL_COMPILER_RT "Include freestanding compiler helpers for Xtensa" OFF)
-option(PORTABLE_SHELL_BUILD_LEGACY "Build hosted adapter for the original atomicdeploy API" OFF)
+option(PORTABLE_SHELL_BUILD_LEGACY "Build hosted adapter for the original public API" OFF)
 add_library(portable_shell STATIC src/portable_shell.c src/portable_shell_device.c)
 if(PORTABLE_SHELL_USE_LIBC)
   target_compile_definitions(portable_shell PRIVATE PS_USE_LIBC)
