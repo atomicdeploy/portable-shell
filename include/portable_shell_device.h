@@ -17,7 +17,7 @@ typedef struct {
 struct ps_device_profile {
     ps_device_call_fn call;
     void *context;
-    ps_device_slot slots[17];
+    ps_device_slot slots[15];
 };
 /* Initialize session with PS_CASE_INSENSITIVE | PS_NO_BUILTINS | PS_LEGACY_KEYS plus desired I/O
    flags. profile and its callback context must outlive the session. Attach before

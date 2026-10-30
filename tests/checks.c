@@ -173,6 +173,20 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
     CHECK(s != 0, "init");
     if (!s)
         return 1;
+    CHECK(ps_execute(s, "set uppercase_echo true") == 0 && ps_get_uppercase_echo(s),
+          "host setting updates echo");
+    clear();
+    CHECK(ps_execute(s, "get uppercase_echo") == 0 && has(t.output, "true"),
+          "host setting readback");
+    CHECK(ps_execute(s, "set uppercase_echo invalid") == 2 && ps_get_uppercase_echo(s),
+          "host invalid boolean leaves state unchanged");
+    CHECK(ps_execute(s, "unset uppercase_echo") == 2, "session setting cannot be unset");
+    CHECK(ps_execute(s, "controls set 12 0") == 0 && !ps_get_uppercase_echo(s),
+          "editable settings and command share echo state");
+    CHECK(ps_execute(s, "controls set 12 1") == 0 && ps_get_uppercase_echo(s),
+          "editable settings enable echo");
+    CHECK(ps_execute(s, "set uppercase_echo 0") == 0 && !ps_get_uppercase_echo(s),
+          "host numeric boolean disables echo");
     clear();
     ps_execute(s, "calc 17 * 19");
     CHECK(has(t.output, "323"), "calculator");
@@ -342,13 +356,17 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         CHECK(has(t.output, "Station_"), "case insensitive parameter completion");
         feed(s, "\003");
         clear();
-        ps_execute(s, "upper");
+        CHECK(ps_execute(s, "upper") == 2 && ps_execute(s, "noupper") == 2, "removed uppercase commands");
+        CHECK(ps_execute(s, "set uppercase_echo true") == 0, "uppercase setting enabled");
+        CHECK(ps_execute(s, "set uppercase_echo invalid") == 2 && ps_get_uppercase_echo(s), "invalid boolean preserves setting");
+        clear();
+        CHECK(ps_execute(s, "get uppercase_echo") == 0 && has(t.output, "true"), "uppercase setting readback");
         feed(s, "echo MiXeD");
         CHECK(has(t.output, "ECHO MIXED"), "legacy uppercase affects display");
         feed(s, "\033D!\r");
         CHECK(eq(ps_history_get(s, ps_history_count(s) - 1), "echo MiXe!D"),
               "legacy bare ESC cursor sequence retains original argument case");
-        ps_execute(s, "noupper");
+        CHECK(ps_execute(s, "set uppercase_echo false") == 0 && !ps_get_uppercase_echo(s), "uppercase setting disabled");
         {
             static union {
                 void *align;

@@ -118,3 +118,23 @@ framework build with four command slots and detailed help, themes, forms and das
 disabled uses 24,680 bytes. Stack and consumer-owned metadata are additional; there
 are no core heap allocations. These are measured configurations, not target-independent
 size guarantees. Query `ps_sizeof_session()` for your build.
+
+## Uppercase input display
+
+The workbench and optional device profile expose `uppercase_echo` through settings:
+
+```text
+get uppercase_echo
+set uppercase_echo true
+set uppercase_echo false
+```
+
+Boolean values accept `true`, `false`, `1`, or `0`. Invalid values leave the
+current setting unchanged. The workbench's **Settings → Input → Uppercase echo**
+toggle edits the same session state. `get` without a key also lists this setting
+in the workbench. The standalone `upper` and `noupper` commands are removed.
+This controls input display only; stored history and callback arguments preserve
+their original case. It is session-local and does not imply persistent storage.
+Consumers may use `ps_set_uppercase_echo` and `ps_get_uppercase_echo` to connect
+their own settings registry or persistence backend. Device parameters other than
+`uppercase_echo` continue to pass unchanged to the consumer's raw callback.

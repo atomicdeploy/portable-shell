@@ -49,9 +49,9 @@ because the connect callback precedes a writable connected state.
 | --- | --- | --- |
 | Yellow `> ` / green, red, yellow feedback | `ps_set_prompt`, `ps_message`, PU850 profile | Modern violet/red/Lumen workbench remains default |
 | Case-insensitive names, exact raw tail | `PS_CASE_INSENSITIVE`, `ps_register_raw` | Parsed commands can coexist; no silent quote conversion |
-| `echo`, `clear`, `cls`, `exit`, `upper`, `noupper`, `hex` | Implemented in optional profile | Uppercase changes display only; exit tells adapter to close |
+| `echo`, `clear`, `cls`, `exit`, `hex` | Implemented in optional profile | Uppercase display is now the `uppercase_echo` setting; exit tells adapter to close |
 | `save`, `restore`, `connect`, `reboot`, `busy`, `ready`, `status`, `beep` | Registered raw callbacks routed to caller | Firmware owns settings, WiFi, reboot, UART and physical effects |
-| `get`, `set` | Raw callbacks plus parameter completion | Firmware retains validation, get/set handlers and read-only rules |
+| `get`, `set` | Local `uppercase_echo` setting; other parameters use raw callbacks and completion | Firmware retains validation, get/set handlers and read-only rules |
 | Serial and Telnet sessions | Independent core/profile state per channel | Byte adapters own queues, connection lifetime and clocks |
 | Events during typing | `ps_message` redraws input/cursor | Caller invokes separately for each intended recipient |
 | Editing / history / Tab | Existing editing plus history, completion and legacy key flag | UTF-8 and longer capacity improve on 64-byte ASCII donor |

@@ -162,7 +162,16 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
         int set = equal(cmd, "set"), del = equal(cmd, "unset");
         if ((set && argc != 3) || (del && argc != 2) || (!set && !del && argc > 2))
             return fail(s, "set KEY VALUE | get [KEY] | unset KEY");
+        if (argc > 1 && equal(a[1], "uppercase_echo")) {
+            int result;
+            if (del) return fail(s, "Use set uppercase_echo false");
+            result = session_uppercase_setting(s, set ? a[2] : 0);
+            if (!result && set) ++s->local_revision;
+            return result;
+        }
         if (argc == 1) {
+            ps_write(s, "uppercase_echo=");
+            session_uppercase_setting(s, 0);
             for (i = 0; i < s->var_count; ++i) {
                 ps_write(s, s->vars[i].key);
                 out(s, "=");
