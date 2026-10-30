@@ -6,7 +6,7 @@ static const char *const names[] = {"echo",  "clear",  "cls",     "exit",
                                     "ready", "status", "get",     "set",     "beep"};
 static const char *const parameters[] = {"Hostname",         "WiFi_Mode",     "Station_SSID",
                                          "Station_Password", "AP_SSID",       "AP_Password",
-                                         "Uptime",           "Firmware_Hash", "Build_Date", "uppercase_echo"};
+                                         "Uptime",           "Firmware_Hash", "Build_Date", "input.uppercase"};
 static unsigned lower(unsigned c) {
     return c >= 'A' && c <= 'Z' ? c + 32 : c;
 }
@@ -72,12 +72,12 @@ static int run(ps_session *s, const char *tail, void *context) {
     const char *setting = tail;
     while (*setting == ' ' || *setting == '\t') ++setting;
     if ((slot->command == 12 || slot->command == 13) &&
-        starts(setting, "uppercase_echo") &&
-        (!setting[14] || setting[14] == ' ' || setting[14] == '\t')) {
+        starts(setting, "input.uppercase") &&
+        (!setting[sizeof "input.uppercase" - 1] || setting[sizeof "input.uppercase" - 1] == ' ' || setting[sizeof "input.uppercase" - 1] == '\t')) {
         ps_args args;
         if (ps_parse(setting, &args) ||
             args.argc != (slot->command == 13 ? 2 : 1)) {
-            ps_message(s, PS_STYLE_ERROR, "set uppercase_echo BOOL | get uppercase_echo");
+            ps_message(s, PS_STYLE_ERROR, "set input.uppercase BOOL | get input.uppercase");
             return 2;
         }
         return session_uppercase_setting(s, slot->command == 13 ? args.argv[1] : 0);

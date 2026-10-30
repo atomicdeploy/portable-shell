@@ -121,12 +121,12 @@ size guarantees. Query `ps_sizeof_session()` for your build.
 
 ## Uppercase input display
 
-The workbench and optional device profile expose `uppercase_echo` through settings:
+The workbench and optional device profile expose `input.uppercase` through settings:
 
 ```text
-get uppercase_echo
-set uppercase_echo true
-set uppercase_echo false
+get input.uppercase
+set input.uppercase true
+set input.uppercase false
 ```
 
 Boolean values accept `true`, `false`, `1`, or `0`. Invalid values leave the
@@ -137,4 +137,4 @@ This controls input display only; stored history and callback arguments preserve
 their original case. It is session-local and does not imply persistent storage.
 Consumers may use `ps_set_uppercase_echo` and `ps_get_uppercase_echo` to connect
 their own settings registry or persistence backend. Device parameters other than
-`uppercase_echo` continue to pass unchanged to the consumer's raw callback.
+`input.uppercase` continue to pass unchanged to the consumer's raw callback.

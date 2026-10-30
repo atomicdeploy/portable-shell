@@ -24,8 +24,8 @@
                 } else if (equal(args.argv[0], "get") || equal(args.argv[0], "set") ||
                            equal(args.argv[0], "unset")) {
                     if (args.argc == 1 && !equal(args.argv[0], "unset") &&
-                        prefix("uppercase_echo", token) && match_count < PS_COMMANDS)
-                        matches[match_count++] = "uppercase_echo";
+                        prefix("input.uppercase", token) && match_count < PS_COMMANDS)
+                        matches[match_count++] = "input.uppercase";
                     for (i = 0; i < s->var_count && match_count < PS_COMMANDS; ++i)
                         if (prefix(s->vars[i].key, token))
                             matches[match_count++] = s->vars[i].key;

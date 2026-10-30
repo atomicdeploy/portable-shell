@@ -12,7 +12,7 @@ static int session_uppercase_setting(ps_session *s, const char *value) {
     }
     entry.type = PS_SETTING_BOOL;
     if (ps_setting_parse(&entry, value, &parsed)) {
-        ps_message(s, PS_STYLE_ERROR, "uppercase_echo requires true, false, 1 or 0");
+        ps_message(s, PS_STYLE_ERROR, "input.uppercase requires true, false, 1 or 0");
         return 2;
     }
     ps_set_uppercase_echo(s, (int)parsed.natural);
