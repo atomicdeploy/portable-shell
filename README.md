@@ -110,3 +110,7 @@ smaller builds use explicit feature/capacity flags, not automatic MCU stripping.
 Application callbacks own storage, authorization and physical side effects.
 
 [License](LICENSE) · [Preserved source history and attribution](docs/provenance/README.md)
+
+### Callbacks and async work
+
+Commands, input and device providers support callbacks. Optional cooperative jobs add deferred completion, cancellation, deadlines and fair polling; a bounded byte queue supports partial transport writes. Everything uses caller-owned storage. See [async integration](https://github.com/atomicdeploy/portable-shell/wiki/Async) and the [tested command example](examples/async_command.h).
