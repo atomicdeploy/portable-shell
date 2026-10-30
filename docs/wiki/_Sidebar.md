@@ -1,0 +1,17 @@
+## 🐚 PortableShell
+
+- [Home](Home.md)
+- [🚀 Getting started](Getting-started.md)
+- [🛠️ Building](Building.md)
+- [🖼️ Gallery](Gallery.md)
+- [⌨️ Shell](Shell.md)
+- [📋 Workspace](Workspace.md)
+- [🔢 Menus](Menus.md)
+- [📝 Text editor](Text-editor.md)
+- [⚙️ Options](Options.md)
+- [🔌 Transports](Transports.md)
+- [🧩 Embedding](Embedding.md)
+- [🌍 Portability](Portability.md)
+- [🔗 Integration](Integration.md)
+- [🛡️ Automation](Automation.md)
+- [🧪 Verification](Verification.md)
