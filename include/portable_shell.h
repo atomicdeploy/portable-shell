@@ -87,7 +87,10 @@ PS_API int ps_menu_choose(ps_session *, unsigned number); /* 0 = Back/Close */
 PS_API void ps_menu_refresh(ps_session *);
 PS_API void ps_menu_close(ps_session *);
 PS_API unsigned ps_menu_active(const ps_session *);
-enum { PS_MENU_TABLE=1, PS_MENU_NUMBERS=2, PS_MENU_DETAILS=4 };
+#ifndef PS_MENU_LIST_VIEW
+#define PS_MENU_LIST_VIEW 1
+#endif
+enum { PS_MENU_TABLE=1, PS_MENU_NUMBERS=2, PS_MENU_DETAILS=4, PS_MENU_LIST=8 };
 typedef const char *(*ps_menu_description_fn)(void *, const ps_menu *, unsigned index);
 /* Style 0 retains the original transcript menu. Interactive default: table + numbers.
    Description callback borrows text for the duration of each render. */

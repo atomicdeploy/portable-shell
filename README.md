@@ -10,6 +10,10 @@ console, TCP/Telnet, and serial I/O. No third-party runtime is linked into the c
 [🛡️ CodeQL](https://github.com/atomicdeploy/portable-shell/actions/workflows/codeql.yml) ·
 [🔐 Security](SECURITY.md)
 
+## Filterable lists
+
+Run menu --list for two-line entries, filtering, pagination and contextual help. [List](previews/menu-list.png) · [Filter](previews/menu-filtered.png) · [API](https://github.com/atomicdeploy/portable-shell/wiki/Menus#filterable-list-mode)
+
 ## Meter styles and scrolling
 
 Unicode segmented bars and centered value controls share the meter API. [Styles](previews/meters-segmented.png) · [Scrolled table](previews/table-scrolled.png) · [API](https://github.com/atomicdeploy/portable-shell/wiki/Meters)
