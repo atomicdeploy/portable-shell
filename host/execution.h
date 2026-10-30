@@ -3,7 +3,7 @@
 static int host_execute(ps_session *s,int argc,const char *const *argv,void *context){
     int status; (void)context;
     flush(&channels[0]);
-    status=ps_host_process(argc,argv,0);
+    status=ps_host_process(argc,argv,PS_PROCESS_AUTO);
     if(status==127||status==126||status==125){ps_write(s,"Process unavailable (exit ");ps_number(s,(unsigned)status);ps_write(s,")");ps_newline(s);}
     return status;
 }
@@ -11,7 +11,7 @@ static int host_command(ps_session *s,int argc,const char *const *argv,void *con
     int status;(void)context;
     if(argc<2)return 2;
     flush(&channels[0]);
-    status=ps_host_process(argc-1,argv+1,ps_text_equal(argv[0],"pty"));
+    status=ps_host_process(argc-1,argv+1,ps_text_equal(argv[0],"pty")?PS_PROCESS_PTY:PS_PROCESS_AUTO);
     if(status==125){ps_write(s,"PTY unavailable on this host");ps_newline(s);}
     return status;
 }

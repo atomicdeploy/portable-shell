@@ -18,6 +18,7 @@ int ps_host_process(int argc,const char *const *argv,int terminal){
     if(argc<1||argc>64)return 2;
     for(i=0;i<argc;++i)args[i]=(char*)argv[i];args[argc]=0;
     have_term=tcgetattr(0,&saved)==0;
+    if(terminal==PS_PROCESS_AUTO)terminal=have_term&&isatty(1)?PS_PROCESS_PTY:PS_PROCESS_PIPE;
     if(terminal){
         char *name;master=posix_openpt(O_RDWR|O_NOCTTY);
         if(master<0)return 125;
@@ -31,6 +32,7 @@ int ps_host_process(int argc,const char *const *argv,int terminal){
     if(pid==0){
         signal(SIGINT,SIG_DFL);signal(SIGQUIT,SIG_DFL);signal(SIGPIPE,SIG_DFL);signal(SIGTERM,SIG_DFL);
         if(terminal){close(master);if(setsid()<0||ioctl(slave,TIOCSCTTY,0)<0)_exit(126);for(i=0;i<3;++i)if(dup2(slave,i)<0)_exit(126);if(slave>2)close(slave);}
+        if(terminal){const char *term=getenv("TERM");if(!term||!*term||ps_text_equal(term,"dumb"))setenv("TERM","xterm-256color",1);}
         execvp(args[0],args);_exit(errno==ENOENT?127:126);
     }
     if(slave>=0)close(slave);

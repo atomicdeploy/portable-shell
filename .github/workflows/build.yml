@@ -139,7 +139,7 @@ jobs:
           persist-credentials: false
       - name: ⚙️ Configure
         id: configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=gcc -DCMAKE_BUILD_TYPE=Debug -DPORTABLE_SHELL_USE_LIBC=${{ matrix.libc }} -DPORTABLE_SHELL_BUILD_LEGACY=ON -DPORTABLE_SHELL_REMOTE_EXAMPLE=ON
+        run: cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=gcc -DCMAKE_BUILD_TYPE=Debug -DPORTABLE_SHELL_USE_LIBC=${{ matrix.libc }} -DPORTABLE_SHELL_BUILD_LEGACY=ON -DPORTABLE_SHELL_HOST_EXEC=ON -DPORTABLE_SHELL_REMOTE_EXAMPLE=ON
       - name: 🔨 Build and audit symbols
         id: build
         run: cmake --build build

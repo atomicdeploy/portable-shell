@@ -5,7 +5,7 @@ file(COPY "${CHILD}" DESTINATION "${root}")
 get_filename_component(child_name "${CHILD}" NAME)
 set(CHILD "./${child_name}")
 function(run line expected pattern)
-  execute_process(COMMAND "${HOST}" --batch --command "${line}"
+  execute_process(COMMAND "${HOST}" --exec --batch --command "${line}"
     WORKING_DIRECTORY "${root}" OUTPUT_VARIABLE output ERROR_VARIABLE error RESULT_VARIABLE result TIMEOUT 15)
   if(NOT "${result}" STREQUAL "${expected}" OR NOT "${output}" MATCHES "${pattern}")
     message(FATAL_ERROR "Command ${line}: result=${result}, expected=${expected}, output=${output}, stderr=${error}")

@@ -48,6 +48,8 @@ int ps_host_process(int argc,const char *const *argv,int terminal) {
     CreatePty create=0;ClosePty close=0;ResizePty resize=0;Pump receive,send;
     COORD size={100,28};CONSOLE_SCREEN_BUFFER_INFO info;
     UINT input_cp=GetConsoleCP(),output_cp=GetConsoleOutputCP();
+    WCHAR old_term[8];DWORD term_length=0;int replace_term=0;
+    if(terminal==PS_PROCESS_AUTO)terminal=ic&&oc?PS_PROCESS_PTY:PS_PROCESS_PIPE;
     if(argc<1||!quote(command,16384,argc,argv))return 2;
     clear(&si,sizeof si);clear(&pi,sizeof pi);si.StartupInfo.cb=sizeof si;
     if(terminal){
@@ -80,8 +82,15 @@ int ps_host_process(int argc,const char *const *argv,int terminal) {
         if(ic)SetConsoleMode(in,ENABLE_PROCESSED_INPUT|ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT|ENABLE_EXTENDED_FLAGS);
     }
     SetConsoleCtrlHandler(control,TRUE);
+    if(terminal){
+        term_length=GetEnvironmentVariableW(L"TERM",old_term,PS_COUNT_OF(old_term));
+        replace_term=!term_length || (term_length==4 && old_term[0]==L'd' && old_term[1]==L'u' && old_term[2]==L'm' && old_term[3]==L'b');
+        if(replace_term)SetEnvironmentVariableW(L"TERM",L"xterm-256color");
+    }
     ok=CreateProcessW(0,command,0,0,!terminal,terminal?EXTENDED_STARTUPINFO_PRESENT:0,0,0,&si.StartupInfo,&pi);
-    if(!ok){code=GetLastError()==ERROR_FILE_NOT_FOUND?127:126;goto done;}
+    if(!ok)code=GetLastError()==ERROR_FILE_NOT_FOUND?127:126;
+    if(replace_term)SetEnvironmentVariableW(L"TERM",term_length?old_term:0);
+    if(!ok)goto done;
     if(terminal){
         CloseHandle(childIn);childIn=0;CloseHandle(childOut);childOut=0;
         receive.from=parentOut;receive.to=out;send.from=in;send.to=parentIn;

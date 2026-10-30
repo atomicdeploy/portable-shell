@@ -261,7 +261,7 @@ static void history_save(ps_session *s, const char *path) {
 #endif
 int main(int argc, char **argv) {
     unsigned flags = PS_COLOR | PS_UNICODE | PS_TRUECOLOR, port = 0, baud = 115200, board = 0,
-             execution = PS_HOST_EXEC, batch = 0, force = 0;
+             execution = 0, batch = 0, force = 0;
     int i, command_at = 0, fd = 0, outfd = 1, raw = 0, result;
     const char *command = 0, *host = "127.0.0.1", *serial = 0, *history = 0;
     struct termios saved;
@@ -283,6 +283,13 @@ int main(int argc, char **argv) {
             flags |= PS_NO_BELL;
         else if (equal(argv[i], "--no-suggestions"))
             flags |= PS_NO_SUGGESTIONS;
+        else if (equal(argv[i], "--exec")) {
+#if PS_HOST_EXEC
+            execution = 1;
+#else
+            say("Host execution is not compiled in\n");return 2;
+#endif
+        }
         else if (equal(argv[i], "--no-exec"))
             execution = 0;
         else if (equal(argv[i], "--shortcuts"))
@@ -310,7 +317,7 @@ int main(int argc, char **argv) {
         } else if (equal(argv[i], "--help")) {
             say("PortableShell [--device-commands] [--board|--controls|--menu|--edit|--files] [--ascii] [--no-color] [--no-bell] [--no-osc] [--no-suggestions] [--history FILE]\n      "
                 "[--command TEXT | "
-                "-- ARGV...] [--batch | --interactive] [--no-exec] [--shortcuts]\n      [--listen PORT [--bind IPv4]] "
+                "-- ARGV...] [--batch | --interactive] [--exec | --no-exec] [--shortcuts]\n      [--listen PORT [--bind IPv4]] "
                 "[--serial PATH [--baud N]]\n");
             return 0;
         } else if (i + 1 < argc && (equal(argv[i], "--command") || equal(argv[i], "--listen") ||
