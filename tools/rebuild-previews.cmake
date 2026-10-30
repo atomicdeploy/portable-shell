@@ -55,7 +55,7 @@ if(DEFINED GENERATOR)
 endif()
 execute_process(COMMAND ${configure} COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${CMAKE_COMMAND}" --build "${BUILD_DIR}/native" --config Release COMMAND_ERROR_IS_FATAL ANY)
-set(frames workspace controls inline dialog red lumen onedark ascii controls-columns controls-collapsed controls-compact controls-inside menu document device-full device-vertical device-matrix device-inline device-reduced device-inside)
+set(frames meters workspace controls inline dialog red lumen onedark ascii controls-columns controls-collapsed controls-compact controls-inside menu document device-full device-vertical device-matrix device-inline device-reduced device-inside)
 set(arguments)
 set(managed)
 foreach(frame IN LISTS frames)
@@ -71,6 +71,7 @@ execute_process(COMMAND "${BUILD_DIR}/native/bin/workspace_preview${exe}" ${argu
 execute_process(COMMAND "${BUILD_DIR}/native/bin/full_preview${exe}"
   "${generated}/device-full.svg" "${generated}/device-vertical.svg" "${generated}/device-matrix.svg" "${generated}/device-inline.svg" "${generated}/device-inside.svg" COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${BUILD_DIR}/native/bin/reduced_preview${exe}" "${generated}/device-reduced.svg" COMMAND_ERROR_IS_FATAL ANY)
+execute_process(COMMAND "${BUILD_DIR}/native/bin/meter_preview${exe}" "${generated}/meters.svg" COMMAND_ERROR_IS_FATAL ANY)
 foreach(frame IN LISTS frames)
   # One explicitly supplied font; two-times resolution for smooth display scaling.
   execute_process(COMMAND "${RESVG}" --skip-system-fonts --use-font-file "${cache}/Agave.ttf"
