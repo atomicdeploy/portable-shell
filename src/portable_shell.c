@@ -826,9 +826,11 @@ PS_API void ps_start(ps_session *s) {
     if (s->io.flags & PS_TELNET)
         ps_telnet_greet(&s->telnet, telnet_write, s);
     if (s->io.flags & PS_INTERACTIVE) {
+        /* Clear stale reporting left by an interrupted previous terminal owner. */
+        if(!(ps_terminal_state(s)&PS_TERMINAL_MOUSE))
+            ansi(s,"\033[?1000l\033[?1002l\033[?1003l\033[?1006l");
         ansi(s, "\033[?2004h");
         prompt(s);
-        if(!s->table_prompt_focus){ansi(s,"\0338");if(s->editing)ansi(s,"\033[?25h");}
     }
 }
 #if PS_WORKBENCH
@@ -2247,6 +2249,14 @@ PS_API void ps_close(ps_session *s) {
     }
     ansi(s, "\033[0m\033[?25h\033[?2004l");
     s->started = 0;
+}
+PS_API unsigned ps_terminal_state(const ps_session *s) {
+    unsigned state=0;
+    if(!s || !(s->io.flags & PS_INTERACTIVE))return 0;
+    if(s->board || s->menu_screen || s->file_count || ps_form_active(s))
+        state=PS_TERMINAL_ALT_SCREEN | (PS_MOUSE ? PS_TERMINAL_MOUSE : 0);
+    if(s->document_open)state|=PS_TERMINAL_ALT_SCREEN;
+    return state;
 }
 PS_API int ps_exited(const ps_session *s) {
     return (int)s->exit;

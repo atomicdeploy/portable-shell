@@ -7,6 +7,7 @@
 #include "portable_shell_device.h"
 #include "portable_terminal.h"
 #include "process.h"
+#include "windows_console.h"
 static unsigned use_device_commands;
 static ps_device_profile profiles[4];
 #include "filesystem.h"
@@ -226,7 +227,7 @@ static void keyboard(ps_session *s) {
             resize(s);
             continue;
         }
-        if(PS_MOUSE && events[i].EventType==MOUSE_EVENT){
+        if(PS_MOUSE && (ps_terminal_state(s)&PS_TERMINAL_MOUSE) && events[i].EventType==MOUSE_EVENT){
             MOUSE_EVENT_RECORD *m=&events[i].Event.MouseEvent;
             CONSOLE_SCREEN_BUFFER_INFO info;
             unsigned code,release=0;char packet[48];
@@ -656,9 +657,7 @@ int host_main(void) {
         resize(s);
     }
     if (console_in && (flags & PS_INTERACTIVE))
-        SetConsoleMode(input, (input_mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT |
-                                              ENABLE_PROCESSED_INPUT | ENABLE_QUICK_EDIT_MODE)) |
-                                  ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS | (PS_MOUSE?ENABLE_MOUSE_INPUT:0));
+        SetConsoleMode(input, ps_windows_input_mode(input_mode,0));
     ps_start(s);
     if (board)
         ps_execute(s, board == 5 ? "files" : board == 4 ? "edit" : board == 3 ? "menu" : board == 2 ? "controls" : "board");
@@ -667,6 +666,9 @@ int host_main(void) {
         if (ps_exited(s) || channels[0].failed)
             break;
         if (console_in && (flags & PS_INTERACTIVE)) {
+            DWORD current, desired=ps_windows_input_mode(input_mode,
+                (ps_terminal_state(s)&PS_TERMINAL_MOUSE)!=0);
+            if(GetConsoleMode(input,&current)&&current!=desired)SetConsoleMode(input,desired);
             if (WaitForSingleObject(input, 20) == WAIT_OBJECT_0)
                 keyboard(s);
         } else {
