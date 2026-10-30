@@ -140,5 +140,6 @@ static void file_mouse(ps_session *s,unsigned x,unsigned y){
         if((s->file_nodes[id].flags&PS_FILE_DIRECTORY)&&!(s->file_nodes[id].flags&PS_FILE_DISABLED)&&x>=2+depths[p]*2&&x<2+depths[p]*2+file_icon_width(s)){file_load(s,id);s->file_expanded[id]=!s->file_expanded[id];}
     }file_render(s);}
 }
-static const ps_file_node session_files[]={ {"Session",PS_FILE_ROOT,PS_FILE_DIRECTORY},{"notes.txt",0,0} };
-static void session_file_pick(ps_session *s,void *ctx,unsigned id){(void)ctx;if(id==1)ps_execute(s,"edit --framed");}
+#if PS_WORKBENCH
+#include "../host/workbench/files.inc"
+#endif

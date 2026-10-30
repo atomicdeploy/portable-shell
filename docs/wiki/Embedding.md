@@ -1,6 +1,8 @@
 # Embed the core
 
 
+The framework starts with no commands. See [Commands](Commands.md) for registration, typed settings and the optional workbench migration.
+
 Compile `src/portable_shell.c` and include `include/portable_shell.h`. The only external effects are
 calls to your `ps_write_fn`. Allocate aligned storage of at least
 `ps_sizeof_session()` bytes, initialize it, then supply bytes and timestamps:
@@ -35,8 +37,7 @@ lambda converted to a function pointer, with captures represented by `context`.
 `examples/firmware.c` shows the UART/event-loop boundary. `ps_progress` publishes
 caller-owned job progress; it does not schedule caller work.
 
-Default limits: 511 input bytes, 32 arguments, 24 history entries, 32 tasks,
-32 variables, 40 command descriptors, and 24 custom key bindings. Titles/values
+Default limits: 511 input bytes, 32 arguments, 24 history entries, 42 command descriptors, and 24 custom key bindings. Titles/values
 hold 127 bytes; keys hold 31. There are no hidden allocations. `PS_LINE`,
 `PS_HISTORY`, `PS_ROWS`, and `PS_COMMANDS` are compile-time settings. Define the same
 values for all consumers of the header and library. Stack space is additional to

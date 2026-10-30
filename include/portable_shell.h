@@ -37,8 +37,8 @@ extern "C" {
 #ifndef PS_CONTROL_SECTION_ROWS
 #define PS_CONTROL_SECTION_ROWS 1
 #endif
-#if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 20
-#error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 20"
+#if PS_LINE < 128 || PS_HISTORY < 1 || PS_ROWS < 1 || PS_COMMANDS < 1
+#error "PortableShell needs PS_LINE >= 128, PS_HISTORY/PS_ROWS >= 1, PS_COMMANDS >= 1"
 #endif
 typedef unsigned char ps_byte;
 typedef char
@@ -361,6 +361,15 @@ typedef struct {
     const ps_help_item *options; unsigned option_count;
     const ps_help_item *examples; unsigned example_count;
 } ps_help_document;
+/* All metadata strings are borrowed and must outlive their registration.
+ * No commands are installed by the portable_shell framework target. */
+typedef struct { ps_command command; const ps_help_document *help; } ps_command_definition;
+typedef struct {
+    const char *description,*usage,*arguments,*options,*examples;
+} ps_help_labels;
+PS_API int ps_register_definition(ps_session *,const ps_command_definition *);
+PS_API void ps_set_help_labels(ps_session *,const ps_help_labels *);
+PS_API void ps_set_application_title(ps_session *,const char *);
 PS_API void ps_set_help_documents(ps_session *, const ps_help_document *, unsigned);
 /* NULL name lists the registry; non-NULL prints Usage. Returns entries printed. */
 PS_API int ps_print_help(ps_session *s, const char *name, unsigned layout);
