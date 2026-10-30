@@ -1,15 +1,21 @@
 #ifndef PORTABLE_SNAKE_DEMO_H
 #define PORTABLE_SNAKE_DEMO_H
 /* Byte-only demo model and retained renderer. Host owns keys, clock and terminal.
- * Fixed 32x16 arena; caller owns state and 80x24 canvas buffers. */
+ * Viewport-sized arena; caller owns state and canvas buffers. */
 #include "portable_screen.h"
-enum { SNAKE_WIDTH=32, SNAKE_HEIGHT=16, SNAKE_CAPACITY=512,
+#ifndef PS_SNAKE_CAPACITY
+#define PS_SNAKE_CAPACITY 65536
+#endif
+#if PS_SNAKE_CAPACITY < 512
+#error Snake capacity must cover the initial 32 by 16 arena
+#endif
+enum { SNAKE_WIDTH=32, SNAKE_HEIGHT=16, SNAKE_CAPACITY=PS_SNAKE_CAPACITY,
        SNAKE_UP=256,SNAKE_RIGHT,SNAKE_DOWN,SNAKE_LEFT };
 typedef struct { unsigned x,y; } snake_point;
 typedef struct {
     snake_point body[SNAKE_CAPACITY],food;
     unsigned length,direction,next,turned,score,best,paused,dead,won,quit;
-    unsigned unicode,bell,esc;
+    unsigned unicode,bell,esc,wrap,width,height;
     uint32_t random,last;
 } snake_game;
 static uint32_t snake_random(snake_game *g) {
@@ -19,11 +25,11 @@ static int snake_occupied(const snake_game *g,unsigned x,unsigned y,unsigned cou
     unsigned i;for(i=0;i<count;++i)if(g->body[i].x==x && g->body[i].y==y)return 1;return 0;
 }
 static void snake_food(snake_game *g) {
-    unsigned start=snake_random(g)%SNAKE_CAPACITY,i,n;
-    for(i=0;i<SNAKE_CAPACITY;++i){
-        n=(start+i)%SNAKE_CAPACITY;
-        if(!snake_occupied(g,n%SNAKE_WIDTH,n/SNAKE_WIDTH,g->length)){
-            g->food.x=n%SNAKE_WIDTH;g->food.y=n/SNAKE_WIDTH;return;
+    unsigned capacity=g->width*g->height,start=snake_random(g)%capacity,i,n;
+    for(i=0;i<capacity;++i){
+        n=(start+i)%capacity;
+        if(!snake_occupied(g,n%g->width,n/g->width,g->length)){
+            g->food.x=n%g->width;g->food.y=n/g->width;return;
         }
     }
     g->won=1;
@@ -31,11 +37,25 @@ static void snake_food(snake_game *g) {
 static void snake_restart(snake_game *g,uint32_t now) {
     unsigned i;g->length=6;g->direction=g->next=1;g->turned=0;
     g->score=g->paused=g->dead=g->won=g->quit=g->esc=0;g->last=now;
-    for(i=0;i<g->length;++i){g->body[i].x=12-i;g->body[i].y=8;}
+    for(i=0;i<g->length;++i){g->body[i].x=g->width/2-4-i;g->body[i].y=g->height/2;}
     snake_food(g);
 }
 static void snake_init(snake_game *g,uint32_t now,unsigned unicode,unsigned bell) {
-    g->best=0;g->random=now^0x9123ab45u;g->unicode=unicode;g->bell=bell;snake_restart(g,now);
+    g->width=SNAKE_WIDTH;g->height=SNAKE_HEIGHT;g->wrap=1;g->best=0;g->random=now^0x9123ab45u;g->unicode=unicode;g->bell=bell;snake_restart(g,now);
+}
+/* Preserve the round when it fits. A shrink that clips the snake starts a new
+ * round, preserving best score, mute, pause and wrap preferences. */
+static int snake_resize(snake_game *g,unsigned columns,unsigned rows,uint32_t now){
+    unsigned width,height,i,reset=0,paused=g->paused;
+    if(columns<80||rows<24||columns>512||rows>256)return 0;
+    width=(columns-16)/2;height=rows-8;
+    if(width==g->width&&height==g->height)return 1;
+    if(width*height>SNAKE_CAPACITY)return 0;
+    for(i=0;i<g->length;++i)if(g->body[i].x>=width||g->body[i].y>=height)reset=1;
+    g->width=width;g->height=height;
+    if(reset){snake_restart(g,now);g->paused=paused;}
+    else if(g->food.x>=width||g->food.y>=height)snake_food(g);
+    g->last=now;return 1;
 }
 static void snake_key(snake_game *g,unsigned key,uint32_t now) {
     unsigned d=4;
@@ -83,8 +103,12 @@ static int snake_tick(snake_game *g,uint32_t now,ps_rich *out) {
     if(g->direction==1)++head.x;
     if(g->direction==2)++head.y;
     if(g->direction==3)--head.x;
+    if(g->wrap){
+        if(head.x>=g->width)head.x=g->direction==3?g->width-1:0;
+        if(head.y>=g->height)head.y=g->direction==0?g->height-1:0;
+    }
     eating=head.x==g->food.x && head.y==g->food.y;
-    if(head.x>=SNAKE_WIDTH||head.y>=SNAKE_HEIGHT||
+    if(head.x>=g->width||head.y>=g->height||
        snake_occupied(g,head.x,head.y,g->length-(eating?0:1))){
         g->dead=1;snake_bell(g,out);return 1;
     }
@@ -112,18 +136,20 @@ static void snake_number(ps_window *w,unsigned x,unsigned y,unsigned value,ps_ce
     text[n]=0;ps_window_text(w,x,y,text,c);
 }
 static void snake_render(snake_game *g,ps_screen *screen,ps_rich *out) {
-    ps_window all=ps_screen_window(screen,0,0,80,24),arena=ps_screen_window(screen,1,3,66,18);
+    unsigned side=4+g->width*2;
+    ps_window all=ps_screen_window(screen,0,0,screen->columns,screen->rows),arena=ps_screen_window(screen,1,3,g->width*2+2,g->height+2);
     ps_cell base=ps_cell_make(0xabb2bf,0x151923,0),muted=ps_cell_make(0x68748b,0x151923,0);
     ps_cell title=ps_cell_make(0x72e5de,0x151923,PS_TEXT_BOLD);
     ps_cell warm=ps_cell_make(0xffd166,0x151923,PS_TEXT_BOLD);
     unsigned i,x,y;const char *state=g->won?"COMPLETE":g->dead?"GAME OVER":g->paused?"PAUSED":"LIVE";
     ps_window_fill(&all,base);
     ps_window_text(&all,2,0,g->unicode?"◆  CHROMATIC / SNAKE":"*  CHROMATIC / SNAKE",title);
-    ps_window_text(&all,2,1,g->unicode?"32 × 16 arena":"32 x 16 arena",muted);
-    ps_window_text(&all,19,1,out->color==PS_COLOR_RGB?"RGB":out->color==PS_COLOR_256?"256 colors":out->color==PS_COLOR_16?"16 colors":"Monochrome",muted);
-    ps_window_text(&all,68,0,state,g->dead?ps_cell_make(0xff657a,0x151923,1):warm);
+    char dimensions[64];ps_terminal_format(dimensions,sizeof dimensions,g->unicode?"%u × %u arena  %s":"%u x %u arena  %s",g->width,g->height,g->wrap?"WRAP":"WALLS");
+    ps_window_text(&all,2,1,dimensions,muted);
+    ps_window_text(&all,36,1,out->color==PS_COLOR_RGB?"RGB":out->color==PS_COLOR_256?"256 colors":out->color==PS_COLOR_16?"16 colors":"Monochrome",muted);
+    ps_window_text(&all,screen->columns-12,0,state,g->dead?ps_cell_make(0xff657a,0x151923,1):warm);
     ps_window_border(&arena,ps_cell_make(g->dead?0xff657a:0x657899,0x151923,0),g->unicode);
-    for(y=0;y<SNAKE_HEIGHT;++y)for(x=0;x<SNAKE_WIDTH;++x)
+    for(y=0;y<g->height;++y)for(x=0;x<g->width;++x)
         if((x+y)%2==0)ps_window_text(&all,2+x*2,4+y,g->unicode?"· ":". ",ps_cell_make(0x283244,0x151923,0));
     ps_window_text(&all,2+g->food.x*2,4+g->food.y,g->unicode?"◆ ":"* ",warm);
     for(i=g->length;i--;){
@@ -134,18 +160,18 @@ static void snake_render(snake_game *g,ps_screen *screen,ps_rich *out) {
                          (g->direction==0?"^^":g->direction==1?"o>":g->direction==2?"vv":"<o");
         ps_window_text(&all,2+g->body[i].x*2,4+g->body[i].y,glyph,scale);
     }
-    ps_window_text(&all,69,4,"SCORE",muted);snake_number(&all,69,5,g->score,warm);
-    ps_window_text(&all,69,7,"BEST",muted);snake_number(&all,69,8,g->best,title);
-    ps_window_text(&all,69,10,"LENGTH",muted);snake_number(&all,69,11,g->length,base);
-    ps_window_text(&all,69,13,"BELL",muted);ps_window_text(&all,69,14,g->bell?"ON":"OFF",g->bell?title:muted);
-    ps_window_text(&all,69,17,g->unicode?"◆ +10":"* +10",warm);
+    ps_window_text(&all,side,4,"SCORE",muted);snake_number(&all,side,5,g->score,warm);
+    ps_window_text(&all,side,7,"BEST",muted);snake_number(&all,side,8,g->best,title);
+    ps_window_text(&all,side,10,"LENGTH",muted);snake_number(&all,side,11,g->length,base);
+    ps_window_text(&all,side,13,"BELL",muted);ps_window_text(&all,side,14,g->bell?"ON":"OFF",g->bell?title:muted);
+    ps_window_text(&all,side,17,g->unicode?"◆ +10":"* +10",warm);
     if(g->dead||g->paused||g->won){
         ps_cell banner=ps_cell_make(0xffffff,g->dead?0x96344c:0x285062,PS_TEXT_BOLD);
-        ps_window_text(&all,20,10,g->dead?"  GAME OVER / R to restart  ":g->won?"  ARENA COMPLETE / R again  ":"     PAUSED / Space        ",banner);
+        ps_window_text(&all,2+g->width-14,4+g->height/2,g->dead?"  GAME OVER / R to restart  ":g->won?"  ARENA COMPLETE / R again  ":"     PAUSED / Space        ",banner);
     }
-    ps_window_text(&all,2,22,g->unicode?"↑ ↓ ← → / WASD  Steer    Space  Pause    R  Restart    M  Bell    Q  Quit":
+    ps_window_text(&all,2,screen->rows-2,g->unicode?"↑ ↓ ← → / WASD  Steer    Space  Pause    R  Restart    M  Bell    Q  Quit":
                                                         "WASD / Arrows  Steer    Space  Pause    R  Restart    M  Bell    Q  Quit",base);
-    ps_window_text(&all,2,23,"Collect gems. Keep your tail. Every bite adds a new scale.",muted);
+    ps_window_text(&all,2,screen->rows-1,"Collect gems. Keep your tail. Every bite adds a new scale.",muted);
     ps_screen_present(screen,out);
 }
 #endif

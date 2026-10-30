@@ -7,7 +7,7 @@ void ps_replay_feed(const unsigned char *,unsigned);
 unsigned ps_replay_svg(char *);
 static unsigned bells,bytes;
 static char svg[1200000];
-static ps_cell cells[80*24],shown[80*24];
+static ps_cell cells[120*40],shown[120*40];
 static void output(void *ctx,const unsigned char *s,size_t n){
     size_t i;(void)ctx;
     for(i=0;i<n;++i)if(s[i]==7)++bells;
@@ -26,13 +26,28 @@ int main(int argc,char **argv){
     snake_key(&g,'r',0);g.food.x=13;g.food.y=8;
     assert(snake_tick(&g,180,&out));assert(g.score==10&&g.length==7&&bells==1);
     assert(!snake_occupied(&g,g.food.x,g.food.y,g.length));
-    g.body[0].x=31;assert(snake_tick(&g,360,&out)&&g.dead&&bells==2);
+    g.wrap=0;g.body[0].x=31;assert(snake_tick(&g,360,&out)&&g.dead&&bells==2);
     snake_tick(&g,1000,&out);assert(bells==2);
     snake_key(&g,'r',0);assert(g.best==10&&!g.dead&&g.score==0);
     snake_key(&g,'m',0);g.body[0].x=31;snake_tick(&g,180,&out);assert(bells==2);
     snake_key(&g,'r',0);g.body[2].x=13;g.body[2].y=8;
     snake_tick(&g,180,&out);assert(g.dead);
     snake_restart(&g,UINT32_MAX-100);assert(snake_tick(&g,80,&out));
+    /* Default rollover crosses all four edges without ringing the bell. */
+    snake_init(&g,0,1,1);old=bells;
+    for(i=0;i<4;++i){
+        g.length=1;g.dead=0;g.direction=g.next=i;g.last=0;
+        g.body[0].x=i==1?31:0;g.body[0].y=i==2?15:0;
+        g.food.x=10;g.food.y=10;
+        assert(snake_tick(&g,200,&out)&&!g.dead&&bells==old);
+        assert(g.body[0].x==(i==3?31:0)&&g.body[0].y==(i==0?15:0));
+    }
+    snake_init(&g,0,1,1);assert(snake_resize(&g,120,40,0));
+    assert(g.width==52&&g.height==32&&g.body[0].x==12);
+    g.body[0].x=51;g.best=70;g.paused=1;
+    assert(snake_resize(&g,80,24,0)&&g.length==6&&g.best==70&&g.paused&&g.wrap);
+    assert(!snake_resize(&g,40,12,0));
+    g.paused=0;
     /* Last free cell: deterministic full-arena victory without retry loops. */
     g.length=511;g.direction=g.next=3;g.body[0].x=1;g.body[0].y=0;
     for(i=1;i<511;++i){g.body[i].x=(i+1)%32;g.body[i].y=(i+1)/32;}
@@ -47,8 +62,9 @@ int main(int argc,char **argv){
         else {g.body[i].x=14-(i-15);g.body[i].y=11;}
     }
     g.food.x=27;g.food.y=5;
-    ps_screen_init(&screen,cells,shown,80,24);ps_replay_reset();
-    snake_render(&g,&screen,&out);old=bytes;snake_render(&g,&screen,&out);assert(old==bytes);
+    assert(snake_resize(&g,120,40,42));
+    ps_screen_init(&screen,cells,shown,120,40);ps_replay_reset();
+    snake_render(&g,&screen,&out);assert(cells[39*120+2].glyph[0]=='C');old=bytes;snake_render(&g,&screen,&out);assert(old==bytes);
     if(argc>1){FILE *f=fopen(argv[1],"wb");unsigned n=ps_replay_svg(svg);assert(f);fwrite(svg,1,n,f);fclose(f);}
     g.unicode=0;out.color=PS_COLOR_NONE;snake_render(&g,&screen,&out);
     puts("Snake movement, paste-sized key bursts, collisions, victory, mute and BEL checks passed");
