@@ -406,7 +406,7 @@ int render_entry(void) {
     ps_tick(s, 300);
     ps_feed(s, "", 0);
     preview_lumen_n = svg(preview_lumen);
-    ps_execute(s, "theme violet");
+    ps_execute(s, "theme semantic");
     ps_tick(s, 400);
     feed(s, "\r\005");
     ps_feed(s, "", 0);
@@ -434,7 +434,7 @@ int render_entry(void) {
     feed(s, "1");
     ps_feed(s, "", 0);
     preview_ascii_n = svg(preview_ascii);
-    ps_execute(s, "theme violet");
+    ps_execute(s, "theme semantic");
     ps_execute(s, "theme unicode");
     ps_execute(s, "theme color");
     ps_execute(s, "controls set 0 1");
@@ -469,7 +469,7 @@ int render_entry(void) {
     ps_tick(s, 4900);
     ps_feed(s, "", 0);
     preview_onedark_n = svg(preview_onedark);
-    ps_execute(s, "theme violet");
+    ps_execute(s, "theme semantic");
     ps_tick(s, 5000);
     ps_key(s, 13);
     ps_tick(s, 5100);

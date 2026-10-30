@@ -6,8 +6,10 @@
   freestanding primitives; the explicitly selectable libc backend may use host
   memory/string functions. Never enable libc silently for a firmware build.
 - Only the optional C host adapters perform native terminal, serial and socket I/O.
-- Default presentation should feel vibrant and polished. Prefer violet/magenta or red accents;
-  do not default to an industrial dark-blue/pale-cyan appearance.
+- Default presentation uses semantic color roles, not an accent theme. Neutral surfaces
+  and borders, green success/enabled, gray inactive/unknown, amber warning/pending,
+  red errors, orange numbers, green strings, violet commands/choices, cyan headings/actions.
+  Selection uses contrast independently of value meaning. Legacy themes are opt-in.
 - Preserve the original Lumen color scheme as an available theme.
 - Name implementation APIs, files, macros and profiles by their function, never by
   a donor product. Keep exact donor identities, legal attribution and old-name

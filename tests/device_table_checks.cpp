@@ -34,6 +34,12 @@ int main(){
     std::string output;auto write=[&](const uint8_t *p,size_t n){output.append((const char*)p,n);};
     auto feed=[&](const char *keys){bool emitted=false;while(*keys)emitted=v.feed(uint8_t(*keys++),s,a)||emitted;return emitted;};
     v.begin();v.render(s,write);
+    assert(v.theme()==V::Semantic);
+    assert(output.find("\x1b[38;2;255;184;108m")!=std::string::npos); // Numeric control, not a theme accent.
+    assert(output.find("\x1b[38;2;255;95;115m")==std::string::npos); // Ordinary borders are not alarms.
+    rows[0].value="false";output.clear();v.render(s,write,true);
+    assert(output.find("\x1b[38;2;151;160;175m\xe2\x97\x8b ")!=std::string::npos);
+    rows[0].value="true";output.clear();v.render(s,write,true);
     assert(output.find("Category")==std::string::npos);assert(output.find("[x]")==std::string::npos);
 #if PS_DEVICE_VIEW_SECTIONS
     assert(output.find("LIGHTING")!=std::string::npos);assert(output.find("LIGHTING",output.find("LIGHTING")+1)==std::string::npos);

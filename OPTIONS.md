@@ -1,6 +1,15 @@
 # Profiles and current defaults
 
-These choices are independent. The naming update leaves desktop presentation defaults unchanged.
+These choices are independent. Semantic coloring is the default on all targets.
+
+Default colors follow meaning: green for enabled/success, gray for inactive or
+unknown, amber for warnings/pending changes, red for errors, orange for numbers,
+soft green for strings, violet for commands/choices, and cyan for headings/actions.
+Borders and surfaces are neutral. Selection uses background contrast independently
+of value color; Off is not an error. Typed controls supply the value's role;
+arbitrary read-only text is not guessed to be a status. RGB and 256-color terminals
+share these roles, while plain/ASCII output remains available. Explicit legacy
+palettes keep their existing IDs; `DeviceView::Semantic` selects the default policy.
 
 ## Presentation
 
@@ -45,7 +54,8 @@ legacy third column by default. Narrow terminals omit that optional third column
 
 | Choice | Full-shell command / host option | Default |
 | --- | --- | --- |
-| Violet / magenta | `theme violet` | Yes |
+| Semantic roles | `theme semantic` | Yes |
+| Violet / magenta | `theme violet` | No |
 | Warm red / rose | `theme red` | No |
 | Original cyan Lumen | `theme lumen` | No |
 | One Dark | `theme onedark` | No |
@@ -57,7 +67,7 @@ legacy third column by default. Narrow terminals omit that optional third column
 | Fixed ASCII + monochrome | Build `PORTABLE_SHELL_ASCII_ONLY=ON` | Off; cannot re-enable at runtime |
 
 Tables independently expose `PS_TABLE_GRID`, `PS_TABLE_RED_BORDER`, and
-`PS_TABLE_TITLE_BAR`; all three are enabled by default. Embedders select any
+`PS_TABLE_TITLE_BAR`; grid and title bar are enabled by default. Red borders are opt-in. Embedders select any
 combination using `ps_set_table_style()`. Omit `PS_TABLE_RED_BORDER` for the
 theme's border color. The preserved Lumen palette always uses its original gray
 border, even when the red-border flag is set. Font selection and antialiasing belong to the terminal;
@@ -123,7 +133,7 @@ STYLE_THEMES/VERTICAL_TABS explicitly set to 0. A third fixture builds only the
 C prompt. They are host byte replays, not claims of board RAM/flash fit.
 
 The MCU console does not have the full shell's `theme` command. It currently
-uses a magenta prompt (`PS_EDITOR_PROMPT_STYLE`), the device view's red border
+uses a cyan prompt (`PS_EDITOR_PROMPT_STYLE`), the device view's semantic
 palette, `ansi` / `plain` commands, and `PS_CONSOLE_ASCII_ONLY`.
 `PS_CONSOLE_PROMPT_LABEL` and `PS_CONSOLE_TITLE` both default to `Console`.
 
