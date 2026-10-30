@@ -179,9 +179,8 @@ template<class W> void value(Writer<W> &out,const Snapshot &s,const Row &r,unsig
     if(PS_DEVICE_VIEW_WIDGETS&&r.kind==Level&&r.meter&&width>=22&&decimal(r.value,n)&&r.maximum>r.minimum&&n>=r.minimum&&n<=r.maximum){
         // At most ten cells, no multiplication overflow for uint32 ranges.
         const unsigned bar=10;const uint32_t span=r.maximum-r.minimum,offset=n-r.minimum;
-        const uint32_t quantum=span/bar+(span%bar!=0);
-        const unsigned filled=n==r.maximum?bar:unsigned(offset/quantum);
-        for(unsigned i=0;i<bar;++i){ink(out,i<filled?PS_INK_NUMBER:0);out.raw(s.unicode?(i<filled?"\xe2\x94\x81":"\xe2\x94\x80"):(i<filled?"#":"."));}
+        const unsigned filled=ps_meter_fraction(offset,span,bar);
+        for(unsigned i=0;i<bar;++i){ink(out,i<filled?PS_INK_NUMBER:0);out.raw(ps_meter_cell(r.meterStyle,i<filled,s.unicode));}
         ink(out,PS_INK_NUMBER);out.raw(" ");char text[40];
         const unsigned percent=levelPercent(n-r.minimum,r.maximum-r.minimum);
         ps_terminal_format(text,sizeof(text),"%u%% (%u/%u)",percent,n,r.maximum);

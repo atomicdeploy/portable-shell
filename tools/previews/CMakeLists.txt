@@ -8,7 +8,9 @@ add_executable(reduced_preview "${root}/tests/render_device_profiles.cpp" "${roo
 target_compile_definitions(full_preview PRIVATE PS_REPLAY_ONLY)
 target_compile_definitions(reduced_preview PRIVATE PS_REPLAY_ONLY PS_DEVICE_VIEW_TABLE=0 PS_DEVICE_VIEW_WIDGETS=0
   PS_DEVICE_VIEW_DIALOGS=0 PS_DEVICE_VIEW_MATRIX=0 PS_STYLE_THEMES=0 PS_DEVICE_VIEW_VERTICAL_TABS=0)
-foreach(target workspace_preview full_preview reduced_preview)
+add_executable(meter_preview "${root}/tests/render_meters.c" "${root}/tests/render.c")
+target_compile_definitions(meter_preview PRIVATE PS_REPLAY_ONLY)
+foreach(target workspace_preview full_preview reduced_preview meter_preview)
   target_include_directories(${target} PRIVATE "${root}/include")
   target_compile_features(${target} PRIVATE c_std_99 cxx_std_11)
   target_compile_options(${target} PRIVATE -Wall -Wextra -Werror)

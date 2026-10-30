@@ -2,6 +2,7 @@
 #define PORTABLE_DEVICE_VIEW_HPP
 #include "portable_shell_editor.hpp"
 #include "portable_style.h"
+#include "portable_meter.h"
 /* MIT Copyright (c) 2026 AtomicDeploy contributors. Canonical snapshot/action
  * device view. Source lineage is in the donor inventory. Hardware calls and routing
  * stay with the caller. Include only in products requiring this optional view. */
@@ -80,6 +81,7 @@ class DeviceView {
         uint8_t choiceCount = 0;
         bool pending = false;
         bool meter = false; // Meaningful bounded levels/PWM, not ports or timestamps.
+        unsigned meterStyle = PS_METER_LINE;
         const char *unit = "";
         const char *const *choiceLabels = nullptr;
         const char *onLabel = "On", *offLabel = "Off";
@@ -1172,6 +1174,7 @@ class DeviceView {
             value ^= (s.rows[i].editable ? 4 : 0) | (s.rows[i].secret ? 8 : 0);
             value ^= (unsigned(s.rows[i].kind)<<8)|(s.rows[i].pending?16:0);
             value ^= s.rows[i].meter?32:0;
+            value ^= s.rows[i].meterStyle;value *= 16777619U;
             value *= 16777619U;
             value ^= s.rows[i].minimum;value *= 16777619U;
             value ^= s.rows[i].maximum;value *= 16777619U;

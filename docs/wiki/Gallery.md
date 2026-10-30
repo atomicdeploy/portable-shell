@@ -52,3 +52,9 @@ The script verifies the downloaded Agave/font-license and rasterizer hashes.
 These tools are never linked into PortableShell. Historical captures and source
 attribution are preserved separately under [provenance](https://github.com/atomicdeploy/portable-shell/blob/main/docs/provenance/README.md).
 
+
+## Progress and values
+
+![Meter variants](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/meters.png)
+
+Emitted-byte replay fixture with simulated observations; [configuration](Meters.md).

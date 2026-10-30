@@ -15,3 +15,4 @@
 - [🔗 Integration](Integration.md)
 - [🛡️ Automation](Automation.md)
 - [🧪 Verification](Verification.md)
+* [Progress and values](Meters.md)

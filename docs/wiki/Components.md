@@ -8,3 +8,7 @@ select smaller builds. The shared device table defaults to rich presentation.
 See [integration contracts](Integration.md), [profiles and options](Options.md), and
 [portability](Portability.md) for host, AVR, ARM and serial integration boundaries.
 
+
+## Progress and values
+
+See [meter controls](Meters.md) for line/block styles, panels, labels, read-only progress and adjustable targets.
