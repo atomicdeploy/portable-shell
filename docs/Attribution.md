@@ -14,3 +14,10 @@ do not imply runtime dependencies or platform support.
 Preview fonts and rendering tools have separate licenses. Their pinned revisions,
 hashes and license downloads are maintained in tools/previews/dependencies.cmake.
 They are not linked into the shell library.
+
+## Consumer maps
+
+- [Ardush serial adapter and board builds](https://github.com/DRSDavidSoft/Ardush/blob/master/ARCHITECTURE.md)
+- [PakarController ownership and terminal integration](https://github.com/atomicdeploy/PakarController/blob/update/portable-shell-refresh/docs/SYSTEM-MAPS.md)
+
+PU850 is a prospective adapter migration, not a completed consumer refresh. Preserve its device commands and persistence semantics when integrating; do not substitute desktop demo commands.

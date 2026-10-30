@@ -1,5 +1,7 @@
 # 🐚 PortableShell
 
+[🧭 Clickable architecture and data-flow diagrams](docs/wiki/Architecture.md)
+
 A byte-driven C99 shell and terminal UI toolkit: custom commands, completion,
 history, editable tables, numbered menus, and a wrapped text editor. The reusable
 core is allocation-free and OS-independent; replaceable C adapters provide native
