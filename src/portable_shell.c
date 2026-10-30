@@ -163,8 +163,10 @@ struct ps_session {
     char local_label[64];
     ps_command commands[PS_COMMANDS];
     ps_raw_command_fn raw_commands[PS_COMMANDS];
-    char prompt_text[64];
-    unsigned custom_prompt, prompt_style, uppercase_echo, executing;
+    char prompt_text[256];
+    unsigned prompt_part_count, prompt_rows_drawn;
+    struct { unsigned end, style; } prompt_parts[16];
+    unsigned custom_prompt, uppercase_echo, executing;
     unsigned command_count;
     ps_command_fn executor;
     void *executor_context;
@@ -309,6 +311,7 @@ PS_API void ps_write(ps_session *s, const char *text) {
     }
 }
 PS_API void ps_newline(ps_session *s) {
+    s->prompt_rows_drawn=0;
     out(s, (s->io.flags & PS_INTERACTIVE) ? "\r\n" : "\n");
 }
 static void at(ps_session *s, unsigned r, unsigned c) {
@@ -382,29 +385,39 @@ static int name_match(ps_session *s, const char *a, const char *b, int partial) 
     return partial || !*a;
 }
 static void style(ps_session *s, unsigned value) {
+    if(value==PS_STYLE_BLUE){color(s,"\033[94m");return;}
     if(s->theme==PS_STYLE_SEMANTIC && value){
-        static const unsigned roles[]={PS_INK_TEXT,PS_INK_HEADING,PS_INK_SUCCESS,PS_INK_WARNING,PS_INK_ERROR,PS_INK_SUCCESS};
-        ink(s,roles[value<=PS_STYLE_GREEN?value:0]);return;
+        static const unsigned roles[]={PS_INK_TEXT,PS_INK_HEADING,PS_INK_SUCCESS,PS_INK_WARNING,PS_INK_ERROR,PS_INK_SUCCESS,PS_INK_MUTED,PS_INK_COMMAND,PS_INK_HEADING};
+        ink(s,roles[value<=PS_STYLE_BLUE?value:0]);return;
     }
     static const char *const colors[] = {"\033[0m", "\033[1;93m", "\033[92m", "\033[93m",
-                                         "\033[91m", "\033[32m"};
-    color(s, colors[value <= PS_STYLE_GREEN ? value : 0]);
+                                         "\033[91m", "\033[32m", "\033[90m", "\033[95m", "\033[94m"};
+    color(s, colors[value <= PS_STYLE_BLUE ? value : 0]);
 }
-PS_API int ps_set_prompt(ps_session *s, const char *text, unsigned value) {
-    unsigned i;
-    if (text) {
-        if (length(text) >= sizeof s->prompt_text)
-            return -1;
-        for (i = 0; text[i]; ++i)
-            if ((unsigned char)text[i] < 32 || (unsigned char)text[i] == 127)
-                return -1;
+PS_API int ps_set_prompt_parts(ps_session *s,const ps_prompt_part *parts,unsigned count) {
+    unsigned i,j,n=0,lines=1;
+    if(count>16 || (count&&!parts))return -1;
+    for(i=0;i<count;++i){
+        if(!parts[i].text || parts[i].style>PS_STYLE_BLUE)return -1;
+        for(j=0;parts[i].text[j];++j){
+            unsigned c=(unsigned char)parts[i].text[j];
+            if(c=='\n'){if(++lines>4)return -1;}
+            else if(c<32||c==127)return -1;
+            if(++n>=sizeof s->prompt_text)return -1;
+        }
     }
-    str(s->prompt_text, text, sizeof s->prompt_text);
-    s->custom_prompt = text != 0;
-    s->prompt_style = value;
-    if (s->started)
-        prompt(s);
+    n=0;
+    for(i=0;i<count;++i){
+        for(j=0;parts[i].text[j];++j)s->prompt_text[n++]=parts[i].text[j];
+        s->prompt_parts[i].end=n;s->prompt_parts[i].style=parts[i].style;
+    }
+    s->prompt_text[n]=0;s->prompt_part_count=count;s->custom_prompt=count!=0;
+    if(s->started&&!s->executing)prompt(s);
     return 0;
+}
+PS_API int ps_set_prompt(ps_session *s,const char *text,unsigned value) {
+    ps_prompt_part part={text,value};
+    return ps_set_prompt_parts(s,text?&part:0,text?1:0);
 }
 PS_API void ps_set_uppercase_echo(ps_session *s, int enabled) {
     s->uppercase_echo = enabled != 0;
@@ -424,7 +437,7 @@ PS_API void ps_message(ps_session *s, unsigned value, const char *text) {
         prompt(s);
 }
 PS_API void ps_clear(ps_session *s) {
-    ansi(s, "\033[2J\033[H");
+    s->prompt_rows_drawn=0;ansi(s, "\033[2J\033[H");
     s->dirty = 1;
 }
 PS_API void ps_request_exit(ps_session *s) {
@@ -618,6 +631,7 @@ static const ps_command builtins[] = {
     {"history", "[clear]", "Shell", builtin, 0, 0},
     {"bind", "F1|F2|F3|F4 COMMAND", "Shell", builtin, 0, 0},
     {"theme", "semantic|violet|red|lumen|onedark|color|ansi|mono|ascii|unicode", "Terminal", builtin, 0, 0},
+    {"prompt", "reset | STYLE TEXT [STYLE TEXT ...]", "Terminal", builtin, 0, 0},
     {"clear", "", "Terminal", builtin, 0, 0},
     {"status", "", "Terminal", builtin, 0, 0},
     {"exit", "", "Shell", builtin, 0, 0}};
@@ -1308,11 +1322,14 @@ static const char *suggest(ps_session *s, char *buffer) {
     return 0;
 }
 static void prompt(ps_session *s) {
-    char display[PS_LINE];
-    unsigned i, prompt_width = s->custom_prompt
-                                   ? min(cells(s->prompt_text, length(s->prompt_text), s->io.flags),
-                                         s->io.columns - 3)
-                                   : 20 + (s->task_count >= 10 ? 1 : 0);
+    char display[PS_LINE>256?PS_LINE:256];
+    unsigned i,last=0,lines=0,shown,skip,old;
+    for(i=0;s->custom_prompt&&s->prompt_text[i];++i)
+        if(s->prompt_text[i]=='\n'){last=i+1;++lines;}
+    shown=min(lines,s->io.rows>2?s->io.rows-2:0);skip=lines-shown;
+    unsigned prompt_width=s->custom_prompt
+        ? min(cells(s->prompt_text+last,length(s->prompt_text+last),s->io.flags),s->io.columns-3)
+        : 20+(s->task_count>=10?1:0);
     unsigned start = 0,
              avail = s->io.columns > prompt_width + 2 ? s->io.columns - prompt_width - 2 : 8;
     const char *hint;
@@ -1320,9 +1337,32 @@ static void prompt(ps_session *s) {
         return;
     frame_begin(s);
     ansi(s, "\r");
+    old=min(s->prompt_rows_drawn,s->io.rows-1);
+    if(old){ansi(s,"\033[");ps_number(s,old);out(s,"A");}
+    if(old>shown){
+        for(i=0;i<=old;++i){ansi(s,"\033[K");if(i<old)ansi(s,"\033[B");}
+        ansi(s,"\033[");ps_number(s,old);out(s,"A");
+    }
+    s->prompt_rows_drawn=shown;
     if (s->custom_prompt) {
-        style(s, s->prompt_style);
-        field(s, s->prompt_text, prompt_width);
+        unsigned part,pos=0,line=0,column=0;
+        for(part=0;part<s->prompt_part_count;++part){
+            style(s,s->prompt_parts[part].style);
+            while(pos<s->prompt_parts[part].end){
+                unsigned start=pos,n,w;
+                while(pos<s->prompt_parts[part].end&&s->prompt_text[pos]!='\n')++pos;
+                n=pos-start;
+                if(line>=skip){
+                    copy(display,s->prompt_text+start,n);display[n]=0;
+                    w=min(cells(display,n,s->io.flags),s->io.columns-3-column);
+                    field(s,display,w);column+=w;
+                }
+                if(pos<s->prompt_parts[part].end){
+                    if(line>=skip){reset(s);ansi(s,"\033[K");out(s,"\r\n");style(s,s->prompt_parts[part].style);}
+                    ++line;++pos;column=0;
+                }
+            }
+        }
     } else {
         ink(s, 1);
         out(s, "PortableShell");
@@ -1844,7 +1884,7 @@ PS_API void ps_key(ps_session *s, unsigned key) {
     } else if (key == 7) {
         ps_ring_bell(s);
     } else if (key == 12) {
-        ansi(s, "\033[2J\033[H");
+        s->prompt_rows_drawn=0;ansi(s, "\033[2J\033[H");
     } else if (key == 9) {
         completion(s);
     } else if (key == PS_KEY_LEFT || key == 2) {
@@ -2344,6 +2384,18 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
                 str(s->bindings[i].command, a[2], 64);
         return 0;
     }
+    if(equal(cmd,"prompt")){
+        static const char *const names[]={"default","heading","success","warning","error","green","muted","command","blue"};
+        ps_prompt_part parts[16];unsigned n=0,j;
+        if(argc==2&&equal(a[1],"reset"))return ps_set_prompt_parts(s,0,0);
+        if(argc<3 || !(argc&1))return fail(s,"prompt reset | STYLE TEXT [STYLE TEXT ...]");
+        for(i=1;i<(unsigned)argc;i+=2){
+            for(j=0;j<9&&!equal(a[i],names[j]);++j){}
+            if(j==9||n==16)return fail(s,"unknown prompt style");
+            parts[n].text=a[i+1];parts[n++].style=j;
+        }
+        return ps_set_prompt_parts(s,parts,n)?fail(s,"prompt exceeds limits or contains controls"):0;
+    }
     if (equal(cmd, "theme")) {
         if (argc != 2)
             return fail(s, "theme semantic|violet|red|lumen|onedark|color|ansi|mono|ascii|unicode");
@@ -2382,7 +2434,7 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
         return 0;
     }
     if (equal(cmd, "clear")) {
-        ansi(s, "\033[2J\033[H");
+        s->prompt_rows_drawn=0;ansi(s, "\033[2J\033[H");
         return 0;
     }
     if (equal(cmd, "status")) {
