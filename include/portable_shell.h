@@ -187,6 +187,7 @@ PS_API void ps_set_table_style(ps_session *, unsigned flags);
 /* Marker is copied into session storage; empty removes its reserved label cells. */
 PS_API void ps_set_selection_marker(ps_session *, const char *marker);
 typedef void (*ps_write_fn)(void *context, const ps_byte *bytes, unsigned count);
+typedef int (*ps_line_fn)(ps_session *, const char *line, void *context);
 typedef int (*ps_command_fn)(ps_session *, int argc, const char *const *argv, void *context);
 /* Raw tail starts immediately after the first space/tab; quotes and all remaining
    whitespace are preserved. Only command-name matching is case folded. */
@@ -268,6 +269,8 @@ PS_API void ps_finish(ps_session *s); /* EOF: execute final unterminated batch l
 PS_API void ps_close(ps_session *s);  /* restore terminal modes */
 PS_API int ps_exited(const ps_session *s);
 PS_API int ps_status(const ps_session *s);
+/* Owner-loop command-language providers update the most recent exit status. */
+PS_API void ps_set_status(ps_session *s, int status);
 PS_API int ps_execute(ps_session *s, const char *line);
 PS_API int ps_execute_argv(ps_session *s, int argc, const char *const *argv);
 PS_API int ps_parse(const char *line, ps_args *out);
@@ -276,6 +279,14 @@ PS_API int ps_register(ps_session *s, const ps_command *command);
 /* Optional consumer-owned fallback, after registered commands. NULL disables it.
    The callback receives parsed argv, never an implicitly interpreted OS shell string. */
 PS_API void ps_set_executor(ps_session *s, ps_command_fn run, void *context);
+/* Optional raw-line language provider; registered raw commands retain precedence.
+ * Provider calls ps_execute_argv for dispatch, never recursively ps_execute. */
+PS_API void ps_set_line_executor(ps_session *, ps_line_fn, void *context);
+/* Swap a synchronous byte sink; owner loop only, outside output callbacks.
+ * Pass the returned sink/context back to restore. No output is flushed here. */
+PS_API void ps_exchange_output(ps_session *, ps_write_fn *write, void **context);
+/* Exchange only output color/interactive flags for scoped plain rendering. */
+PS_API unsigned ps_output_flags(ps_session *, unsigned flags);
 PS_API int ps_unregister(ps_session *s, const char *name);
 /* Metadata remains borrowed until the next registry mutation. */
 PS_API unsigned ps_command_count(const ps_session *s);

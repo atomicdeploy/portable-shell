@@ -56,4 +56,4 @@ This deterministic fixture uses the new screen API, including a viewport copied 
 
 ## Local footprint checkpoint
 
-On x86-64 Windows with the default capacities in this change, the host executable is 118,784 bytes on disk; status reports 39,296 caller-owned session bytes and zero core heap bytes. The event editor occupies 6,928 bytes. A cell occupies 24 bytes, so two 96 by 24 canvas arrays occupy 110,592 bytes. These are binary/storage measurements, not process working-set or board-runtime measurements; target ABI, compiler flags and selected features change them.
+On x86-64 Windows with the default capacities after the local command-language addition, the host executable is 128,512 bytes on disk; status reports 39,312 caller-owned session bytes and zero core heap bytes. The event editor occupies 6,928 bytes. A cell occupies 24 bytes, so two 96 by 24 canvas arrays occupy 110,592 bytes. These are binary/storage measurements, not process working-set or board-runtime measurements; target ABI, compiler flags and selected features change them.

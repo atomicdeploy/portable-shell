@@ -112,3 +112,75 @@ done:
     if(terminal&&oc)SetConsoleOutputCP(output_cp);
     return (int)code;
 }
+
+/* Concurrent native pipeline. Explicit inherited-handle list prevents unrelated
+ * pipe writers from surviving in downstream children and blocking EOF. */
+static HANDLE pipeline_file(const char *path,unsigned input,unsigned append) {
+    static WCHAR wide[4096];HANDLE h;
+    if(!MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,path,-1,wide,4096))return INVALID_HANDLE_VALUE;
+    h=CreateFileW(wide,input?GENERIC_READ:append?FILE_APPEND_DATA:GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,0,
+                  input?OPEN_EXISTING:append?OPEN_ALWAYS:CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,0);
+
+    return h;
+}
+int ps_host_pipeline(unsigned count,const ps_shell_command *commands) {
+    HANDLE pipes[PS_SHELL_COMMANDS][2],processes[PS_SHELL_COMMANDS],files[PS_SHELL_COMMANDS][3];
+    unsigned i,j,started=0;DWORD code=126,mode=0;int console=0,failed=1;
+    HANDLE input=GetStdHandle(STD_INPUT_HANDLE);
+    if(!count||count>PS_SHELL_COMMANDS)return 2;
+    clear(pipes,sizeof pipes);clear(processes,sizeof processes);clear(files,sizeof files);
+    /* Open all files before spawning any stage. */
+    for(i=0;i<count;++i){
+        const ps_shell_command *c=commands+i;
+        const char *paths[3]={c->input,c->output,c->error};
+        for(j=0;j<3;++j)if(paths[j]){
+            files[i][j]=pipeline_file(paths[j],j==0,j==1?c->append:c->append_error);
+            if(files[i][j]==INVALID_HANDLE_VALUE){files[i][j]=0;code=1;goto cleanup;}
+        }
+        if(i+1<count && !CreatePipe(&pipes[i][0],&pipes[i][1],0,0))goto cleanup;
+    }
+    console=GetConsoleMode(input,&mode);
+    if(console)SetConsoleMode(input,ENABLE_PROCESSED_INPUT|ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT|ENABLE_EXTENDED_FLAGS);
+    SetConsoleCtrlHandler(control,TRUE);
+    for(i=0;i<count;++i){
+        STARTUPINFOEXW si;PROCESS_INFORMATION pi;SIZE_T size=0;
+        HANDLE source[3],inherit[3]={0,0,0};static WCHAR command[16384];int ok=0,initialized=0;
+        const ps_shell_command *c=commands+i;
+        clear(&si,sizeof si);clear(&pi,sizeof pi);si.StartupInfo.cb=sizeof si;
+        if(!quote(command,16384,c->argc,c->argv)){code=2;goto stage_done;}
+        source[0]=files[i][0]?files[i][0]:i?pipes[i-1][0]:GetStdHandle(STD_INPUT_HANDLE);
+        source[1]=files[i][1]?files[i][1]:i+1<count?pipes[i][1]:GetStdHandle(STD_OUTPUT_HANDLE);
+        source[2]=c->merge_error?source[1]:files[i][2]?files[i][2]:GetStdHandle(STD_ERROR_HANDLE);
+        for(j=0;j<3;++j)
+            if(!DuplicateHandle(GetCurrentProcess(),source[j],GetCurrentProcess(),&inherit[j],0,TRUE,DUPLICATE_SAME_ACCESS))goto stage_done;
+        InitializeProcThreadAttributeList(0,1,0,&size);
+        si.lpAttributeList=HeapAlloc(GetProcessHeap(),0,size);
+        if(!si.lpAttributeList||!InitializeProcThreadAttributeList(si.lpAttributeList,1,0,&size))goto stage_done;
+        initialized=1;
+        if(!UpdateProcThreadAttribute(si.lpAttributeList,0,PROC_THREAD_ATTRIBUTE_HANDLE_LIST,inherit,sizeof inherit,0,0))goto stage_done;
+        si.StartupInfo.dwFlags=STARTF_USESTDHANDLES;
+        si.StartupInfo.hStdInput=inherit[0];si.StartupInfo.hStdOutput=inherit[1];si.StartupInfo.hStdError=inherit[2];
+        ok=CreateProcessW(0,command,0,0,TRUE,EXTENDED_STARTUPINFO_PRESENT,0,0,&si.StartupInfo,&pi);
+        if(ok){processes[started++]=pi.hProcess;CloseHandle(pi.hThread);}
+        else code=GetLastError()==ERROR_FILE_NOT_FOUND?127:126;
+stage_done:
+        for(j=0;j<3;++j)if(inherit[j])CloseHandle(inherit[j]);
+        if(si.lpAttributeList){if(initialized)DeleteProcThreadAttributeList(si.lpAttributeList);HeapFree(GetProcessHeap(),0,si.lpAttributeList);}
+        if(!ok)goto cleanup;
+    }
+    failed=0;
+cleanup:
+    for(i=0;i<count;++i){
+        for(j=0;j<2;++j)if(pipes[i][j])CloseHandle(pipes[i][j]);
+        for(j=0;j<3;++j)if(files[i][j])CloseHandle(files[i][j]);
+    }
+    if(failed)for(i=0;i<started;++i)TerminateProcess(processes[i],126);
+    for(i=0;i<started;++i){
+        WaitForSingleObject(processes[i],INFINITE);
+        if(!failed&&i+1==count)GetExitCodeProcess(processes[i],&code);
+        CloseHandle(processes[i]);
+    }
+    SetConsoleCtrlHandler(control,FALSE);
+    if(console)SetConsoleMode(input,mode);
+    return (int)code;
+}

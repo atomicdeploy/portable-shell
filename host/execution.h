@@ -33,10 +33,24 @@ static int host_remote(ps_session *s,int argc,const char *const *argv,void *cont
     }else return 2;
     return host_execute(s,n,args,0);
 }
+#if PS_HOST_LANGUAGE
+#include "language.h"
+#endif
 static int host_attach(ps_session *s){
     ps_command run={"run","PROGRAM [ARGS...]","Host",host_command,0,0};
     ps_command pty={"pty","PROGRAM [ARGS...]","Host",host_command,0,0};
     ps_command remote={"remote","get|put URL FILE | post URL BODY | ssh HOST COMMAND","Host",host_remote,0,0};
     if(ps_register(s,&run)||ps_register(s,&pty)||ps_register(s,&remote))return 1;
+    #if PS_HOST_LANGUAGE
+    {
+        const char *names[]={"cd","pwd","env","setenv","unsetenv","source","exit"};
+        const char *usage[]={"[PATH|-]","","NAME","NAME VALUE","NAME","FILE","[STATUS]"};
+        unsigned i;for(i=0;i<7;++i){
+            ps_command c={names[i],usage[i],"Host",host_state_command,0,0};
+            if(ps_register(s,&c))return 1;
+        }
+    }
+    ps_set_line_executor(s,host_line,0);
+    #endif
     ps_set_executor(s,host_execute,0);return 0;
 }

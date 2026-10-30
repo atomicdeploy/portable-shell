@@ -17,6 +17,13 @@ int main(int argc,char **argv){
         if(!fgets(line,sizeof line,stdin))return 8;
         printf("input:%s",line);return 0;
     }
+    if(argc>1&&!strcmp(argv[1],"produce")){
+        for(i=0;i<200000;++i)if(putchar('x')==EOF)return 9;
+        return 0;
+    }
+    if(argc>1&&!strcmp(argv[1],"count")){
+        unsigned long count=0;while(getchar()!=EOF)++count;printf("count:%lu\n",count);return 0;
+    }
     printf("tty:%d\n",tty);
     for(i=1;i<argc;++i)printf("arg:%u:%s\n",(unsigned)strlen(argv[i]),argv[i]);
     fprintf(stderr,"stderr-marker\n");

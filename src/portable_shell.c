@@ -186,6 +186,8 @@ struct ps_session {
     struct { unsigned end, style; } prompt_parts[16];
     unsigned custom_prompt, uppercase_echo, executing;
     unsigned command_count;
+    ps_line_fn line_executor;
+    void *line_context;
     ps_command_fn executor;
     void *executor_context;
     Binding bindings[24];
@@ -1608,7 +1610,9 @@ static void table_key(ps_session *s, unsigned key) {
 static unsigned encode_completion(const char *value, unsigned n, char *encoded) {
     unsigned i, count = 0, quoted = 0;
     for (i = 0; i < n; ++i)
-        if (value[i] <= ' ' || value[i] == '\\' || value[i] == '"' || value[i] == '\'')
+        if (value[i] <= ' ' || value[i] == '\\' || value[i] == '"' || value[i] == '\'' || value[i] == '$' || value[i] == 96 ||
+            value[i] == '|' || value[i] == '&' || value[i] == ';' || value[i] == '<' ||
+            value[i] == '>' || value[i] == '#' || value[i] == '(' || value[i] == ')')
             quoted = 1;
     if (quoted)
         encoded[count++] = '"';
@@ -1616,7 +1620,7 @@ static unsigned encode_completion(const char *value, unsigned n, char *encoded) 
         unsigned char c = (unsigned char)value[i];
         if (count + 4 >= PS_LINE)
             return 0;
-        if (c == '"' || c == '\\')
+        if (c == '"' || c == '\\' || c == '$' || c == 96)
             encoded[count++] = '\\';
         if (c == '\n' || c == '\t' || c == '\r') {
             encoded[count++] = '\\';
@@ -2546,6 +2550,19 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
 PS_API void ps_set_executor(ps_session *s, ps_command_fn run, void *context) {
     if (s) { s->executor = run; s->executor_context = context; }
 }
+PS_API void ps_set_status(ps_session *s,int status) { if(s)s->status=status; }
+PS_API void ps_set_line_executor(ps_session *s,ps_line_fn run,void *context) {
+    if(s){s->line_executor=run;s->line_context=context;}
+}
+PS_API unsigned ps_output_flags(ps_session *s,unsigned flags) {
+    unsigned mask=PS_INTERACTIVE|PS_COLOR|PS_TRUECOLOR,old=s->io.flags&mask;
+    s->io.flags=(s->io.flags&~mask)|(flags&mask);return old;
+}
+PS_API void ps_exchange_output(ps_session *s,ps_write_fn *write,void **context) {
+    ps_write_fn old;void *ctx;
+    if(!s||!write||!context||!*write)return;
+    old=s->io.write;ctx=s->io.context;s->io.write=*write;s->io.context=*context;*write=old;*context=ctx;
+}
 PS_API int ps_execute_argv(ps_session *s, int argc, const char *const *a) {
     unsigned i;
     if (argc <= 0)
@@ -2593,6 +2610,7 @@ PS_API int ps_execute(ps_session *s, const char *line) {
             s->executing = 0;
             return s->status;
         }
+    if(s->line_executor)return s->status=s->line_executor(s,line,s->line_context);
     if (ps_parse(line, &a)) {
         out(s, "parse@");
         ps_number(s, a.error_at);
