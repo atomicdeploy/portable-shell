@@ -24,7 +24,7 @@ include(GNUInstallDirs)
 install(TARGETS portable_shell ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES include/portable_shell.h include/portable_shell_device.h include/portable_remote.h
   include/portable_terminal.h include/portable_editor.h
-  include/portable_parse.h include/portable_probe.h
+  include/portable_segments.h include/portable_parse.h include/portable_probe.h
   include/portable_shell_editor.hpp include/portable_device_view.hpp
   include/portable_device_table.hpp include/portable_style.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -156,6 +156,15 @@ endif()
 if(PORTABLE_SHELL_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
   enable_testing()
   enable_language(CXX)
+  add_executable(segment_checks tests/segment_checks.c tests/render.c)
+  target_compile_definitions(segment_checks PRIVATE PS_REPLAY_ONLY)
+  target_link_libraries(segment_checks PRIVATE portable_shell)
+  if(MSVC)
+    target_compile_options(segment_checks PRIVATE /UNDEBUG)
+  else()
+    target_compile_options(segment_checks PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+  endif()
+  add_test(NAME segment_checks COMMAND segment_checks)
   add_executable(prompt_checks tests/prompt_checks.c tests/render.c)
   target_compile_definitions(prompt_checks PRIVATE PS_REPLAY_ONLY)
   target_link_libraries(prompt_checks PRIVATE portable_shell)

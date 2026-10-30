@@ -1,4 +1,5 @@
 #include "portable_style.h"
+#include "portable_segments.h"
 #include "portable_parse.h"
 #include "portable_shell.h"
 #ifdef PS_USE_LIBC
@@ -632,6 +633,7 @@ static const ps_command builtins[] = {
     {"bind", "F1|F2|F3|F4 COMMAND", "Shell", builtin, 0, 0},
     {"theme", "semantic|violet|red|lumen|onedark|color|ansi|mono|ascii|unicode", "Terminal", builtin, 0, 0},
     {"prompt", "reset | STYLE TEXT [STYLE TEXT ...]", "Terminal", builtin, 0, 0},
+    {"segments", "TEXT [--large] [--red] [--mono] [--ascii]", "Tools", builtin, 0, 0},
     {"clear", "", "Terminal", builtin, 0, 0},
     {"status", "", "Terminal", builtin, 0, 0},
     {"exit", "", "Shell", builtin, 0, 0}};
@@ -2065,6 +2067,9 @@ PS_API int ps_print_help(ps_session *s, const char *name, unsigned layout) {
     }
     return (int)printed;
 }
+static void segment_sink(void *context,const unsigned char *p,size_t n){
+    raw((ps_session *)context,(const char *)p,(unsigned)n);
+}
 static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     unsigned i, j;
     const char *cmd = a[0];
@@ -2383,6 +2388,27 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
             if (s->bindings[i].key == key)
                 str(s->bindings[i].command, a[2], 64);
         return 0;
+    }
+    if(equal(cmd,"segments")){
+        unsigned short digits[PS_SEG_MAX_CELLS];int count;
+        ps_segment_style display=ps_segment_default_style();
+        if(argc<2)return fail(s,"segments TEXT [--large] [--red] [--mono] [--ascii]");
+        display.unicode=!!(s->io.flags&PS_UNICODE);
+        display.color=(s->io.flags&(PS_INTERACTIVE|PS_COLOR))==(PS_INTERACTIVE|PS_COLOR);
+        for(i=2;i<(unsigned)argc;++i){
+            if(equal(a[i],"--large")){display.horizontal=4;display.vertical=3;}
+            else if(equal(a[i],"--red"))display.foreground=203;
+            else if(equal(a[i],"--mono"))display.color=0;
+            else if(equal(a[i],"--ascii"))display.unicode=0;
+            else return fail(s,"unknown display option");
+        }
+        count=ps_segment_parse(a[1],digits,PS_SEG_MAX_CELLS);
+        if(count<=0)return fail(s,"unsupported display text or too many cells");
+        if(!ps_segment_width(digits,(unsigned)count,&display)||ps_segment_width(digits,(unsigned)count,&display)>=s->io.columns)
+            return fail(s,"display does not fit terminal");
+        frame_begin(s);
+        ps_segment_render(digits,(unsigned)count,&display,s->io.columns-1,segment_sink,s);
+        frame_end(s);s->prompt_rows_drawn=0;return 0;
     }
     if(equal(cmd,"prompt")){
         static const char *const names[]={"default","heading","success","warning","error","green","muted","command","blue"};

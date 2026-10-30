@@ -73,3 +73,9 @@ Emitted-byte replay fixture with simulated observations; [configuration](Meters.
 
 Actual emitted-byte fixtures with simulated host/directory text. Agave renders
 the text; the pinned Agave Nerd Font supplies the custom chevron glyph.
+
+## Seven-segment display
+
+![Seven-segment display](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/seven-segment.png)
+
+[Component and command options](Components.md#seven-segment-display).
