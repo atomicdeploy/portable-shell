@@ -278,7 +278,7 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     if(visible>PS_DEVICE_VIEW_MAX_ROWS)visible=PS_DEVICE_VIEW_MAX_ROWS;
     // Bound complete frames rather than silently dropping their final border.
     const unsigned reserve=8192U+unsigned(s.lines)*110U;
-    const unsigned budgetRows=(PS_DEVICE_VIEW_FRAME_BYTES > reserve ? PS_DEVICE_VIEW_FRAME_BYTES-reserve : 1)/(w+1000U);
+    const unsigned budgetRows=(PS_DEVICE_VIEW_FRAME_BYTES > reserve ? PS_DEVICE_VIEW_FRAME_BYTES-reserve : 1)/(w+450U);
     if(visible>budgetRows)visible=budgetRows?budgetRows:1;
     // PCController's logical-row/section-line separation, without heap storage.
     uint8_t logical[PS_DEVICE_VIEW_MAX_ROWS*2];bool section[PS_DEVICE_VIEW_MAX_ROWS*2];

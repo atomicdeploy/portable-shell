@@ -60,10 +60,19 @@ int main(){
         assert(screen.line(height-2).find("apply")!=std::string::npos);
         assert(screen.line(height-1).find("Tab pages")==std::string::npos);
         feed("\x1b");view.flushEscape(a);render(false);
+#if PS_DEVICE_VIEW_DIALOGS
+        feed("\x1b[12~");render(false);assert(view.editing());
+        assert(screen.line(height/2-1).find("Enter apply")!=std::string::npos);
+        assert(screen.line(height-1).find("Tab pages")==std::string::npos);
+        feed("\x1b");view.flushEscape(a);render(false);
+#endif
         feed("\t");render(false);assert(view.page()==V::Network&&a.type==V::Action::None);
         feed("\x1b[Z");render(false);assert(view.page()==V::Device&&a.type==V::Action::None);
         // Shrinking populated content must erase old rows, including sidebar updates.
-        s.rowCount=32;render(false);s.rowCount=1;render(false);
+        s.rowCount=32;render(true);
+        assert(screen.line(height-1).find("Tab pages")!=std::string::npos);
+        assert(screen.cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
+        s.rowCount=1;render(false);
         incremental=screen.cells;render(true);assert(incremental==screen.cells);
         s.cloudSettings=s.notificationSettings=s.clockSettings=false;render(false);
         incremental=screen.cells;render(true);assert(incremental==screen.cells);
