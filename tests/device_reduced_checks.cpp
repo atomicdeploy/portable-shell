@@ -13,7 +13,10 @@ int main(){
     auto render=[&](){out.clear();v.render(s,[&](const uint8_t *p,size_t n){out.append((const char*)p,n);},true);};
     auto feed=[&](const char *p){bool sent=false;while(*p)sent=v.feed(uint8_t(*p++),s,a)||sent;return sent;};
     render();
-    assert(out.find("OUTPUTS")!=std::string::npos&&out.find("Value")!=std::string::npos);
+    assert(out.find("Value")!=std::string::npos);
+#if PS_DEVICE_VIEW_SECTIONS
+    assert(out.find("OUTPUTS")!=std::string::npos);
+#endif
     assert(out.find("\x1b[7m")!=std::string::npos);
     assert(out.find("\x1b[7;159H")!=std::string::npos);
     unsigned labels=0;for(size_t p=0;(p=out.find("Setting",p))!=std::string::npos;++p)++labels;
@@ -35,11 +38,14 @@ int main(){
     feed("\x15" "off");assert(feed("\r")&&std::string(a.value)=="off");
     feed("\x1b[B\r\x15" "other");assert(!feed("\r")&&v.editing());
     feed("\x15" "fast");assert(feed("\r")&&std::string(a.value)=="fast");
+    #if PS_DEVICE_VIEW_SECTIONS
     feed("\x1b[H");assert(v.sectionSelected());feed(" ");render();
     assert(out.find("Section collapsed")!=std::string::npos);
+    feed(" ");
+#endif
     v.setTabLayout(V::VerticalTabs);v.setTabsInsideTable(true);render();
     assert(out.find("Pages")!=std::string::npos);
-    v.setSelectionMarker("* ");feed(" ");feed("\x1b[B");render();
+    v.setSelectionMarker("* ");feed("\x1b[H");if(v.sectionSelected())feed("\x1b[B");render();
     assert(out.find("* Setting")!=std::string::npos);
     return 0;
 }
