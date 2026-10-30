@@ -280,6 +280,9 @@ PS_API void ps_tick(ps_session *s, ps_u32 monotonic_ms);
 PS_API void ps_resize(ps_session *s, unsigned columns, unsigned rows);
 PS_API void ps_finish(ps_session *s); /* EOF: execute final unterminated batch line. */
 PS_API void ps_close(ps_session *s);  /* restore terminal modes */
+/* Current terminal ownership, for native host adapters. Mouse implies alternate screen. */
+enum { PS_TERMINAL_ALT_SCREEN = 1, PS_TERMINAL_MOUSE = 2 };
+PS_API unsigned ps_terminal_state(const ps_session *);
 PS_API int ps_exited(const ps_session *s);
 PS_API int ps_status(const ps_session *s);
 /* Owner-loop command-language providers update the most recent exit status. */

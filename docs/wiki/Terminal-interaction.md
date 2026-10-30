@@ -59,3 +59,18 @@ This deterministic fixture uses the new screen API, including a viewport copied 
 On x86-64 Windows with the default capacities after the contextual table layout addition, the host executable is 130,560 bytes on disk; status reports 39,448 caller-owned session bytes and zero core heap bytes. The event editor occupies 6,928 bytes. A cell occupies 24 bytes, so two 96 by 24 canvas arrays occupy 110,592 bytes. These are binary/storage measurements, not process working-set or board-runtime measurements; target ABI, compiler flags and selected features change them.
 
 See [Terminal OSC integration](OSC.md) for window titles, terminal progress and working-directory reporting.
+
+## Mouse ownership and terminal scrollback
+
+The standalone command prompt uses the normal screen and leaves mouse-wheel
+scrollback to the terminal. Full-screen tables, menus, forms and file pickers
+capture mouse events while they own the alternate screen. The document editor
+also uses the alternate screen, but currently remains keyboard-driven.
+Table-plus-prompt mode is a full-screen table workspace; its lower prompt does
+not turn it into a normal scrollback shell.
+
+Native adapters can query `ps_terminal_state()` and check
+`PS_TERMINAL_ALT_SCREEN` and `PS_TERMINAL_MOUSE`. Mouse ownership implies alternate
+screen ownership; alternate screen ownership does not require mouse capture.
+The Windows host follows this state when configuring `ENABLE_MOUSE_INPUT` and
+restores the original console mode on exit.
