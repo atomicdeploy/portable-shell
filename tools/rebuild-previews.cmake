@@ -59,7 +59,7 @@ if(DEFINED GENERATOR)
 endif()
 execute_process(COMMAND ${configure} COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${CMAKE_COMMAND}" --build "${BUILD_DIR}/native" --config Release COMMAND_ERROR_IS_FATAL ANY)
-set(frames native-tree native-list native-split native-nerd native-emoji menu-centered menu-details editor-framed files meters workspace controls inline dialog red lumen onedark ascii controls-columns controls-collapsed controls-compact controls-inside menu document device-full device-vertical device-matrix device-inline device-reduced device-inside device-scrollbar device-scrollbar-compact prompt-colored prompt-multiline prompt-ascii seven-segment)
+set(frames help-registry help-command help-plain native-tree native-list native-split native-nerd native-emoji menu-centered menu-details editor-framed files meters workspace controls inline dialog red lumen onedark ascii controls-columns controls-collapsed controls-compact controls-inside menu document device-full device-vertical device-matrix device-inline device-reduced device-inside device-scrollbar device-scrollbar-compact prompt-colored prompt-multiline prompt-ascii seven-segment)
 set(arguments)
 set(managed)
 foreach(frame IN LISTS frames)
@@ -81,6 +81,7 @@ execute_process(COMMAND "${BUILD_DIR}/native/bin/filesystem_preview${exe}" "${ro
 execute_process(COMMAND "${BUILD_DIR}/native/bin/prompt_preview${exe}" "${generated}/prompt-colored.svg" "${generated}/prompt-multiline.svg" "${generated}/prompt-ascii.svg" COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${BUILD_DIR}/native/bin/segment_preview${exe}" "${generated}/seven-segment.svg" COMMAND_ERROR_IS_FATAL ANY)
 foreach(frame IN LISTS frames)
+execute_process(COMMAND "${BUILD_DIR}/native/bin/help_preview${exe}" "${generated}/help-registry.svg" "${generated}/help-command.svg" "${generated}/help-plain.svg" COMMAND_ERROR_IS_FATAL ANY)
   # One explicitly supplied font; two-times resolution for smooth display scaling.
   execute_process(COMMAND "${RESVG}" --skip-system-fonts --use-font-file "${cache}/Agave.ttf"
     --use-font-file "${cache}/AgaveNerd.ttf" --use-font-file "${cache}/NotoEmoji.ttf" --zoom 2 "${generated}/${frame}.svg" "${generated}/${frame}.png" COMMAND_ERROR_IS_FATAL ANY)

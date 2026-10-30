@@ -162,6 +162,10 @@ struct ps_session {
     ps_u32 draft_revision, local_revision;
     unsigned local_values[7];
     char local_label[64];
+#if PS_HELP_DETAILS
+    const ps_help_document *help_documents;
+    unsigned help_document_count;
+#endif
     ps_command commands[PS_COMMANDS];
     ps_raw_command_fn raw_commands[PS_COMMANDS];
     char prompt_text[256];
@@ -2029,44 +2033,7 @@ PS_API void ps_ring_bell(ps_session *s) {
 static const char *command_category(const ps_command *c) {
     return c->category && *c->category ? c->category : "Commands";
 }
-PS_API int ps_print_help(ps_session *s, const char *name, unsigned layout) {
-    unsigned i, j, k, printed = 0, width = 0, group_width = 0;
-    if (!s) return 0;
-    for (i = 0; i < s->command_count; ++i) {
-        const ps_command *c = &s->commands[i];
-        if (length(c->name) > width) width = length(c->name);
-        if (length(command_category(c)) > group_width) group_width = length(command_category(c));
-    }
-    for (i = 0; i < s->command_count; ++i) {
-        const ps_command *c = &s->commands[i];
-        if (name) {
-            if (!name_match(s, c->name, name, 0)) continue;
-            ink(s, 1); out(s, "Usage: "); reset(s);
-            ps_write(s, c->name); out(s, " "); ps_write(s, c->usage); ps_newline(s);
-            return 1;
-        }
-        if (layout == PS_HELP_COMPACT) {
-            ink(s, 0); field(s, command_category(c), group_width + 2);
-            ink(s, 1); field(s, c->name, width + 2); reset(s);
-            ps_write(s, c->usage); ps_newline(s); ++printed;
-            continue;
-        }
-        for (j = 0; j < i; ++j)
-            if (equal(command_category(&s->commands[j]), command_category(c))) break;
-        if (j != i) continue;
-        if (printed) ps_newline(s);
-        ink(s, 1);
-        ps_write(s, command_category(c)); out(s, ":");
-        reset(s); ps_newline(s);
-        for (k = i; k < s->command_count; ++k) {
-            const ps_command *entry = &s->commands[k];
-            if (!equal(command_category(entry), command_category(c))) continue;
-            out(s, "  "); ink(s, 5); field(s, entry->name, width + 2); reset(s);
-            ps_write(s, entry->usage); ps_newline(s); ++printed;
-        }
-    }
-    return (int)printed;
-}
+#include "portable_help.inc"
 static void segment_sink(void *context,const unsigned char *p,size_t n){
     raw((ps_session *)context,(const char *)p,(unsigned)n);
 }

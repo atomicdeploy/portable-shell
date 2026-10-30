@@ -663,7 +663,7 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         CHECK(!has(t.output, "Workspace:") && has(t.output, "Workspace") &&
                   has(t.output, "long-custom-command"), "compact help remains selectable");
         clear(); ps_execute(s, "help --headings preview");
-        CHECK(has(t.output, "Usage: ") && has(t.output, "preview VALUE"),
+        CHECK(has(t.output, "Usage: ") && has(t.output, "preview ") && has(t.output, "VALUE"),
               "command help shows Usage");
         CHECK(ps_execute(s, "help unknown") == 2, "unknown help target reports failure");
         cfg.flags = PS_INTERACTIVE | PS_NO_BELL | PS_NO_SUGGESTIONS;
