@@ -677,6 +677,11 @@ int host_main(void) {
             }
             if (!ReadFile(input, b, execution && !serial ? 1 : sizeof b, &n, 0) || (!n && !serial))
                 break;
+            /* Local process batch input uses LF/CRLF records. Wait for LF before
+               dispatch so a CRLF tail cannot become the child's first stdin byte.
+               Raw serial/Telnet and execution-disabled byte sessions are unchanged. */
+            if (execution && !serial && !(flags & PS_INTERACTIVE) && n == 1 && b[0] == '\r')
+                continue;
             if (n)
                 ps_feed(s, b, n);
         }

@@ -407,6 +407,9 @@ int main(int argc, char **argv) {
         if (ready > 0 && (p.revents & (POLLIN | POLLHUP))) {
             ps_byte b[2048];
             ssize_t n = read(fd, b, execution && !serial ? 1 : sizeof b);
+            /* Defer CRLF command dispatch until LF, leaving child stdin intact. */
+            if (execution && !serial && !(flags & PS_INTERACTIVE) && n == 1 && b[0] == '\r')
+                continue;
             if (n > 0)
                 ps_feed(s, b, (unsigned)n);
             else if (n == 0 && !serial)

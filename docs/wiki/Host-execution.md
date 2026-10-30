@@ -24,7 +24,9 @@ change PortableShell's process. There is no background job-control subsystem yet
 `run` preserves stdin, stdout, stderr and child exit status. For example, from a
 POSIX host shell, `printf 'hello\n' | PortableShell -- run cat` forwards stdin.
 Use `--command TEXT` or `-- ARGV...` when piping data to a child; plain batch mode
-consumes stdin as PortableShell commands. The local input loop does not prefetch
+consumes stdin as PortableShell commands, using LF or CRLF records when execution
+is enabled (use `--no-exec` for the original raw CR-delimited byte protocol).
+The local input loop does not prefetch
 across a command handoff. Child bytes go straight to host streams, not through the
 core's safe-text sanitizer.
 
