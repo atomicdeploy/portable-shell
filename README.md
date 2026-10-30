@@ -120,3 +120,7 @@ Commands, input and device providers support callbacks. Optional cooperative job
 An optional playable demo with RGB scales, directional eyes, gem food, scoring, pause/restart and standard terminal BEL feedback. Build with PORTABLE_SHELL_SNAKE_EXAMPLE=ON. [Controls and embedding](https://github.com/atomicdeploy/portable-shell/wiki/Snake).
 
 ![Snake demo output replay](previews/snake.png)
+
+### Local shell language
+
+Local host adapters support native executable launch, concurrent byte pipelines, command chains, conditional execution, file redirection, environment expansion, directory changes and command scripts. The parser stays portable; processes and filesystem operations stay in the host. [Syntax, examples, feature switches and compatibility limits](https://github.com/atomicdeploy/portable-shell/wiki/Local-shell).

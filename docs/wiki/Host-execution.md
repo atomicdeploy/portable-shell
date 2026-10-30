@@ -14,11 +14,7 @@ pty powershell.exe -NoLogo
 pty sh
 ```
 
-Use the command appropriate for your OS. Arguments are literal, including empty
-arguments and quoted whitespace. Pipes, redirection and wildcard expansion belong
-to an explicitly invoked interpreter (`sh -c`, `cmd /d /s /c`, etc.). The adapter
-does not implicitly execute an OS shell. Commands run synchronously and inherit the
-host environment and working directory. Child directory/environment changes do not
+Use the command appropriate for your OS. The local [command language](Local-shell.md) now supports chains, native byte pipelines, redirection and environment expansion. Wildcards and interpreter-specific syntax still require an explicit interpreter. The adapter does not implicitly execute an OS shell. Commands run synchronously and inherit the host environment and working directory. Child directory/environment changes do not
 change PortableShell's process. There is no background job-control subsystem yet.
 
 `run` preserves stdin, stdout, stderr and child exit status. For example, from a
@@ -42,8 +38,7 @@ its output is drained concurrently during shutdown, as required by
 `--no-exec` disables local execution and remote-tool commands. Build with
 `-DPORTABLE_SHELL_HOST_EXEC=OFF` to omit the native process sources. TCP/Telnet,
 serial and device-command sessions never receive this local executor automatically.
-Compact builds reserve 28 command slots, retaining space for these optional host
-commands; all capacities remain explicit compile-time choices.
+Compact hosts with execution enabled reserve 40 command slots; all capacities remain explicit compile-time choices.
 
 ## ⌨️ Optional editing shortcuts
 

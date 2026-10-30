@@ -25,3 +25,5 @@
 - [Callbacks and async](Async.md)
 
 - [Snake demo](Snake.md)
+
+- [Local shell language](Local-shell.md)

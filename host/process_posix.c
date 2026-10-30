@@ -57,3 +57,61 @@ done:
     sigaction(SIGINT,&oldint,0);sigaction(SIGQUIT,&oldquit,0);
     return WIFEXITED(status)?WEXITSTATUS(status):WIFSIGNALED(status)?128+WTERMSIG(status):126;
 }
+
+int ps_host_pipeline(unsigned count,const ps_shell_command *commands) {
+    int pipes[PS_SHELL_COMMANDS][2],files[PS_SHELL_COMMANDS][3],status=0,result=126,failed=1;
+    pid_t children[PS_SHELL_COMMANDS];unsigned i,j,started=0;
+    struct termios saved,cooked;int terminal=0;
+    struct sigaction ignore,oldint,oldquit;int signals=0;
+    if(!count||count>PS_SHELL_COMMANDS)return 2;
+    for(i=0;i<count;++i){pipes[i][0]=pipes[i][1]=-1;for(j=0;j<3;++j)files[i][j]=-1;}
+    for(i=0;i<count;++i){
+        const ps_shell_command *c=commands+i;const char *paths[3]={c->input,c->output,c->error};
+        for(j=0;j<3;++j)if(paths[j]){
+            int append=j==1?c->append:c->append_error;
+            files[i][j]=open(paths[j],j==0?O_RDONLY:O_WRONLY|O_CREAT|(append?O_APPEND:O_TRUNC),0666);
+            if(files[i][j]<0){result=1;goto cleanup;}
+        }
+        if(i+1<count&&pipe(pipes[i])<0)goto cleanup;
+    }
+    terminal=tcgetattr(0,&saved)==0;
+    if(terminal){cooked=saved;cooked.c_lflag|=ICANON|ECHO|ISIG|IEXTEN;cooked.c_iflag|=ICRNL;cooked.c_oflag|=OPOST|ONLCR;tcsetattr(0,TCSANOW,&cooked);}
+    ignore.sa_handler=SIG_IGN;sigemptyset(&ignore.sa_mask);ignore.sa_flags=0;
+    sigaction(SIGINT,&ignore,&oldint);sigaction(SIGQUIT,&ignore,&oldquit);signals=1;
+    for(i=0;i<count;++i){
+        int report[2];pid_t child;unsigned char launch_error=0;ssize_t got;
+        if(pipe(report)<0)goto cleanup;
+        if(fcntl(report[1],F_SETFD,FD_CLOEXEC)<0){close(report[0]);close(report[1]);goto cleanup;}
+        child=fork();
+        if(child<0){close(report[0]);close(report[1]);goto cleanup;}
+        if(child==0){
+            const ps_shell_command *c=commands+i;
+            close(report[0]);
+            int in=files[i][0]>=0?files[i][0]:i?pipes[i-1][0]:0;
+            int out=files[i][1]>=0?files[i][1]:i+1<count?pipes[i][1]:1;
+            int err=c->merge_error?out:files[i][2]>=0?files[i][2]:2;
+            signal(SIGINT,SIG_DFL);signal(SIGQUIT,SIG_DFL);signal(SIGPIPE,SIG_DFL);signal(SIGTERM,SIG_DFL);
+            if(dup2(in,0)<0||dup2(out,1)<0||dup2(err,2)<0){launch_error=126;(void)write(report[1],&launch_error,1);_exit(126);}
+            for(j=0;j<count;++j){unsigned k;
+                for(k=0;k<2;++k)if(pipes[j][k]>2)close(pipes[j][k]);
+                for(k=0;k<3;++k)if(files[j][k]>2)close(files[j][k]);
+            }
+            execvp(c->argv[0],(char *const *)c->argv);launch_error=(unsigned char)(errno==ENOENT?127:126);
+            (void)write(report[1],&launch_error,1);_exit(launch_error);
+        }
+        children[started++]=child;close(report[1]);
+        do {got=read(report[0],&launch_error,1);}while(got<0&&errno==EINTR);
+        close(report[0]);if(got!=0){result=got>0?launch_error:126;goto cleanup;}
+    }
+    failed=0;
+cleanup:
+    for(i=0;i<count;++i){for(j=0;j<2;++j)if(pipes[i][j]>=0)close(pipes[i][j]);for(j=0;j<3;++j)if(files[i][j]>=0)close(files[i][j]);}
+    if(failed)for(i=0;i<started;++i)kill(children[i],SIGKILL);
+    for(i=0;i<started;++i){
+        while(waitpid(children[i],&status,0)<0&&errno==EINTR){}
+        if(!failed&&i+1==count)result=WIFEXITED(status)?WEXITSTATUS(status):WIFSIGNALED(status)?128+WTERMSIG(status):126;
+    }
+    if(terminal)tcsetattr(0,TCSANOW,&saved);
+    if(signals){sigaction(SIGINT,&oldint,0);sigaction(SIGQUIT,&oldquit,0);}
+    return result;
+}

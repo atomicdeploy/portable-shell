@@ -359,6 +359,9 @@ int main(int argc, char **argv) {
         ps_device_attach(s, &profiles[0], 0, 0);
     if (!serial && !use_device_commands && fs_attach(s)) return 2;
 #if PS_HOST_EXEC
+#if PS_HOST_LANGUAGE
+    host_program(argv[0]);
+#endif
     if (execution && !serial && !use_device_commands && host_attach(s)) return 2;
 #else
     (void)execution;
