@@ -1,11 +1,24 @@
 # 🔢 Numbered menus
 
 
-`menu` (or host option `--menu`) opens a numbered list, with no table, alternate
-screen, or mouse capture. Enter submits a number; `0` and Esc go back; Ctrl-C closes
-the whole menu. Backspace edits the number. A leaf exits menu input mode before
-calling its action, so actions may safely execute commands or open another view.
-Disabled entries never invoke callbacks. Paste cannot activate menu actions.
+`menu` (or host option `--menu`) opens a red-bordered table with white labels and
+a yellow selection. The width follows the longest item, constrained to the viewport,
+and the table is horizontally centered. It uses an alternate screen and restores it
+on close. ↑/↓, Home/End and the mouse wheel select; click selects a row; Enter opens
+it. Number entry still works. `0` or Esc goes back, Ctrl-C closes, and Backspace edits
+the number. Disabled entries cannot run. Paste cannot activate actions.
+
+- `menu --no-numbers`: one column, no numbering column.
+- `menu --details`: table on the left, selected-item description and navigation on
+  the right. Narrow/short terminals fall back to the centered layout.
+- `menu --plain`: original numbered transcript, no table or mouse capture.
+
+Use `ps_menu_set_style` with `PS_MENU_TABLE`, `PS_MENU_NUMBERS`, `PS_MENU_DETAILS`,
+or zero for plain mode. Set this before opening; changing style closes the current
+menu. `ps_menu_set_description` installs a callback returning borrowed text for the
+current item. Descriptions are clipped to the pane width. Numbering remains stable
+when hidden. The default callback-free description distinguishes submenus/actions.
+A leaf closes menu input before its action runs, allowing another view to open.
 
 `menu 2 1` selects Tools → Terminal status in scripts. Bare `menu` in batch mode
 prints choices and returns, without trapping subsequent commands or emitting ANSI.
@@ -36,3 +49,7 @@ may call `ps_menu_choose`, `ps_menu_refresh`, `ps_menu_active`, and `ps_menu_clo
 Closing through the API releases the mode; normal host input redraws the prompt.
 
 ![Numbered menu](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu.png)
+
+![Centered single column](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-centered.png)
+
+![Number column and details pane](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-details.png)

@@ -1,10 +1,14 @@
+PS_API void ps_editor_set_style(ps_session *s,unsigned flags){if(s)s->document_style=flags;}
 #if PS_EDITOR
+static unsigned document_border(ps_session *s){return (s->document_style&PS_EDITOR_BORDER)&&s->io.rows>=6;}
+static unsigned document_header(ps_session *s){return !!(s->document_style&PS_EDITOR_HEADER);}
+static unsigned document_height(ps_session *s){return s->io.rows-2-document_header(s)-2*document_border(s);}
 /* Bounded UTF-8 document editor; all persistence belongs to the caller. */
 PS_API unsigned ps_editor_active(const ps_session *s){return s?s->document_open:0;}
 PS_API const char *ps_editor_text(const ps_session *s){return s?s->document:"";}
 /* A visual row ends at an explicit newline or the last fitting word boundary. */
 static unsigned document_row(ps_session *s,unsigned start,unsigned *end){
-    unsigned i=start,col=0,word=0,w=s->io.columns-1;
+    unsigned i=start,col=0,word=0,w=s->io.columns-1-2*document_border(s);
     while(i<s->document_length){
         unsigned n,c,r;
         if(s->document[i]=='\n'){*end=i;return i+1;}
@@ -29,17 +33,24 @@ static unsigned document_location(ps_session *s,unsigned *start){
     *start=a;return row;
 }
 static void document_render(ps_session *s){
-    unsigned start,row=document_location(s,&start),height=s->io.rows-3,a=0,r=0,end,b;
+    unsigned start,row=document_location(s,&start),height=document_height(s),a=0,r=0,end,b;
+    unsigned border=document_border(s),top=1+document_header(s)+border;
     unsigned col=document_column(s,start,s->document_pos);
     char status[128];unsigned sn;
     if(row<s->document_top)s->document_top=row;
     if(row>=s->document_top+height)s->document_top=row-height+1;
     ansi(s,"\033[?25l\033[H\033[2J");ink(s,PS_INK_HEADING);
-    field(s,s->document_title,min(length(s->document_title),s->io.columns-2));reset(s);
+        if(document_header(s))field(s,s->document_title,min(length(s->document_title),s->io.columns-2));
+    reset(s);
+    if(border){
+        unsigned y;view_rule(s,top-1,1,s->io.columns-1,0);
+        for(y=top;y<top+height;++y){at(s,y,1);view_side(s);at(s,y,s->io.columns-1);view_side(s);}
+        view_rule(s,top+height,1,s->io.columns-1,1);
+    }
     for(;;){
         b=document_row(s,a,&end);
         if(r>=s->document_top && r<s->document_top+height){
-            unsigned i=a,cx=0;at(s,r-s->document_top+2,1);
+            unsigned i=a,cx=0;at(s,r-s->document_top+top,1+border);
             while(i<end){unsigned n,c=rune(s->document+i,&n);
                 if(c=='\t'){unsigned spaces=4-cx%4;cx+=spaces;while(spaces--)out(s," ");}
                 else {if((s->io.flags&PS_UNICODE)&&c!=0xfffd&&!(c>=128&&c<160))raw(s,s->document+i,n);else field(s,s->document+i,1);cx+=(s->io.flags&PS_UNICODE)?width(c):1;}
@@ -58,7 +69,7 @@ static void document_render(ps_session *s){
     at(s,s->io.rows,1);ink(s,PS_INK_HEADING);
     if(s->document_dialog)footer_field(s,"S Save & close  D Discard  Esc Cancel",s->io.columns-1,0);
     else footer_field(s,"^S Save  ^Q/Esc Close  ^Z Undo/redo  ^A/^E Line start/end",s->io.columns-1,0);
-    reset(s);at(s,row-s->document_top+2,col+1);ansi(s,"\033[?25h");
+    reset(s);at(s,row-s->document_top+top,col+1+border);ansi(s,"\033[?25h");
 }
 static void document_close(ps_session *s){
     s->document_open=0;s->document_dialog=0;
@@ -69,6 +80,7 @@ PS_API int ps_editor_open(ps_session *s,const char *title,const char *text,ps_ed
     n=length(text);if(n>=PS_EDITOR_CAPACITY)return 0;
     for(i=0;i<n;++i)if(((unsigned char)text[i]<32||text[i]==127)&&text[i]!='\n'&&text[i]!='\t')return 0;
     if(s->board)table_close(s);
+    ps_file_picker_close(s);
     ps_menu_close(s);
     copy(s->document,text,n+1);s->document_title=title;s->document_save=save;s->document_context=ctx;
     s->document_length=n;s->document_pos=s->document_top=s->document_dirty=s->document_dialog=s->document_undo_valid=0;
@@ -120,7 +132,7 @@ static void document_key(ps_session *s,unsigned key){
     else if(key==PS_KEY_LEFT)s->document_pos=prev(s->document,s->document_pos);
     else if(key==PS_KEY_RIGHT)s->document_pos=next(s->document,s->document_pos);
     else if(key==PS_KEY_UP||key==PS_KEY_DOWN)document_vertical(s,key==PS_KEY_UP?-1:1);
-    else if(key==PS_KEY_PAGEUP||key==PS_KEY_PAGEDOWN)document_vertical(s,key==PS_KEY_PAGEUP?-(int)(s->io.rows-3):(int)(s->io.rows-3));
+    else if(key==PS_KEY_PAGEUP||key==PS_KEY_PAGEDOWN)document_vertical(s,key==PS_KEY_PAGEUP?-(int)(document_height(s)):(int)(document_height(s)));
     else if(key==PS_KEY_HOME||key==1){document_location(s,&start);s->document_pos=start;}
     else if(key==PS_KEY_END||key==5){document_location(s,&start);document_row(s,start,&end);s->document_pos=end;}
     else if(key==8||key==127||key==PS_KEY_DELETE){

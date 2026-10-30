@@ -58,3 +58,7 @@ attribution are preserved separately under [provenance](https://github.com/atomi
 ![Meter variants](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/meters.png)
 
 Emitted-byte replay fixture with simulated observations; [configuration](Meters.md).
+
+## Menus, editor and file tree
+
+[Centered and split menus](Menus.md), [framed editor](Text-editor.md), and [file tree](File-picker.md) include emitted-byte Agave previews.

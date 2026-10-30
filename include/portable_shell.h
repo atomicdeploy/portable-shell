@@ -60,6 +60,8 @@ PS_API int ps_editor_open(ps_session *, const char *title, const char *text,
                           ps_editor_save_fn, void *context);
 PS_API unsigned ps_editor_active(const ps_session *);
 PS_API const char *ps_editor_text(const ps_session *);
+enum { PS_EDITOR_HEADER=1, PS_EDITOR_BORDER=2 };
+PS_API void ps_editor_set_style(ps_session *, unsigned flags);
 #ifndef PS_MENU_DEPTH
 #define PS_MENU_DEPTH 8
 #endif
@@ -85,6 +87,22 @@ PS_API int ps_menu_choose(ps_session *, unsigned number); /* 0 = Back/Close */
 PS_API void ps_menu_refresh(ps_session *);
 PS_API void ps_menu_close(ps_session *);
 PS_API unsigned ps_menu_active(const ps_session *);
+enum { PS_MENU_TABLE=1, PS_MENU_NUMBERS=2, PS_MENU_DETAILS=4 };
+typedef const char *(*ps_menu_description_fn)(void *, const ps_menu *, unsigned index);
+/* Style 0 retains the original transcript menu. Interactive default: table + numbers.
+   Description callback borrows text for the duration of each render. */
+PS_API void ps_menu_set_style(ps_session *, unsigned flags);
+PS_API void ps_menu_set_description(ps_session *, ps_menu_description_fn, void *);
+enum { PS_FILE_DIRECTORY=1, PS_FILE_DISABLED=2, PS_FILE_ROOT=65535 };
+typedef struct { const char *name; unsigned parent, flags; } ps_file_node;
+/* Flat caller-owned tree, parent before child, at most 128 nodes. No filesystem
+   calls. A file callback receives its stable node index AFTER picker close;
+   cancellation reports PS_FILE_ROOT. Nodes/context remain borrowed while open. */
+typedef void (*ps_file_pick_fn)(ps_session *, void *, unsigned index);
+PS_API int ps_file_picker_open(ps_session *, const char *title, const ps_file_node *,
+                               unsigned count, ps_file_pick_fn, void *);
+PS_API unsigned ps_file_picker_active(const ps_session *);
+PS_API void ps_file_picker_close(ps_session *);
 /* Borrowed immutable definitions; retain them and context until detach/session end.
    Callbacks run on the owning loop, must not reenter the session. No allocation.
    read supplies observed state, never a speculative requested value. write must

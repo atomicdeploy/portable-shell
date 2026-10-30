@@ -12,3 +12,5 @@ See [integration contracts](Integration.md), [profiles and options](Options.md),
 ## Progress and values
 
 See [meter controls](Meters.md) for line/block styles, panels, labels, read-only progress and adjustable targets.
+
+See [file tree picker](File-picker.md), [menus](Menus.md) and [document editor](Text-editor.md) for reusable workspace callbacks.

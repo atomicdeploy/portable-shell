@@ -41,3 +41,15 @@ code and its three text buffers. The open API then returns 0. This is an explici
 feature choice independent of the target processor.
 
 ![Text editor](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/document.png)
+
+## Header and border options
+
+`edit --framed` opens with a title header and rounded red border. Applications call
+`ps_editor_set_style(s, PS_EDITOR_HEADER | PS_EDITOR_BORDER)` before opening. Each flag
+is independent: zero is borderless/headerless; HEADER alone preserves the original
+layout. Wrapping, scrolling, page movement and the cursor use the remaining interior
+space. Very short terminals temporarily omit the border to keep an editable row.
+Settings persist for that session. Save, discard and cancel retain their existing
+behavior; the border does not change persistence.
+
+![Framed editor](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/editor-framed.png)

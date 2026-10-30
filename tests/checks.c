@@ -127,6 +127,8 @@ static int save_document(void *ctx,const char *p,unsigned n){
     for(i=0;i<n;++i)document_saved[i]=p[i];document_saved[n]=0;return 1;
 }
 #endif
+static unsigned picked_file;
+static void picked(ps_session *s,void *ctx,unsigned id){(void)s;(void)ctx;picked_file=id;}
 static int menu_test_action(ps_session *s,void *context){
     unsigned *calls=context;++*calls;ps_write(s,"menu-action");return 0;
 }
@@ -687,7 +689,7 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         ps_menu_item parents[]={{"Child",&child,0,0,0}};
         ps_menu root={"Root",parents,1};
         cfg.flags=PS_INTERACTIVE|PS_COLOR;s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);
-        clear();CHECK(ps_menu_open(s,&root)&&has(t.output,"1. ")&&has(t.output,"Root"),"numbered menu renders without table");
+        ps_menu_set_style(s,0);clear();CHECK(ps_menu_open(s,&root)&&has(t.output,"1. ")&&has(t.output,"Root"),"numbered menu renders without table");
         feed(s,"9\r");CHECK(ps_menu_active(s)==1&&!calls,"invalid menu choice does not execute");
         feed(s,"1\r\n");CHECK(ps_menu_active(s)==2&&!calls,"CRLF enters submenu once");
         feed(s,"2\r");CHECK(ps_menu_active(s)==2&&!calls,"disabled menu action blocked");
@@ -713,7 +715,8 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         CHECK(eq(ps_editor_text(s),"one two three four !five"),"word wrapping preserves bytes and End follows visual row");
         ps_key(s,26);CHECK(eq(ps_editor_text(s),"one two three four five"),"document undo");
         ps_key(s,26);CHECK(has(ps_editor_text(s),"!five"),"document redo");
-        clear();ps_resize(s,8,4);CHECK(has(t.output,"\033[2J")&&ps_editor_active(s),"editor resize redraws viewport");ps_resize(s,20,8);
+        ps_editor_set_style(s,PS_EDITOR_HEADER|PS_EDITOR_BORDER);clear();ps_resize(s,20,8);CHECK((has(t.output,"╭")||has(t.output,"+"))&&has(t.output,"Notes"),"editor header and frame");
+        ps_editor_set_style(s,PS_EDITOR_HEADER);clear();ps_resize(s,8,4);CHECK(has(t.output,"\033[2J")&&ps_editor_active(s),"editor resize redraws viewport");ps_resize(s,20,8);
         ps_key(s,19);CHECK(ps_editor_active(s)&&document_save_calls==1,"failed save retains draft");
         ps_key(s,27);ps_key(s,'c');CHECK(ps_editor_active(s),"cancel close keeps draft");
         ps_key(s,27);ps_key(s,'d');CHECK(!ps_editor_active(s)&&document_save_calls==1,"discard does not call persistence");
@@ -733,6 +736,26 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         CHECK(ps_execute(s,"edit")!=0&&!ps_editor_active(s)&&!has(t.output,"\033"),"batch edit refuses interactive workspace cleanly");
     }
 #endif
+    {
+        unsigned calls=0;
+        ps_menu_item items[]={{"First",0,menu_test_action,&calls,0},{"Second",0,menu_test_action,&calls,0}};
+        ps_menu menu={"Framed",items,2};
+        ps_file_node nodes[]={{"Root",PS_FILE_ROOT,PS_FILE_DIRECTORY},{"Nested",0,PS_FILE_DIRECTORY},{"notes.txt",1,0},{"blocked",0,PS_FILE_DISABLED}};
+        cfg.flags=PS_INTERACTIVE|PS_COLOR|PS_UNICODE;cfg.columns=80;cfg.rows=24;
+        s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);clear();
+        CHECK(ps_menu_open(s,&menu)&&(has(t.output,"╭")||has(t.output,"+"))&&has(t.output,"\033[31m"),"menu uses red frame");
+        feed(s,"\033[<0;36;5M\033[<0;36;5m\r");CHECK(calls==1&&!ps_menu_active(s),"framed menu click and enter activate");
+        ps_menu_set_style(s,PS_MENU_TABLE|PS_MENU_DETAILS);ps_menu_open(s,&menu);
+        clear();ps_resize(s,20,8);CHECK(has(t.output,"Framed")&&!has(t.output,"Run selected action"),"narrow menu hides details");ps_menu_close(s);
+        ps_resize(s,80,24);picked_file=123;
+        CHECK(ps_file_picker_open(s,"Files",nodes,4,picked,0),"tree picker opens");
+        clear();feed(s,"\033[C\033[B\033[C");CHECK(has(t.output,"notes.txt"),"tree expands nested directory");
+        feed(s,"\033[<0;10;5M\033[<0;10;5m\r");CHECK(picked_file==2&&!ps_file_picker_active(s),"picker returns selected stable file index");
+        ps_file_picker_open(s,"Files",nodes,4,picked,0);feed(s,"\033[200~\r\033[201~");CHECK(ps_file_picker_active(s),"paste cannot activate picker");
+        ps_key(s,27);CHECK(picked_file==PS_FILE_ROOT&&!ps_file_picker_active(s),"picker cancellation distinguished");
+        nodes[0].parent=1;CHECK(!ps_file_picker_open(s,"Bad",nodes,4,picked,0),"picker rejects cyclic tree");
+        cfg.flags=0;s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);CHECK(!ps_file_picker_open(s,"Files",nodes,4,picked,0),"batch picker refused");
+    }
     CHECK(!portable_terminal_checks(), "shared firmware C components");
     {
         cfg.flags = 0;

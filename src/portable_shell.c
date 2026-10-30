@@ -131,10 +131,20 @@ struct ps_session {
     unsigned document_open, document_length, document_pos, document_top;
     unsigned document_dirty, document_dialog, document_undo_valid, document_undo_pos;
     unsigned document_undo_dirty;
+    unsigned document_style;
     const char *document_notice;
     const ps_menu *menu_stack[PS_MENU_DEPTH];
     unsigned menu_depth, menu_length, menu_bad;
     char menu_input[4];
+    unsigned menu_style, menu_selected, menu_top, menu_screen, menu_x, menu_width, menu_slots;
+    ps_menu_description_fn menu_description;
+    void *menu_description_context;
+    const ps_file_node *file_nodes;
+    const char *file_title;
+    ps_file_pick_fn file_pick;
+    void *file_context;
+    unsigned file_count, file_selected, file_top;
+    unsigned char file_expanded[128];
     ps_config io;
     unsigned theme; /* Legacy palette IDs 0..3; semantic roles are the default (4). */
     unsigned table_style;
@@ -567,8 +577,9 @@ static const ps_command builtins[] = {
     {"controls", "[open [page]|list|get ID|set ID VALUE]", "Workspace", builtin, 0, 0},
     {"help", "[--headings|--compact] [command]", "Shell", builtin, 0, 0},
     {"board", "[tasks|variables|jobs|session]", "Workspace", builtin, 0, 0},
-    {"edit", "", "Workspace", builtin, 0, 0},
-    {"menu", "[NUMBER ...]", "Workspace", builtin, 0, 0},
+    {"edit", "[--framed]", "Workspace", builtin, 0, 0},
+    {"menu", "[--plain|--no-numbers|--details] [NUMBER ...]", "Workspace", builtin, 0, 0},
+    {"files", "", "Workspace", builtin, 0, 0},
     {"task", "add TITLE | done ID | remove ID | rename ID TITLE | list", "Workspace", builtin, 0,
      0},
     {"set", "KEY VALUE", "Workspace", builtin, 0, 0},
@@ -650,6 +661,7 @@ PS_API ps_session *ps_init(void *memory, unsigned bytes, const ps_config *c) {
     s->history_limit = PS_HISTORY;
     s->io = *c;
     s->table_style = PS_TABLE_DEFAULT;
+    s->menu_style=PS_MENU_TABLE|PS_MENU_NUMBERS;s->document_style=PS_EDITOR_HEADER;
     s->theme = PS_STYLE_SEMANTIC;
 #ifdef PS_ASCII_ONLY
     s->io.flags &= ~(PS_COLOR | PS_UNICODE);
@@ -766,6 +778,7 @@ static void grid_border(ps_session *s, const Grid *g, unsigned kind, int joined)
 }
 static void table_open(ps_session *s, unsigned tab) {
     if(s->document_open)return;
+    ps_file_picker_close(s);
     ps_menu_close(s);
     s->tab = tab;
     s->selected = s->scroll = 0;
@@ -794,6 +807,7 @@ static void table_close(ps_session *s) {
 }
 #include "portable_menu.inc"
 #include "portable_editor.inc"
+#include "portable_files.inc"
 static void enter_edit(ps_session *, unsigned, const char *);
 static void edit_insert(char *, unsigned *, unsigned *, unsigned, unsigned);
 static void edit_delete(char *, unsigned *, unsigned *, int);
@@ -1265,7 +1279,7 @@ static void prompt(ps_session *s) {
     unsigned start = 0,
              avail = s->io.columns > prompt_width + 2 ? s->io.columns - prompt_width - 2 : 8;
     const char *hint;
-    if (!(s->io.flags & PS_INTERACTIVE) || s->board || s->menu_depth || s->document_open || s->exit)
+    if (!(s->io.flags & PS_INTERACTIVE) || s->board || s->menu_depth || s->file_count || s->document_open || s->exit)
         return;
     ansi(s, "\r\033[2K");
     if (s->custom_prompt) {
@@ -1695,6 +1709,7 @@ PS_API void ps_key(ps_session *s, unsigned key) {
     unsigned i;
     if (s->exit)
         return;
+    if(s->file_count){file_key(s,key);return;}
     if(s->document_open){document_key(s,key);return;}
     if(s->menu_depth){menu_key(s,key);return;}
     if (s->board) {
@@ -1957,13 +1972,19 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     const char *cmd = a[0];
     (void)ctx;
     if(equal(cmd,"edit")){
-        if(argc!=1)return fail(s,"edit");
+        if(argc>2||(argc==2&&!equal(a[1],"--framed")))return fail(s,"edit [--framed]");
+        if(argc==2)ps_editor_set_style(s,PS_EDITOR_HEADER|PS_EDITOR_BORDER);
         return ps_editor_open(s,"Session notes (memory)",s->scratch,document_save_scratch,s)?0:fail(s,"editor unavailable (interactive terminal required)");
     }
+    if(equal(cmd,"files")){
+        if(argc!=1)return fail(s,"files");
+        return ps_file_picker_open(s,"Session files (memory)",session_files,2,session_file_pick,0)?0:fail(s,"file picker requires interactive terminal");
+    }
     if(equal(cmd,"menu")){
-        int result=0;
-        ps_menu_open(s,&default_menu);
-        for(i=1;i<(unsigned)argc;++i){
+        int result=0;unsigned first=1,style=PS_MENU_TABLE|PS_MENU_NUMBERS;
+        for(;first<(unsigned)argc;++first){if(equal(a[first],"--plain"))style=0;else if(equal(a[first],"--no-numbers"))style&=~PS_MENU_NUMBERS;else if(equal(a[first],"--details"))style|=PS_MENU_DETAILS;else break;}
+        ps_menu_set_style(s,style);ps_menu_open(s,&default_menu);
+        for(i=first;i<(unsigned)argc;++i){
             int n;const ps_menu *m=s->menu_depth?s->menu_stack[s->menu_depth-1]:0;
             if(!m||!integer(a[i],&n)||n<0||(unsigned)n>m->count||
                (i+1<(unsigned)argc&&n&&!m->items[n-1].submenu)){
@@ -2393,7 +2414,9 @@ static void escape_key(ps_session *s) {
     unsigned key = 0;
     if(p[0]=='['&&p[1]=='<'){
         ps_mouse_event event;
-        if(PS_MOUSE&&ps_mouse_parse(p+1,&event))table_mouse(s,&event);
+        if(PS_MOUSE&&ps_mouse_parse(p+1,&event)){
+            if(s->file_count||s->menu_depth)workspace_mouse(s,&event);else table_mouse(s,&event);
+        }
         return;
     }
     if (equal(p, "[A") || equal(p, "OA"))
@@ -2450,7 +2473,7 @@ static void input_byte(ps_session *s, unsigned c) {
         if (s->paste_match)
             s->paste_match = 0;
         if(s->document_open){document_paste(s,c);return;}
-        if(s->menu_depth)return; /* Pasted newlines must never activate menu actions. */
+        if(s->menu_depth||s->file_count)return; /* Pasted newlines must never activate menu actions. */
         if (c == '\r' || c == '\n' || c == '\t')
             c = ' ';
         if (c >= 32 && c != 127) {
@@ -2529,7 +2552,7 @@ static void input_byte(ps_session *s, unsigned c) {
     s->suppress_lf = c == '\r';
     if (c == '\n')
         c = 13;
-    if(s->menu_depth||s->document_open){ps_key(s,c);return;}
+    if(s->menu_depth||s->document_open||s->file_count){ps_key(s,c);return;}
     if (!(s->io.flags & PS_INTERACTIVE)) {
         if (c == 13) {
             if (s->overflow) {
@@ -2616,6 +2639,8 @@ PS_API void ps_resize(ps_session *s, unsigned columns, unsigned rows) {
     s->io.rows = rows < 4 ? 4 : min(rows, 80);
     s->dirty = 1;
     if(s->document_open){document_render(s);return;}
+    if(s->file_count){file_render(s);return;}
+    if(s->menu_depth){ps_menu_refresh(s);return;}
     if (s->board) {
         ansi(s, "\033[2J");
         render(s);
@@ -2635,6 +2660,7 @@ PS_API void ps_finish(ps_session *s) {
         ps_tick(s, s->now + 1);
 }
 PS_API void ps_close(ps_session *s) {
+    ps_file_picker_close(s);
     if(s->document_open)document_close(s);
     ps_menu_close(s);
     if(PS_MOUSE && s->board)ansi(s,"\033[?1002l\033[?1006l");
