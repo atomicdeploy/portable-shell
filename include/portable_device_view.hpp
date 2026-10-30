@@ -195,6 +195,10 @@ class DeviceView {
         if(!editing_ && sectionBorders_!=enabled){sectionBorders_=enabled;dirty_=full_=true;}
     }
     bool sectionBorders() const { return sectionBorders_; }
+    void setTabsInsideTable(bool enabled) {
+        if(!editing_ && tabsInsideTable_!=enabled){tabsInsideTable_=enabled;dirty_=full_=true;}
+    }
+    bool tabsInsideTable() const { return tabsInsideTable_; }
     void setTrueColor(bool enabled) { if (trueColor_!=enabled) {trueColor_=enabled;dirty_=full_=true;} }
     bool trueColor() const { return trueColor_; }
     void feedback(const char *text) {
@@ -1166,6 +1170,7 @@ class DeviceView {
     GroupLayout groups_ = PS_DEVICE_VIEW_CATEGORY_COLUMN ? CategoryColumn : SectionRows;
     bool sectionFocus_ = false;
     bool sectionBorders_ = true;
+    bool tabsInsideTable_ = false;
     uint8_t closed_[PS_DEVICE_VIEW_TABLE&&PS_DEVICE_VIEW_SECTIONS?PageCount:1][PS_DEVICE_VIEW_TABLE&&PS_DEVICE_VIEW_SECTIONS?(PS_DEVICE_VIEW_MAX_ROWS+7)/8:1]{};
     uint32_t sectionSchema_[PS_DEVICE_VIEW_TABLE&&PS_DEVICE_VIEW_SECTIONS?PageCount:1]{};
     bool trueColor_ = true, dialog_ = false;

@@ -1,5 +1,6 @@
 #include "portable_device_view.hpp"
 #include <cassert>
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -24,12 +25,12 @@ int main(){
     const uint8_t counts[]={16};const uint16_t starts[]={0};
     const char *titles[]={"Console","A very long device identity that must be clipped at the same cell used to measure the closing border, even in narrow terminals"};
     for(unsigned theme=0;theme<4;++theme)for(bool rgb:{false,true})
-    for(unsigned width:widths)for(bool unicode:{false,true})for(bool ansi:{false,true})for(const char *title:titles){
+    for(unsigned width:widths)for(bool unicode:{false,true})for(bool ansi:{false,true})for(const char *title:titles)for(bool inside:{false,true}){
         V view;V::Snapshot s;V::Action a;
         s.columns=uint16_t(width);s.lines=24;s.unicode=unicode;s.title=title;
         s.canLeds=s.canPixels=s.canGame=s.terminalSettings=s.cloudSettings=s.notificationSettings=s.clockSettings=true;
         s.pixelCount=480;s.usedPixels=16;s.groupCount=1;s.groupCounts=counts;s.groupStarts=starts;
-        view.begin(ansi);view.setTheme(V::Theme(theme));view.setTrueColor(rgb);
+        view.begin(ansi);view.setTabsInsideTable(inside);view.setTheme(V::Theme(theme));view.setTrueColor(rgb);
         for(unsigned page=0;page<V::PageCount;++page){
             std::string output;view.render(s,[&](const uint8_t *p,size_t n){output.append((const char*)p,n);},true);
             const auto rows=lines(output);assert(rows.size()>=3);
@@ -52,7 +53,9 @@ int main(){
 #endif
             const unsigned expected=(PS_DEVICE_VIEW_TABLE?width:width>100?100:width)-1;
             for(unsigned row=0;row<3;++row){
+                if(rows[row].size()!=expected)std::fprintf(stderr,"Header width=%u row=%u actual=%u inside=%d ansi=%d page=%u\n",width,row,unsigned(rows[row].size()),int(inside),int(ansi),unsigned(view.page()));
                 assert(rows[row].size()==expected);
+                if(PS_DEVICE_VIEW_TABLE&&!inside)continue;
                 assert(rows[row].front()==(unicode?(row==0?"\xe2\x95\xad":row==1?"\xe2\x94\x82":"\xe2\x94\x9c"):(row==1?"|":"+")));
                 assert(rows[row].back()==(unicode?(row==0?"\xe2\x95\xae":row==1?"\xe2\x94\x82":"\xe2\x94\xa4"):(row==1?"|":"+")));
             }

@@ -452,6 +452,10 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         ps_key(s, PS_KEY_HOME);
         ps_key(s, PS_KEY_LEFT);
         CHECK(probe.values[1].number == 0, "level clamps at minimum");
+        ps_set_table_style(s, PS_TABLE_DEFAULT | PS_TABLE_TABS_INSIDE);
+        clear(); ps_feed(s, "", 0);
+        CHECK(has(t.output,"\033[4;1H") && has(t.output,"\033[3;2H"),
+              "optional tabs occupy the first enclosed table row");
         feed(s, "\r\0252048\r");
         CHECK(probe.values[1].number == 2048, "inline exact value commits");
         before = probe.writes;

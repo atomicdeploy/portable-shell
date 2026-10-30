@@ -32,13 +32,15 @@ struct Screen {
         }
     }
     std::string line(unsigned r)const{std::string result;for(const auto &c:cells[r])result+=c;return result;}
-    void tableBorders(unsigned left,bool unicode)const{
+    void tableBorders(unsigned left,bool unicode,bool inside)const{
+        const unsigned top=inside?0:3, header=inside?3:4, body=header+2;
         const std::string vertical=unicode?"\xe2\x94\x82":"|";
-        assert(cells[0][left]==(unicode?"\xe2\x95\xad":"+"));
-        assert(cells[0][width-2]==(unicode?"\xe2\x95\xae":"+"));
-        for(unsigned r=1;r<height-4;++r){
+        assert(cells[top][left]==(unicode?"\xe2\x95\xad":"+"));
+        assert(cells[top][width-2]==(unicode?"\xe2\x95\xae":"+"));
+        for(unsigned r=top+1;r<height-4;++r){
             const bool rule=cells[r][left]==(unicode?"\xe2\x94\x9c":"+");
             assert(cells[r][left]==(rule?(unicode?"\xe2\x94\x9c":"+"):vertical));
+            if(cells[r][width-2]!=(rule?(unicode?"┤":"+"):vertical)&&cells[r][width-2]!=(unicode?(rule?"┫":"┃"):"#"))std::fprintf(stderr,"Bad edge %ux%u inside=%d left=%u row=%u: %s\n",width,height,int(inside),left,r,line(r).c_str());
             assert(cells[r][width-2]==(rule?(unicode?"\xe2\x94\xa4":"+"):vertical)||cells[r][width-2]==(unicode?(rule?"┫":"┃"):"#"));
             if(rule)for(unsigned c=left+1;c<width-2;++c)
                 assert(cells[r][c]==(unicode?"─":"-")||cells[r][c]==(unicode?"┬":"+")||cells[r][c]==(unicode?"┴":"+")||cells[r][c]==(unicode?"┼":"+"));
@@ -48,11 +50,11 @@ struct Screen {
         // Discover actual header separators, then require connected junctions
         // and uninterrupted rules through section, value and blank rows.
         unsigned separators=0;
-        for(unsigned col=left+1;col<width-2;++col)if(cells[3][col]==vertical){
+        for(unsigned col=left+1;col<width-2;++col)if(cells[header][col]==vertical){
             ++separators;
-            assert(cells[2][col]==(unicode?"\xe2\x94\xac":"+"));
-            assert(cells[4][col]==(unicode?"┼":"+")||cells[4][col]==(unicode?"┴":"+"));
-            for(unsigned r=5;r<height-4;++r){
+            assert(cells[header-1][col]==(unicode?"\xe2\x94\xac":"+"));
+            assert(cells[header+1][col]==(unicode?"┼":"+")||cells[header+1][col]==(unicode?"┴":"+"));
+            for(unsigned r=body;r<height-4;++r){
                 const auto &marker=cells[r][left+2];
                 const bool section=marker=="▾"||marker=="▸"||marker=="-"||marker=="+";
                 const bool rule=cells[r][left]==(unicode?"├":"+");
@@ -73,20 +75,21 @@ struct Screen {
 int main(){
 #if PS_DEVICE_VIEW_TABLE
     for(unsigned width:{40U,64U,80U,120U,240U})for(unsigned height:{16U,24U,40U,100U})
-    for(bool vertical:{false,true})for(bool unicode:{false,true})for(bool borders:{false,true}){
+    for(bool vertical:{false,true})for(bool unicode:{false,true})for(bool borders:{false,true})for(bool inside:{false,true}){
         V view;V::Snapshot s;V::Action a;V::Row rows[32];
         for(unsigned i=0;i<32;++i){rows[i]={"Setting","setting","Observed",true};rows[i].category=i<1?"Lighting":"Connection";}
         s.rows=rows;s.rowCount=2;s.columns=uint16_t(width);s.lines=uint16_t(height);s.unicode=unicode;
         s.terminalSettings=s.cloudSettings=s.notificationSettings=s.clockSettings=true;
         view.begin();view.setTabLayout(vertical?V::VerticalTabs:V::HorizontalTabs);
-        view.setSectionBorders(borders);
+        view.setSectionBorders(borders);view.setTabsInsideTable(inside);
+        const unsigned top=inside?0:3;
         Screen screen(width,height);std::string output;
         auto render=[&](bool force){output.clear();view.render(s,[&](const uint8_t *p,size_t n){output.append((const char*)p,n);},force);assert(output.size()<PS_DEVICE_VIEW_FRAME_BYTES);screen.feed(output);};
         auto feed=[&](const char *keys){while(*keys)view.feed(uint8_t(*keys++),s,a);};
         render(true);
         const unsigned left=vertical&&PS_DEVICE_VIEW_VERTICAL_TABS&&width>=64?22:0;
-        screen.tableBorders(left,unicode);
-        assert(screen.cells[0][left]==(unicode?"\xe2\x95\xad":"+"));
+        screen.tableBorders(left,unicode,inside);
+        assert(screen.cells[top][left]==(unicode?"\xe2\x95\xad":"+"));
         assert(screen.cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
         assert(screen.line(height-1).find("Tab pages")!=std::string::npos);
         assert(screen.line(height-2).find("select")!=std::string::npos);
@@ -94,19 +97,19 @@ int main(){
 #if PS_DEVICE_VIEW_SECTIONS && !PS_DEVICE_VIEW_CATEGORY_COLUMN
         feed("\x1b[A");render(false);assert(view.sectionSelected());
         auto heading=screen.cells;render(true);assert(heading==screen.cells);
-        feed(" ");render(false);screen.tableBorders(left,unicode);
+        feed(" ");render(false);screen.tableBorders(left,unicode,inside);
         auto folded=screen.cells;render(true);assert(folded==screen.cells);
         feed("\x1b[C\x1b[B");render(false);assert(!view.sectionSelected());
 #endif
         feed("\x1b[B");render(false);
         if(view.sectionSelected()){feed("\x1b[B");render(false);}
-        screen.tableBorders(left,unicode);
+        screen.tableBorders(left,unicode,inside);
         auto incremental=screen.cells;render(true);assert(incremental==screen.cells);
         feed("\r\x15" "Draft");render(false);assert(view.editing());
         assert(screen.line(height-2).find("apply")!=std::string::npos);
         assert(screen.line(height-1).find("Tab pages")==std::string::npos);
         feed("\x1b");view.flushEscape(a);render(false);
-        screen.tableBorders(left,unicode);
+        screen.tableBorders(left,unicode,inside);
 #if PS_DEVICE_VIEW_DIALOGS
         feed("\x1b[12~");render(false);assert(view.editing());
         assert(screen.line(height/2-1).find("Enter apply")!=std::string::npos);
@@ -117,21 +120,21 @@ int main(){
         feed("\x1b[Z");render(false);assert(view.page()==V::Device&&a.type==V::Action::None);
         // Shrinking populated content must erase old rows, including sidebar updates.
         s.rowCount=32;render(true);
-        screen.tableBorders(left,unicode);
+        screen.tableBorders(left,unicode,inside);
         const unsigned presentation=32+(PS_DEVICE_VIEW_SECTIONS&&!PS_DEVICE_VIEW_CATEGORY_COLUMN?(borders?5:2):0);
-        if(presentation>height-9){
+        if(presentation>height-9-(inside?0:1)){
             feed("\x1b[F");render(false);
             const auto &last=screen.cells[height-5][width-2];
             assert(last==(unicode?"┃":"#")||last==(unicode?"┫":"#"));
             feed("\x1b[H");render(false);
-            const auto &first=screen.cells[5][width-2];
+            const auto &first=screen.cells[inside?5:6][width-2];
             assert(first==(unicode?"┃":"#")||first==(unicode?"┫":"#"));
             if(view.sectionSelected())feed("\x1b[B");
         }
         assert(screen.line(height-1).find("Tab pages")!=std::string::npos);
         assert(screen.cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
         s.rowCount=1;render(false);
-        screen.tableBorders(left,unicode);
+        screen.tableBorders(left,unicode,inside);
         incremental=screen.cells;render(true);assert(incremental==screen.cells);
         s.cloudSettings=s.notificationSettings=s.clockSettings=false;render(false);
         incremental=screen.cells;render(true);assert(incremental==screen.cells);

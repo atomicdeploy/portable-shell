@@ -4,6 +4,15 @@ These choices are independent. The naming update leaves desktop presentation def
 
 ## Presentation
 
+Horizontal tabs sit immediately above the table by default, with the blank line
+between title and tabs. To put tabs inside the table as its first row, C callers
+add `PS_TABLE_TABS_INSIDE` to `ps_set_table_style()`; C++ callers use
+`view.setTabsInsideTable(true)`. It is **off by default** and independent of the
+section-density and category-column options. Changes during editing are ignored.
+At the C workbench's minimum 14-line height it falls back outside to retain a
+usable body row; the requested placement returns when height permits. The
+retained C++ `PS_DEVICE_VIEW_TABLE=0` renderer keeps its original placement.
+
 Grouped control panels and rich device tables default to **collapsible section
 rows**: uppercase headings on solid surfaces spanning the two key/value columns.
 ↑/↓ selects headings and values; Enter/Space toggles a heading, ← collapses it,

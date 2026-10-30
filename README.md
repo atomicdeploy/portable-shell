@@ -39,6 +39,9 @@ Headings have continuous border rows above and below by default.
 [Compact sections](previews/controls-compact.png) omit those extra rows;
 see [presentation options](OPTIONS.md#presentation).
 
+Tabs are outside by default. Optional first-row tabs:
+[control panel](previews/controls-inside.png), [device table](previews/device-inside.png).
+
 | Shared device view | Optional vertical tabs |
 | --- | --- |
 | ![Full device table](previews/device-full.png) | ![Vertical navigation and inline editing](previews/device-inline.png) |

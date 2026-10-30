@@ -40,6 +40,7 @@ unsigned preview_controls_n, preview_control_settings_n, preview_control_inline_
 char preview_control_columns[400000],preview_control_collapsed[400000];
 unsigned preview_control_columns_n,preview_control_collapsed_n;
 char preview_control_compact[400000];unsigned preview_control_compact_n;
+char preview_control_inside[400000];unsigned preview_control_inside_n;
 unsigned preview_device_commands_n;
 unsigned preview_tasks_n, preview_variables_n, preview_jobs_n, preview_session_n, preview_edit_n,
     preview_ascii_n, preview_red_n, preview_lumen_n;
@@ -450,6 +451,9 @@ int render_entry(void) {
     ps_tick(s, 4800);
     ps_feed(s, "", 0);
     preview_controls_n = svg(preview_controls);
+    ps_set_table_style(s, PS_TABLE_DEFAULT | PS_TABLE_TABS_INSIDE);
+    ps_feed(s, "", 0);
+    preview_control_inside_n = svg(preview_control_inside);
     ps_set_table_style(s, PS_TABLE_DEFAULT | PS_TABLE_COMPACT_SECTIONS);
     ps_feed(s, "", 0);
     preview_control_compact_n = svg(preview_control_compact);

@@ -365,7 +365,7 @@ static void control_begin(ps_session *s, const ps_control *c, unsigned dialog) {
 }
 static void control_key(ps_session *s, unsigned key) {
     const ps_control *c = control_selected(s);
-    unsigned n = tab_count(s), step = s->io.rows > 13 ? s->io.rows - 13 : 1;
+    unsigned n = tab_count(s), step = table_slots(s);
     ps_control_value v;
     s->dirty = 1;
     if (s->editing && c) {

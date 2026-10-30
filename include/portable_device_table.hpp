@@ -190,13 +190,13 @@ static uint32_t cellRgb(const Snapshot &s,unsigned id){
     const unsigned state=s.cellStates?s.cellStates[id-1]:255;
     return s.cellColors?s.cellColors[id-1]:state<4?colors[state]:0;
 }
-template<class W> void matrix(Writer<W> &out,const Snapshot &s,unsigned w){
+template<class W> void matrix(Writer<W> &out,const Snapshot &s,unsigned w,unsigned shift){
     const unsigned slots=s.cellStaggered?20:10,tile=w>=slots*4+6?4:3;
     const unsigned visibleX=(w-6)/tile<slots?(w-6)/tile:slots;
     const unsigned n=cell_-1,selectedY=n/10,selectedX=s.cellStaggered?2*(n%10)+(n/10)%2:n%10;
     const unsigned startX=selectedX>=visibleX?selectedX-visibleX+1:0;
-    const unsigned visibleY=s.lines>=18?8:s.lines-10,startY=selectedY>=visibleY?selectedY-visibleY+1:0;
-    rule(out,s,w,"\xe2\x94\x9c","\xe2\x94\xa4");
+    const unsigned visibleY=s.lines>=18+shift?8:s.lines-10-shift,startY=selectedY>=visibleY?selectedY-visibleY+1:0;
+    rule(out,s,w,shift?"╭":"├",shift?"╮":"┤");
     edge(out,s,"\xe2\x94\x82 ","| ");ink(out,4);
     out.raw(s.cellStaggered?(s.unicode?"20 \xc3\x97 4 staggered":"20 x 4 staggered"):(s.unicode?"10 \xc3\x97 8 cells":"10 x 8 cells"));
     const unsigned heading=s.cellStaggered?16:12;
@@ -225,7 +225,7 @@ template<class W> void matrix(Writer<W> &out,const Snapshot &s,unsigned w){
         }
         out.field("",w-6-visibleX*tile);edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");
     }
-    if(ansi_){blankRows(out,s,5+visibleY,s.lines-4,w);out.position(s.lines-3);}
+    if(ansi_){blankRows(out,s,5+shift+visibleY,s.lines-4,w);out.position(s.lines-3);}
     rule(out,s,w,"\xe2\x95\xb0","\xe2\x95\xaf");
     if(ansi_){out.indent(0);out.position(s.lines-2);}
     const unsigned state=s.cellStates?s.cellStates[cell_-1]:255;char status[128];
@@ -247,11 +247,14 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     // Leave the physical terminal's last column free to avoid delayed autowrap.
     const unsigned offset=PS_DEVICE_VIEW_VERTICAL_TABS&&tabs_==VerticalTabs&&ansi_&&width>=64?22:0;
     const unsigned w=width-1-offset;
+    const unsigned shift=tabsInsideTable_?0:1,body=6+shift;
     if(offset){sidebar(out,s,s.lines-3);out.indent(offset);out.position(1);}
-    base(out);ink(out,7);out.raw(s.unicode?"\xe2\x95\xad\xe2\x94\x80 ":"+- ");
+    base(out);ink(out,7);if(!shift)out.raw(s.unicode?"\xe2\x95\xad\xe2\x94\x80 ":"+- ");
     ink(out,4);char title[241];const unsigned titleSize=unsigned(terminalText(title,w-8,s.title));out.raw(title);
-    ink(out,7);out.raw(" ");for(unsigned i=titleSize+4;i<w-1;++i)out.raw(s.unicode?"\xe2\x94\x80":"-");out.raw(s.unicode?"\xe2\x95\xae":"+");base(out);out.raw("\r\n");
-    edge(out,s,"\xe2\x94\x82 ","| ");
+    if(!shift){ink(out,7);out.raw(" ");for(unsigned i=titleSize+4;i<w-1;++i)out.raw(s.unicode?"\xe2\x94\x80":"-");out.raw(s.unicode?"\xe2\x95\xae":"+");}
+    else out.field("",w-titleSize);
+    base(out);out.raw("\r\n");if(shift){out.field("",w);out.raw("\r\n");out.raw("  ");}
+    else edge(out,s,"\xe2\x94\x82 ","| ");
     unsigned used=0,tabTotal=0;for(unsigned i=0;i<PageCount;++i)if(pageAvailable(i,s))tabTotal+=unsigned(ps_text_length(pageName(i)))+3;
     if(offset){ink(out,4);out.raw(pageName(page_));used=unsigned(ps_text_length(pageName(page_)));}
     for(unsigned i=0;i<PageCount;++i){
@@ -263,18 +266,18 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     }
     if(!offset&&tabTotal>w-4){char hint[40];ps_terminal_format(hint,sizeof(hint),"  %u/%u",unsigned(page_)+1,unsigned(PageCount));
         const unsigned n=unsigned(ps_text_length(hint));if(used+n<w-4){ink(out,0);out.raw(hint);used+=n;}}
-    out.field("",w-4-used);edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");
-    if(PS_DEVICE_VIEW_MATRIX&&page_==Led&&grid_&&s.canLeds){matrix(out,s,w);return true;}
+    out.field("",w-4-used);if(shift)out.raw("  ");else edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");
+    if(PS_DEVICE_VIEW_MATRIX&&page_==Led&&grid_&&s.canLeds){matrix(out,s,w,shift);return true;}
     const bool category=groups_==CategoryColumn&&w>=95;
     const unsigned groupWidth=category?16:0,labelWidth=w<59?12:w<95?24:28;
     const unsigned valueWidth=w-7-labelWidth-(category?groupWidth+3:0);
-    gridRule(out,s,w,groupWidth,labelWidth,"\xe2\x94\xac","\xe2\x94\x9c","\xe2\x94\xa4");
+    gridRule(out,s,w,groupWidth,labelWidth,"┬",shift?"╭":"├",shift?"╮":"┤");
     auto cell=[&](const char *text,unsigned n){ink(out,0);out.field(text,n);edge(out,s," \xe2\x94\x82 "," | ");};
     edge(out,s,"\xe2\x94\x82 ","| ");if(category)cell("Category",groupWidth);cell("Setting",labelWidth);
     ink(out,0);out.field("Value",valueWidth);edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");
     const unsigned count=rowCount(s);if(selected_>=count)selected_=count?uint8_t(count-1):0;
     const unsigned diagnostics=page_==Led&&!PS_DEVICE_VIEW_MATRIX?(s.lines<24?5:9):page_==Game?3:page_==Pixel?2:0;
-    unsigned visible=s.lines>9+diagnostics?s.lines-9-diagnostics:1;
+    unsigned visible=s.lines>9+shift+diagnostics?s.lines-9-shift-diagnostics:1;
     if(visible>PS_DEVICE_VIEW_MAX_ROWS)visible=PS_DEVICE_VIEW_MAX_ROWS;
     // Bound complete frames rather than silently dropping their final border.
     const unsigned reserve=8192U+unsigned(s.lines)*110U;
@@ -297,10 +300,10 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
         const bool selectionChanged=(selected_!=paintedSelection_)&&(at==selected_||at==paintedSelection_);
         if(!paintAll&&painted_[i]==stamp&&!selectionChanged&&paintedGrid_==grid_)continue;
         painted_[i]=stamp;
-        out.position(6+i);
+        out.position(body+i);
         if(border){
             const bool joined=border==0x4000 ? i&&!(logical[line-1]&0xe000)
-                : (line+1>=total || !(logical[line+1]&0xe000)) && 6+i<s.lines-4-diagnostics;
+                : (line+1>=total || !(logical[line+1]&0xe000)) && body+i<s.lines-4-diagnostics;
             gridRule(out,s,w,groupWidth,labelWidth,!joined?"\xe2\x94\x80":border==0x4000?"\xe2\x94\xb4":"\xe2\x94\xac","\xe2\x94\x9c","\xe2\x94\xa4");continue;
         }
         if(group){
@@ -316,29 +319,29 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
         if(selected&&ansi_)out.raw(ps_style_surface(theme_,trueColor_,2));
         ink(out,selected?1:4);out.raw(selected?(s.unicode?"\xe2\x96\xb8 ":"> "):"  ");
         out.field(r?r->label:"",labelWidth-2);edge(out,s," \xe2\x94\x82 "," | ");
-        if(selected&&editing_&&(!dialog_||!ansi_)){editValue(out,valueWidth);editRow_=6+i;editColumn_=offset+labelWidth+6+(category?groupWidth+3:0);editWidth_=valueWidth;}
+        if(selected&&editing_&&(!dialog_||!ansi_)){editValue(out,valueWidth);editRow_=body+i;editColumn_=offset+labelWidth+6+(category?groupWidth+3:0);editWidth_=valueWidth;}
         else if(r)value(out,s,*r,valueWidth);else out.field("",valueWidth);
         edge(out,s," \xe2\x94\x82"," |");out.raw("\r\n");
     }
     paintedSelection_=selected_;paintedGrid_=grid_;
     if(ansi_){
-        if(paintAll)blankRows(out,s,6+visible,s.lines-4-diagnostics,w,groupWidth,labelWidth);
+        if(paintAll)blankRows(out,s,body+visible,s.lines-4-diagnostics,w,groupWidth,labelWidth);
         if(total>visible){
-            const unsigned height=s.lines-9-diagnostics;
+            const unsigned height=s.lines-9-shift-diagnostics;
             const unsigned thumb=height*visible/total?height*visible/total:1;
             const unsigned top=start*(height-thumb)/(total-visible);
             base(out);int previous=-1;
             for(unsigned i=0;i<height;++i){
                 const bool active=i>=top&&i<top+thumb;
                 const bool border=i<visible&&(logical[start+i]&0x6000);
-                out.position(6+i,w);
+                out.position(body+i,w);
                 if(previous!=int(active)){ink(out,active?1:7);previous=int(active);}
                 out.raw(s.unicode?(border?(active?"┫":"┤"):(active?"┃":"│")):(active?"#":border?"+":"|"));
             }
         }
         out.position(s.lines-3-diagnostics);
     }
-    const bool bottomJoin=6+visible<s.lines-3-diagnostics || !total || !(logical[start+visible-1]&0xe000);
+    const bool bottomJoin=body+visible<s.lines-3-diagnostics || !total || !(logical[start+visible-1]&0xe000);
     gridRule(out,s,w,groupWidth,labelWidth,bottomJoin?"\xe2\x94\xb4":"\xe2\x94\x80","\xe2\x95\xb0","\xe2\x95\xaf");
     if(pageAvailable(page_,s)&&!(PS_DEVICE_VIEW_MATRIX&&page_==Led))renderDiagnostics(out,s,w);
     if(ansi_){out.indent(0);out.position(s.lines-2);}
