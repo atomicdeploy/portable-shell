@@ -1,6 +1,7 @@
 /* Hosted subprocess fixture: checks real OS streams, argv and terminal allocation. */
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -25,6 +26,7 @@ int main(int argc,char **argv){
         unsigned long count=0;while(getchar()!=EOF)++count;printf("count:%lu\n",count);return 0;
     }
     printf("tty:%d\n",tty);
+    printf("term:%s\n",getenv("TERM")?getenv("TERM"):"unset");
     for(i=1;i<argc;++i)printf("arg:%u:%s\n",(unsigned)strlen(argv[i]),argv[i]);
     fprintf(stderr,"stderr-marker\n");
     return argc>1&&!strcmp(argv[1],"fail")?7:0;

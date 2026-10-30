@@ -1,6 +1,6 @@
 # 🖥️ Host processes and remote providers
 
-Local native adapters enable execution by default. Registered PortableShell commands
+Local native adapters disable execution by default. Build with `-DPORTABLE_SHELL_HOST_EXEC=ON` and launch with `--exec` to opt in. Registered PortableShell commands
 win; otherwise parsed arguments go to an executable on the host. `run` explicitly
 selects a host executable when a name collides with a builtin. No OS calls or process
 policy live in the core: `ps_set_executor(session, callback, context)` installs the
@@ -17,8 +17,8 @@ pty sh
 Use the command appropriate for your OS. The local [command language](Local-shell.md) now supports chains, native byte pipelines, redirection and environment expansion. Wildcards and interpreter-specific syntax still require an explicit interpreter. The adapter does not implicitly execute an OS shell. Commands run synchronously and inherit the host environment and working directory. Child directory/environment changes do not
 change PortableShell's process. There is no background job-control subsystem yet.
 
-`run` preserves stdin, stdout, stderr and child exit status. For example, from a
-POSIX host shell, `printf 'hello\n' | PortableShell -- run cat` forwards stdin.
+Redirected and batch execution preserves stdin, stdout, stderr and child exit status. Local interactive commands automatically use a viewport-sized PTY. For example, from a
+POSIX host shell, `printf 'hello\n' | PortableShell --exec -- run cat` forwards stdin.
 Use `--command TEXT` or `-- ARGV...` when piping data to a child; plain batch mode
 consumes stdin as PortableShell commands, using LF or CRLF records when execution
 is enabled (use `--no-exec` for the original raw CR-delimited byte protocol).
@@ -29,13 +29,13 @@ core's safe-text sanitizer.
 `pty` allocates a real terminal, relays input/output and terminal resize, and restores
 the parent's modes on return. Windows uses dynamically resolved ConPTY; POSIX uses
 `posix_openpt`, a controlling terminal and `execvp`. PTY stdout/stderr share one
-terminal stream; use `run` when they must remain separate. Exit 125 means the PTY
+terminal stream; use redirected/batch execution when they must remain separate. Exit 125 means the PTY
 facility is unavailable, 126 means launch failure and 127 means executable not found.
 Do not use a PTY for byte-exact binary transfers. ConPTY needs Windows 10 1809 or newer;
 its output is drained concurrently during shutdown, as required by
 [Microsoft's lifecycle documentation](https://learn.microsoft.com/en-us/windows/console/closepseudoconsole).
 
-`--no-exec` disables local execution and remote-tool commands. Build with
+`--no-exec` explicitly disables execution, remote-tool commands, and host language commands (`source`, `setenv`, `unsetenv`, `cd`, `pwd`, `env`). They are not registered without `--exec`. Build with
 `-DPORTABLE_SHELL_HOST_EXEC=OFF` to omit the native process sources. TCP/Telnet,
 serial and device-command sessions never receive this local executor automatically.
 Compact hosts with execution enabled reserve 42 command slots; all capacities remain explicit compile-time choices.
@@ -111,3 +111,5 @@ network demonstration of a firmware provider, not evidence of a flashed device.
 
 CI runs process tests for real argv, streams, exit codes and PTY allocation, and
 provider tests for read/write, command state, unsupported operations and traversal.
+
+For PTY children only, an absent or `dumb` TERM is replaced with `xterm-256color`. Explicit useful terminal types are preserved; the parent environment is restored. Firmware consumers never receive the host adapter or these commands automatically.

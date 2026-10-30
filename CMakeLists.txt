@@ -8,7 +8,7 @@ set_property(CACHE PORTABLE_SHELL_OPTIMIZATION PROPERTY STRINGS size speed toolc
 option(PORTABLE_SHELL_ASCII_ONLY "Compile with Unicode and color disabled" OFF)
 option(PORTABLE_SHELL_BUILD_HOST "Build the optional native terminal/TCP/serial adapter" ON)
 option(PORTABLE_SHELL_HOST_LANGUAGE "Enable local command chains, pipes, redirection and variables" ON)
-option(PORTABLE_SHELL_HOST_EXEC "Enable local host process and remote-tool commands" ON)
+option(PORTABLE_SHELL_HOST_EXEC "Enable local host process and remote-tool commands" OFF)
 option(PORTABLE_SHELL_REMOTE_EXAMPLE "Build the loopback HTTP firmware-provider example" OFF)
 option(PORTABLE_SHELL_TELNET_EXAMPLE "Build the native Telnet consumer example" ON)
 option(PORTABLE_SHELL_BUILD_TESTS "Build brief byte-level checks" ON)

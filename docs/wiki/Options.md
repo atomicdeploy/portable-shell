@@ -2,7 +2,7 @@
 
 These choices are independent. Semantic coloring is the default on all targets.
 
-Local host command execution is enabled by default; use `--no-exec` or build with
+Local host command execution is disabled by default. Opt in with `PORTABLE_SHELL_HOST_EXEC=ON` and launch with `--exec`; use `--no-exec` or build with
 `PORTABLE_SHELL_HOST_EXEC=OFF` to disable it. `--shortcuts` opts into additional
 readline-style editing keys. See [host execution and remote providers](Host-execution.md).
 

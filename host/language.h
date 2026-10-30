@@ -245,7 +245,9 @@ static int host_line_run(ps_session *s,const char *line,HostPlan *work) {
                 }
             }
             flush(&channels[0]);
-            if(native)result=ps_host_pipeline(end-first+1,c);
+            if(native && end==first && !c->input && !c->output && !c->error && !c->merge_error)
+                result=ps_host_process(c->argc,c->argv,PS_PROCESS_AUTO);
+            else if(native)result=ps_host_pipeline(end-first+1,c);
             else if(c->output){
                 HostFile file;ps_write_fn writer=host_file_write;void *ctx=&file;unsigned old_flags;
                 if(!host_file_open(&file,c->output,0,c->append)){ps_write(s,"Cannot open output");ps_newline(s);result=1;}
