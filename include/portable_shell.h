@@ -287,6 +287,17 @@ PS_API void ps_newline(ps_session *s);
 /* Emits byte 7 through the normal transport in interactive sessions unless muted.
    The receiving terminal decides whether to sound or visually indicate the bell. */
 PS_API void ps_ring_bell(ps_session *s);
+#ifndef PS_REPORT
+#define PS_REPORT 1
+#endif
+enum { PS_REPORT_SECTION=1, PS_REPORT_GAP=2, PS_REPORT_NUMBER=4 };
+enum { PS_REPORT_DOTS=0, PS_REPORT_SPACES=1, PS_REPORT_DENSE=2 };
+/* Borrowed printable strings, consumed synchronously; NULL means empty.
+   A section row can also supply a right-hand column heading. */
+typedef struct { const char *label, *annotation, *value; unsigned flags; } ps_report_row;
+/* Returns rows rendered, or 0 for invalid input / PS_REPORT=0. Width follows
+   terminal columns; long content wraps without truncation. No session storage. */
+PS_API unsigned ps_print_report(ps_session *,const ps_report_row *,unsigned count,unsigned style);
 enum { PS_HELP_HEADINGS, PS_HELP_COMPACT };
 #ifndef PS_HELP_DETAILS
 #define PS_HELP_DETAILS 1

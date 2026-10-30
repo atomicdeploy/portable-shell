@@ -1,40 +1,12 @@
-/* Shared, fixed-storage help presentation. No host API or allocator. */
-static unsigned help_width(ps_session *s) {
-    return s->io.columns >= 20 ? min(s->io.columns,240)-1 : 79;
-}
-static unsigned help_cells(ps_session *s,const char *text) { return text?cells(text,length(text),s->io.flags):0; }
-/* Preserve UTF-8 sequences, explicit newlines and hanging indentation.
-   Metadata is trusted printable text, not embedded terminal control codes. */
-static void help_text(ps_session *s,const char *text,unsigned column,unsigned indent) {
-    unsigned available=help_width(s);
-    if(!text)text="";
-    while(*text){
-        const char *end;unsigned cells=0;
-        if(*text=='\n'){ps_newline(s);spaces(s,indent);column=indent;++text;continue;}
-        if(*text==' '||*text=='\t'){
-            ++text;
-            if(column>indent&&column<available){out(s," ");++column;}
-            continue;
-        }
-        end=text;while(*end&&*end!=' '&&*end!='\t'&&*end!='\n'){unsigned n,c=rune(end,&n);cells+=(s->io.flags&PS_UNICODE)?width(c):1;end+=n;}
-        if(column>indent&&column+cells>available){ps_newline(s);spaces(s,indent);column=indent;}
-        while(text<end){
-            unsigned n,c=rune(text,&n),w=(s->io.flags&PS_UNICODE)?width(c):1; const char *next=text+n;
-            if(column+w>available){ps_newline(s);spaces(s,indent);column=indent;}
-            raw(s,text,(unsigned)(next-text));column+=w;text=next;
-        }
-    }
-    ps_newline(s);
-}
 static void help_heading(ps_session *s,const char *label){
     ink(s,PS_INK_HEADING);ansi(s,"\033[1m");ps_write(s,label);out(s,":");reset(s);ps_newline(s);
 }
 static void help_row(ps_session *s,const char *label,const char *description,unsigned width,unsigned role){
-    unsigned n=help_cells(s,label),indent=width+4;
+    unsigned n=flow_cells(s,label),indent=width+4;
     out(s,"  ");ink(s,role);
-    if(n>width){help_text(s,label,2,2);reset(s);spaces(s,indent);}
+    if(n>width){flow_text(s,label,2,2);reset(s);spaces(s,indent);}
     else {ps_write(s,label);reset(s);spaces(s,width-n+2);}
-    help_text(s,description,indent,indent);
+    flow_text(s,description,indent,indent);
 }
 #if PS_HELP_DETAILS
 static const char *const help_summaries[]={
@@ -81,9 +53,9 @@ static const char *help_description(ps_session *s,const ps_command *c){
     return c->usage;
 }
 static void help_items(ps_session *s,const char *heading,const ps_help_item *items,unsigned count,unsigned role){
-    unsigned i,width=0,limit=help_width(s)/3;
+    unsigned i,width=0,limit=flow_width(s)/3;
     if(!items||!count)return;
-    for(i=0;i<count;++i)if(help_cells(s,items[i].label)>width)width=help_cells(s,items[i].label);
+    for(i=0;i<count;++i)if(flow_cells(s,items[i].label)>width)width=flow_cells(s,items[i].label);
     if(width>limit)width=limit;
     ps_newline(s);help_heading(s,heading);
     for(i=0;i<count;++i)help_row(s,items[i].label,items[i].description,width,role);
@@ -101,21 +73,21 @@ PS_API int ps_print_help(ps_session *s,const char *name,unsigned layout){
     if(!s)return 0;
     for(i=0;i<s->command_count;++i){
         const ps_command *c=s->commands+i;
-        if(help_cells(s,c->name)>width)width=help_cells(s,c->name);
-        if(help_cells(s,command_category(c))>group_width)group_width=help_cells(s,command_category(c));
+        if(flow_cells(s,c->name)>width)width=flow_cells(s,c->name);
+        if(flow_cells(s,command_category(c))>group_width)group_width=flow_cells(s,command_category(c));
     }
-    if(width>help_width(s)/3)width=help_width(s)/3;
+    if(width>flow_width(s)/3)width=flow_width(s)/3;
     for(i=0;i<s->command_count;++i){
         const ps_command *c=s->commands+i;
         if(name){
             if(!name_match(s,c->name,name,0))continue;
 #if PS_HELP_DETAILS
             {const ps_help_document *d=help_document(s,c->name);
-            help_heading(s,"Description");out(s,"  ");help_text(s,help_description(s,c),2,2);ps_newline(s);
+            help_heading(s,"Description");out(s,"  ");flow_text(s,help_description(s,c),2,2);ps_newline(s);
 #endif
             ink(s,PS_INK_HEADING);out(s,"Usage: ");reset(s);ps_newline(s);
             out(s,"  ");ink(s,PS_INK_COMMAND);ps_write(s,c->name);out(s," ");if(s->io.flags&PS_COLOR)reset(s);
-            help_text(s,c->usage,3+help_cells(s,c->name),4);
+            flow_text(s,c->usage,3+flow_cells(s,c->name),4);
 #if PS_HELP_DETAILS
             if(d){help_items(s,"Arguments",d->arguments,d->argument_count,PS_INK_NUMBER);
                 help_items(s,"Options",d->options,d->option_count,PS_INK_SUCCESS);
@@ -127,9 +99,9 @@ PS_API int ps_print_help(ps_session *s,const char *name,unsigned layout){
         if(layout==PS_HELP_COMPACT){
             ink(s,0);field(s,command_category(c),group_width+2);
             ink(s,PS_INK_COMMAND);
-            if(help_cells(s,c->name)>width){help_text(s,c->name,group_width+2,2);reset(s);spaces(s,2);help_text(s,c->usage,2,2);++printed;continue;}
+            if(flow_cells(s,c->name)>width){flow_text(s,c->name,group_width+2,2);reset(s);spaces(s,2);flow_text(s,c->usage,2,2);++printed;continue;}
             field(s,c->name,width+2);reset(s);
-            help_text(s,c->usage,group_width+width+4,2);++printed;continue;
+            flow_text(s,c->usage,group_width+width+4,2);++printed;continue;
         }
         for(j=0;j<i;++j)if(equal(command_category(s->commands+j),command_category(c)))break;
         if(j!=i)continue;

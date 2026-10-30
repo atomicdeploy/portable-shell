@@ -639,7 +639,7 @@ static const ps_command builtins[] = {
     {"prompt", "reset | STYLE TEXT [STYLE TEXT ...]", "Terminal", builtin, 0, 0},
     {"segments", "TEXT [--large] [--red] [--mono] [--ascii]", "Tools", builtin, 0, 0},
     {"clear", "", "Terminal", builtin, 0, 0},
-    {"status", "", "Terminal", builtin, 0, 0},
+    {"status", PS_REPORT?"[--report]":"", "Terminal", builtin, 0, 0},
     {"exit", "", "Shell", builtin, 0, 0}};
 PS_API unsigned ps_sizeof_session(void) {
     return sizeof(ps_session);
@@ -2033,7 +2033,9 @@ PS_API void ps_ring_bell(ps_session *s) {
 static const char *command_category(const ps_command *c) {
     return c->category && *c->category ? c->category : "Commands";
 }
+#include "portable_textflow.inc"
 #include "portable_help.inc"
+#include "portable_report.inc"
 static void segment_sink(void *context,const unsigned char *p,size_t n){
     raw((ps_session *)context,(const char *)p,(unsigned)n);
 }
@@ -2431,6 +2433,27 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
         return 0;
     }
     if (equal(cmd, "status")) {
+#if PS_REPORT
+        if(argc==2&&equal(a[1],"--report")){
+            char storage[11],executions[11],tasks[11],received[11],sent[11];
+            ps_report_row rows[]={
+                {"Session",0,PS_VERSION,PS_REPORT_SECTION},
+                {"Storage","caller-owned bytes",storage,PS_REPORT_NUMBER},
+                {"Heap","core allocations","0",PS_REPORT_NUMBER},
+                {"Backend",0,ps_memory_backend(),0},
+                {"Activity",0,0,PS_REPORT_SECTION|PS_REPORT_GAP},
+                {"Commands","executed",executions,PS_REPORT_NUMBER},
+                {"Tasks",0,tasks,PS_REPORT_NUMBER},
+                {"Input","bytes",received,PS_REPORT_NUMBER},
+                {"Output","bytes before this report",sent,PS_REPORT_NUMBER}
+            };
+            dec(storage,sizeof *s);dec(executions,s->executions);dec(tasks,s->task_count);
+            dec(received,s->bytes_in);dec(sent,s->bytes_out);
+            ps_print_report(s,rows,sizeof rows/sizeof rows[0],PS_REPORT_DOTS);
+            return 0;
+        }
+#endif
+        if(argc!=1)return fail(s,"status [--report]");
         out(s, "version=" PS_VERSION " session_bytes=");
         ps_number(s, sizeof *s);
         out(s, " heap_bytes=0 memory_backend=");

@@ -136,3 +136,29 @@ The [command page](https://github.com/atomicdeploy/portable-shell/blob/main/prev
 [registry](https://github.com/atomicdeploy/portable-shell/blob/main/previews/help-registry.png)
 and [monochrome wrapped page](https://github.com/atomicdeploy/portable-shell/blob/main/previews/help-plain.png)
 are actual output replays rendered with Agave.
+
+## Dotted-leader reports
+
+Use status --report for the current session's live storage and activity report.
+The original single-line status output remains the default.
+
+For application reports, call ps_print_report(session, rows, count, style).
+Each ps_report_row contains a label, optional muted annotation, optional
+right-aligned value and flags. PS_REPORT_SECTION styles section headings;
+PS_REPORT_GAP inserts separation before a section; PS_REPORT_NUMBER uses the
+numeric semantic color. Strings are borrowed only during the call.
+
+PS_REPORT_DOTS produces spaced dot leaders by default. PS_REPORT_DENSE selects
+continuous dots; PS_REPORT_SPACES removes dots. Terminal color and Unicode
+settings still apply, and non-interactive output contains no escapes. Reports
+are borderless output, not editable tables. Long content wraps without losing
+text; values move below labels when both cannot fit on one line.
+
+PS_REPORT=0 excludes the renderer and status --report; the API remains a no-op
+returning zero. No per-session storage, heap allocation or host API is added.
+Help and reports share text-flow, UTF-8 and semantic-color primitives.
+
+[Schema fixture](https://github.com/atomicdeploy/portable-shell/blob/main/previews/report-leaders.png)
+and [live session report](https://github.com/atomicdeploy/portable-shell/blob/main/previews/report-status.png)
+are rendered from actual emitted bytes with Agave. Schema rows are demonstration
+data, not a database connection.
