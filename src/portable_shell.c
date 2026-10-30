@@ -1,3 +1,4 @@
+#include "portable_undo.h"
 #include "portable_style.h"
 #include "portable_segments.h"
 #include "portable_parse.h"
@@ -189,6 +190,11 @@ struct ps_session {
     void *executor_context;
     Binding bindings[24];
     unsigned binding_count;
+#if PS_UNDO_DEPTH
+    ps_undo undo;
+    char undo_frames[PS_UNDO_DEPTH+1][PS_LINE];
+    unsigned undo_positions[PS_UNDO_DEPTH+1];
+#endif
     char line[PS_LINE], saved[PS_LINE], kill[PS_LINE], suggestion[PS_LINE];
     unsigned len, pos;
     char history[PS_HISTORY][PS_LINE];
@@ -1821,7 +1827,7 @@ static void history_search(ps_session *s) {
     notice(s, "No older match");
 }
 #include "portable_form.inc"
-PS_API void ps_key(ps_session *s, unsigned key) {
+static void shell_key(ps_session *s, unsigned key) {
     unsigned i;
     if (s->exit)
         return;
@@ -2032,6 +2038,26 @@ PS_API void ps_key(ps_session *s, unsigned key) {
     prompt(s);
 }
 
+PS_API void ps_key(ps_session *s,unsigned key){
+#if PS_UNDO_DEPTH
+    unsigned binding,bound=0;
+    for(binding=0;binding<s->binding_count;++binding)if(s->bindings[binding].key==key){bound=1;break;}
+    if(!s->board&&!s->document_open&&!s->menu_depth&&!s->file_count&&!s->form){
+        if(!s->undo.frames)ps_undo_bind(&s->undo,&s->undo_frames[0][0],s->undo_positions,PS_LINE,PS_UNDO_DEPTH+1);
+        if(!bound&&!s->search&&(key==31||key==PS_KEY_UNDO||key==PS_KEY_REDO)){
+            ps_undo_record(&s->undo,s->line,s->pos);
+            if(!ps_undo_step(&s->undo,key==PS_KEY_REDO,s->line,&s->pos))ps_ring_bell(s);
+            s->len=length(s->line);s->overflow=0;s->completion=0;prompt(s);return;
+        }
+        if(!s->search)ps_undo_record(&s->undo,s->line,s->pos);
+        shell_key(s,key);
+        if(key==13||key==3)ps_undo_clear(&s->undo);
+        else if(!s->search)ps_undo_record(&s->undo,s->line,s->pos);
+        return;
+    }
+#endif
+    shell_key(s,key);
+}
 static int fail(ps_session *s, const char *message) {
     ink(s, 3);
     out(s, "error: ");
@@ -2629,6 +2655,12 @@ static void escape_key(ps_session *s) {
         key = PS_KEY_WORDRIGHT;
     else if (equal(p, "[200~")) {
         if(s->document_open&&!s->document_dialog)document_snapshot(s);
+#if PS_UNDO_DEPTH
+        if(!s->board&&!s->form&&!s->document_open&&!s->menu_depth&&!s->file_count){
+            if(!s->undo.frames)ps_undo_bind(&s->undo,&s->undo_frames[0][0],s->undo_positions,PS_LINE,PS_UNDO_DEPTH+1);
+            ps_undo_record(&s->undo,s->line,s->pos);
+        }
+#endif
         s->paste = 1;
         s->paste_match = 0;
     }
@@ -2642,6 +2674,9 @@ static void input_byte(ps_session *s, unsigned c) {
             if (++s->paste_match == 6) {
                 s->paste = 0;
                 s->paste_match = 0;
+#if PS_UNDO_DEPTH
+                if(s->undo.frames&&!s->board&&!s->form&&!s->document_open&&!s->menu_depth&&!s->file_count)ps_undo_record(&s->undo,s->line,s->pos);
+#endif
                 prompt(s);
             }
             return;
@@ -2694,6 +2729,7 @@ static void input_byte(ps_session *s, unsigned c) {
                 ps_key(s, c == 'd' ? PS_KEY_KILLWORD : 23);
                 return;
             }
+            if(c=='_'){ps_key(s,PS_KEY_REDO);return;}
             if (c == 'b') {
                 ps_key(s, PS_KEY_WORDLEFT);
                 return;

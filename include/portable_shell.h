@@ -13,6 +13,9 @@ extern "C" {
 #else
 #define PS_API
 #endif
+#ifndef PS_UNDO_DEPTH
+#define PS_UNDO_DEPTH 2
+#endif
 #ifndef PS_LINE
 #define PS_LINE 512
 #endif
@@ -247,7 +250,8 @@ enum {
     PS_KEY_F4,
     PS_KEY_WORDLEFT,
     PS_KEY_WORDRIGHT,
-    PS_KEY_KILLWORD
+    PS_KEY_UNDO = 280, PS_KEY_REDO,
+    PS_KEY_KILLWORD = 272
 };
 PS_API unsigned ps_sizeof_session(void);
 PS_API const char *ps_memory_backend(void); /* "portable" or "libc"; no allocation */
