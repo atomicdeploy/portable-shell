@@ -1,5 +1,8 @@
 #ifndef PORTABLE_STYLE_H
 #define PORTABLE_STYLE_H
+#ifndef PS_SYNC_OUTPUT
+#define PS_SYNC_OUTPUT 1
+#endif
 #ifndef PS_FOOTER_KEYCAPS
 #define PS_FOOTER_KEYCAPS 1
 #endif

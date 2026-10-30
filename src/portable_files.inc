@@ -68,8 +68,8 @@ static void file_render(ps_session *s){
     if(s->file_selected>=s->file_top+slots)s->file_top=s->file_selected-slots+1;
     if(s->file_list_selected<s->file_list_top)s->file_list_top=s->file_list_selected;
     if(s->file_list_selected>=s->file_list_top+slots)s->file_list_top=s->file_list_selected-slots+1;
-    ansi(s,"\033[?25l\033[H\033[2J");view_color(s,"\033[1;33m");field(s,s->file_title,w);reset(s);
-    if(s->io.rows<7){at(s,2,1);field(s,"Resize to browse",w);return;}
+    canvas_begin(s,2,split);view_color(s,"\033[1;33m");field(s,s->file_title,w);reset(s);
+    if(s->io.rows<7){at(s,2,1);field(s,"Resize to browse",w);frame_end(s);return;}
     view_rule(s,2,1,left,0);if(split)view_rule(s,2,left+2,w-left-1,0);
     for(i=0;i<slots;++i){
         unsigned p=(listing?s->file_list_top:s->file_top)+i;
@@ -83,7 +83,9 @@ static void file_render(ps_session *s){
     at(s,s->io.rows-1,1);
     if(s->file_notice)field(s,s->file_notice,w);
     else {out(s,split?(s->file_pane?"Listing  ":"Tree  "):listing?"Listing  ":"Tree  ");ps_number(s,listing||split?ln:count);out(s," entries  ");if(s->file_directory<s->file_count)field(s,s->file_nodes[s->file_directory].name,w>24?w-24:0);}
+    ansi(s,"\033[K");
     at(s,s->io.rows,1);footer_field(s,split?"Tab Panel  ↑/↓ Select  ←/→ Fold  Enter Open  Esc Cancel":listing?"↑/↓ Select  Backspace Parent  Enter Open  Esc Cancel":"↑/↓ Select  ←/→ Fold  Enter Open  Esc Cancel",w,0);
+    frame_end(s);
 }
 PS_API void ps_file_picker_style(ps_session *s,unsigned layout,unsigned icons){if(s){s->file_layout=layout<=PS_FILE_SPLIT?layout:PS_FILE_TREE;s->file_icons=icons<=PS_FILE_ICONS_ASCII?icons:PS_FILE_ICONS_UNICODE;if(s->file_count)file_render(s);}}
 PS_API int ps_file_browser_open(ps_session *s,const char *title,const ps_file_node *nodes,unsigned count,ps_file_pick_fn fn,ps_file_load_fn load,void *ctx){
@@ -94,7 +96,7 @@ PS_API int ps_file_browser_open(ps_session *s,const char *title,const ps_file_no
     s->file_selected=s->file_top=s->file_pane=s->file_list_selected=s->file_list_top=0;s->file_directory=0;s->file_notice=0;
     zero(s->file_expanded,sizeof s->file_expanded);zero(s->file_loaded,sizeof s->file_loaded);
     if(load){file_load(s,0);s->file_expanded[0]=1;}
-    ansi(s,"\033[?1049h");if(PS_MOUSE)ansi(s,"\033[?1002h\033[?1006h");file_render(s);return 1;
+    s->canvas_kind=0;ansi(s,"\033[?1049h");if(PS_MOUSE)ansi(s,"\033[?1002h\033[?1006h");file_render(s);return 1;
 }
 PS_API int ps_file_picker_open(ps_session *s,const char *title,const ps_file_node *nodes,unsigned count,ps_file_pick_fn fn,void *ctx){return ps_file_browser_open(s,title,nodes,count,fn,0,ctx);}
 static void file_key(ps_session *s,unsigned key){

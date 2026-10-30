@@ -208,6 +208,7 @@ class DeviceView {
     bool tabsInsideTable() const { return tabsInsideTable_; }
     void setFooterKeycaps(bool enabled){keycaps_=enabled;dirty_=full_=true;}
     void setFooterGrid(bool enabled){footerGrid_=enabled;dirty_=full_=true;}
+    void setSynchronizedOutput(bool enabled){syncOutput_=enabled;}
     void setFooterEmphasis(bool enabled){footerEmphasis_=enabled;dirty_=full_=true;}
     void setTabBrackets(bool enabled){tabBrackets_=enabled;dirty_=full_=true;}
     void setTrueColor(bool enabled) { if (trueColor_!=enabled) {trueColor_=enabled;dirty_=full_=true;} }
@@ -444,6 +445,13 @@ class DeviceView {
         }
         if (!dirty_ && !force)
             return false;
+        /* Direct sink writes keep the closing marker outside the frame byte
+           budget, including early returns and partial inline-editor updates. */
+        struct Frame {
+            Write &sink;bool enabled;
+            Frame(Write &w,bool on):sink(w),enabled(on){if(enabled)sink((const uint8_t*)"\x1b[?2026h",8);}
+            ~Frame(){if(enabled)sink((const uint8_t*)"\x1b[?2026l",8);}
+        } frame(write,ansi_&&syncOutput_);
         dirty_ = false;
         if(PS_MOUSE&&ansi_&&full_){const char *p="\x1b[?1002h\x1b[?1006h";write((const uint8_t*)p,ps_text_length(p));}
         if (force) full_=true;
@@ -1203,6 +1211,7 @@ class DeviceView {
     bool trueColor_ = true, dialog_ = false;
     bool keycaps_=PS_FOOTER_KEYCAPS!=0,tabBrackets_=PS_TAB_BRACKETS!=0;
     bool footerGrid_=PS_FOOTER_GRID!=0,footerEmphasis_=false;
+    bool syncOutput_=PS_SYNC_OUTPUT!=0;
     unsigned editRow_ = 6, editColumn_ = 30, editWidth_ = 40;
     uint32_t observed_ = 0;
     uint32_t painted_[PS_DEVICE_VIEW_TABLE ? PS_DEVICE_VIEW_MAX_ROWS : 1]{};

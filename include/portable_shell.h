@@ -213,7 +213,8 @@ enum {
     PS_LEGACY_KEYS = 128,
     PS_NO_BELL = 256,
     PS_NO_SUGGESTIONS = 512,
-    PS_EXTENDED_KEYS = 1024 /* Alt-D/Alt-Backspace and Ctrl-T readline shortcuts */
+    PS_EXTENDED_KEYS = 1024, /* Alt-D/Alt-Backspace and Ctrl-T readline shortcuts */
+    PS_NO_SYNC_OUTPUT = 2048
 };
 enum { PS_STYLE_DEFAULT, PS_STYLE_PROMPT, PS_STYLE_SUCCESS, PS_STYLE_WARNING, PS_STYLE_ERROR,
        PS_STYLE_GREEN };

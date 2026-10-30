@@ -34,6 +34,11 @@ int main(){
     std::string output;auto write=[&](const uint8_t *p,size_t n){output.append((const char*)p,n);};
     auto feed=[&](const char *keys){bool emitted=false;while(*keys)emitted=v.feed(uint8_t(*keys++),s,a)||emitted;return emitted;};
     v.begin();v.render(s,write);
+    if(PS_SYNC_OUTPUT){assert(output.find("\x1b[?2026h")!=std::string::npos);
+    assert(output.compare(output.size()-8,8,"\x1b[?2026l")==0);}
+    v.setSynchronizedOutput(false);output.clear();v.render(s,write,true);
+    assert(output.find("2026")==std::string::npos);
+    v.setSynchronizedOutput(true);output.clear();v.render(s,write,true);
     assert(output.find("[Device]")==std::string::npos);
     assert(output.find(PS_KEYCAP_STYLE "Space")!=std::string::npos);
     assert(output.find(PS_KEYCAP_PROMINENT_STYLE)==std::string::npos);
