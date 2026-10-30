@@ -124,6 +124,9 @@ typedef struct {
     ps_u32 hash;
 } Job;
 struct ps_session {
+    const ps_menu *menu_stack[PS_MENU_DEPTH];
+    unsigned menu_depth, menu_length, menu_bad;
+    char menu_input[4];
     ps_config io;
     unsigned theme; /* Legacy palette IDs 0..3; semantic roles are the default (4). */
     unsigned table_style;
@@ -556,6 +559,7 @@ static const ps_command builtins[] = {
     {"controls", "[open [page]|list|get ID|set ID VALUE]", "Workspace", builtin, 0, 0},
     {"help", "[--headings|--compact] [command]", "Shell", builtin, 0, 0},
     {"board", "[tasks|variables|jobs|session]", "Workspace", builtin, 0, 0},
+    {"menu", "[NUMBER ...]", "Workspace", builtin, 0, 0},
     {"task", "add TITLE | done ID | remove ID | rename ID TITLE | list", "Workspace", builtin, 0,
      0},
     {"set", "KEY VALUE", "Workspace", builtin, 0, 0},
@@ -752,6 +756,7 @@ static void grid_border(ps_session *s, const Grid *g, unsigned kind, int joined)
     reset(s);
 }
 static void table_open(ps_session *s, unsigned tab) {
+    ps_menu_close(s);
     s->tab = tab;
     s->selected = s->scroll = 0;
     s->editing = 0;
@@ -777,6 +782,7 @@ static void table_close(ps_session *s) {
     ansi(s, "\033[0m\033[?25h\033[?1049l");
     prompt(s);
 }
+#include "portable_menu.inc"
 static void enter_edit(ps_session *, unsigned, const char *);
 static void edit_insert(char *, unsigned *, unsigned *, unsigned, unsigned);
 static void edit_delete(char *, unsigned *, unsigned *, int);
@@ -1248,7 +1254,7 @@ static void prompt(ps_session *s) {
     unsigned start = 0,
              avail = s->io.columns > prompt_width + 2 ? s->io.columns - prompt_width - 2 : 8;
     const char *hint;
-    if (!(s->io.flags & PS_INTERACTIVE) || s->board || s->exit)
+    if (!(s->io.flags & PS_INTERACTIVE) || s->board || s->menu_depth || s->exit)
         return;
     ansi(s, "\r\033[2K");
     if (s->custom_prompt) {
@@ -1678,6 +1684,7 @@ PS_API void ps_key(ps_session *s, unsigned key) {
     unsigned i;
     if (s->exit)
         return;
+    if(s->menu_depth){menu_key(s,key);return;}
     if (s->board) {
         table_key(s, key);
         return;
@@ -1937,6 +1944,21 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     unsigned i, j;
     const char *cmd = a[0];
     (void)ctx;
+    if(equal(cmd,"menu")){
+        int result=0;
+        ps_menu_open(s,&default_menu);
+        for(i=1;i<(unsigned)argc;++i){
+            int n;const ps_menu *m=s->menu_depth?s->menu_stack[s->menu_depth-1]:0;
+            if(!m||!integer(a[i],&n)||n<0||(unsigned)n>m->count||
+               (i+1<(unsigned)argc&&n&&!m->items[n-1].submenu)){
+                ps_menu_close(s);return fail(s,"menu [NUMBER ...]");
+            }
+            result=ps_menu_choose(s,n);
+            if(result){ps_menu_close(s);return result;}
+        }
+        if(!(s->io.flags&PS_INTERACTIVE))ps_menu_close(s);
+        return result;
+    }
     if (equal(cmd, "help")) {
         const char *name = 0;
         unsigned layout = PS_HELP_HEADINGS;
@@ -2410,6 +2432,7 @@ static void input_byte(ps_session *s, unsigned c) {
         }
         if (s->paste_match)
             s->paste_match = 0;
+        if(s->menu_depth)return; /* Pasted newlines must never activate menu actions. */
         if (c == '\r' || c == '\n' || c == '\t')
             c = ' ';
         if (c >= 32 && c != 127) {
@@ -2488,6 +2511,7 @@ static void input_byte(ps_session *s, unsigned c) {
     s->suppress_lf = c == '\r';
     if (c == '\n')
         c = 13;
+    if(s->menu_depth){ps_key(s,c);return;}
     if (!(s->io.flags & PS_INTERACTIVE)) {
         if (c == 13) {
             if (s->overflow) {
@@ -2592,6 +2616,7 @@ PS_API void ps_finish(ps_session *s) {
         ps_tick(s, s->now + 1);
 }
 PS_API void ps_close(ps_session *s) {
+    ps_menu_close(s);
     if(PS_MOUSE && s->board)ansi(s,"\033[?1002l\033[?1006l");
     if (s->board) {
         ansi(s, "\033[?1049l");

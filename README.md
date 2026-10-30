@@ -1,5 +1,12 @@
 # PortableShell
 
+Run `menu` or launch with `--menu` for a numbered menu without a table. Type a
+number and press Enter; `0` goes Back (or closes the root), Esc goes Back, and
+Ctrl-C closes the menu. Submenus and callback actions are reusable through the C
+API. Scripts can select a path directly, for example `menu 2 1` for terminal status.
+
+![Numbered menu and nested pages, rendered from emitted bytes](previews/menu.png)
+
 Canonical repository: https://github.com/atomicdeploy/portable-shell
 
 A byte-driven C99 shell and terminal workbench. The core is written from scratch,

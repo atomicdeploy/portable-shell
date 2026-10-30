@@ -43,6 +43,31 @@ typedef char
 typedef unsigned int ps_u32;
 typedef char ps_requires_32_bit_unsigned[(sizeof(ps_u32) == 4) ? 1 : -1];
 typedef struct ps_session ps_session;
+#ifndef PS_MENU_DEPTH
+#define PS_MENU_DEPTH 8
+#endif
+#if PS_MENU_DEPTH < 1 || PS_MENU_DEPTH > 32
+#error "PS_MENU_DEPTH must be 1..32"
+#endif
+typedef struct ps_menu ps_menu;
+typedef int (*ps_menu_fn)(ps_session *, void *context);
+enum { PS_MENU_DISABLED=1 };
+typedef struct {
+    const char *label;
+    const ps_menu *submenu;
+    ps_menu_fn run;
+    void *context;
+    unsigned flags;
+} ps_menu_item;
+struct ps_menu { const char *title; const ps_menu_item *items; unsigned count; };
+/* Borrowed definitions/context must remain alive while open. Each item has
+   either a submenu or an action. Actions run after leaving menu input mode,
+   and may execute shell commands or open another menu. No allocation. */
+PS_API int ps_menu_open(ps_session *, const ps_menu *);
+PS_API int ps_menu_choose(ps_session *, unsigned number); /* 0 = Back/Close */
+PS_API void ps_menu_refresh(ps_session *);
+PS_API void ps_menu_close(ps_session *);
+PS_API unsigned ps_menu_active(const ps_session *);
 /* Borrowed immutable definitions; retain them and context until detach/session end.
    Callbacks run on the owning loop, must not reenter the session. No allocation.
    read supplies observed state, never a speculative requested value. write must
