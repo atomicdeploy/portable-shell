@@ -24,7 +24,7 @@ endif()
 include(GNUInstallDirs)
 install(TARGETS portable_shell ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES include/portable_shell.h include/portable_shell_device.h include/portable_remote.h
-  include/portable_terminal.h include/portable_editor.h
+  include/portable_util.h include/portable_terminal.h include/portable_editor.h
   include/portable_segments.h include/portable_meter.h include/portable_monitor.h include/portable_rich.h include/portable_undo.h include/portable_screen.h include/portable_async.h include/portable_settings.h include/portable_table_policy.h include/portable_osc.h include/portable_command_line.h include/portable_parse.h include/portable_probe.h
   include/portable_shell_editor.hpp include/portable_device_view.hpp
   include/portable_device_table.hpp include/portable_style.h

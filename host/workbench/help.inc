@@ -15,7 +15,7 @@ static const char *const help_summaries[]={
     "Customize prompt text, colors and lines.","Render a seven-segment display.",
     "Clear the terminal.","Show session status.","Close this session."
 };
-typedef char help_summary_count_matches[(sizeof(help_summaries)/sizeof(help_summaries[0])==sizeof(builtins)/sizeof(builtins[0]))?1:-1];
+typedef char help_summary_count_matches[(PS_COUNT_OF(help_summaries)==PS_COUNT_OF(builtins))?1:-1];
 static const ps_help_item segment_arguments[]={
     {"TEXT","Digits, a minus sign, decimal points and colons. Quote text containing spaces."}
 };
@@ -32,5 +32,5 @@ static const ps_help_item segment_examples[]={
 };
 static const ps_help_document segment_help={
     "segments","Render a seven-segment display from text. Combine size, color and character options to suit your terminal.",
-    segment_arguments,1,segment_options,4,segment_examples,3
+    segment_arguments,PS_COUNT_OF(segment_arguments),segment_options,PS_COUNT_OF(segment_options),segment_examples,PS_COUNT_OF(segment_examples)
 };

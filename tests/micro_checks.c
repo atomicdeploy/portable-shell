@@ -17,6 +17,10 @@ static void write_bytes(void *ctx, const unsigned char *p, size_t n) {
     memcpy(output + used, p, n); used += n; output[used] = 0;
 }
 int main(void) {
+    { const unsigned values[]={1,2,3};
+      assert(PS_COUNT_OF(values)==3);
+      assert(PS_LITERAL_LENGTH("abc")==3 && PS_LITERAL_LENGTH("")==0);
+    }
     {
         char grid[128],tiny[3]={'a','b','c'};
         ps_style_footer_format(grid,sizeof grid,"Enter apply  Esc cancel  Tab panel",80,1);

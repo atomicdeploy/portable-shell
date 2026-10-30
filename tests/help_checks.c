@@ -25,7 +25,15 @@ int main(int argc,char **argv){
     ps_help_document docs[]={{"sample","A custom command.",0,0,options,1,0,0}};
     ps_command cmd={"sample","[OPTIONS]","Custom",run,0,0};
     assert(ps_sizeof_session()<=sizeof memory.bytes);
-    s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);assert(s);ps_register(s,&cmd);ps_set_help_documents(s,docs,1);
+    s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);assert(s);
+    { unsigned i,j;
+      for(i=0;i<ps_command_count(s);++i){
+        const ps_command *entry=ps_command_at(s,i);
+        for(j=0;entry->name[j];++j)
+          assert(!(entry->name[j]>='A'&&entry->name[j]<='Z'));
+      }
+    }
+    ps_register(s,&cmd);ps_set_help_documents(s,docs,1);
     used=0;assert(ps_execute(s,"help sample")==0);
 #if PS_HELP_DETAILS
     assert(strstr(output,"A custom command.")&&strstr(output,"Options:"));

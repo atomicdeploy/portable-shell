@@ -1,5 +1,6 @@
 #ifndef PORTABLE_SHELL_H
 #define PORTABLE_SHELL_H
+#include "portable_util.h"
 #ifndef PS_MOUSE
 #define PS_MOUSE 1
 #endif
@@ -29,6 +30,15 @@ extern "C" {
 #define PS_COMMANDS 42
 #endif
 #define PS_ARGS 32
+#ifndef PS_PROMPT_PARTS
+#define PS_PROMPT_PARTS 16
+#endif
+#ifndef PS_PROMPT_LINES
+#define PS_PROMPT_LINES 4
+#endif
+#if PS_PROMPT_PARTS < 1 || PS_PROMPT_LINES < 1
+#error "Prompt limits must be positive"
+#endif
 #define PS_VALUE 128
 #define PS_VERSION "0.14.0"
 #ifndef PS_WORKSPACE_INLINE_EDIT
