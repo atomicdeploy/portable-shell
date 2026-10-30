@@ -48,6 +48,18 @@ int main(int argc,char **argv){
         assert(!strcmp(ps_history_get(s,1),"echo xy"));
         {const char *paste="\033[200~echo pasted\033[201~";ps_feed(s,(const ps_byte*)paste,(unsigned)strlen(paste));}
         ps_key(s,31);ps_key(s,13);assert(ps_history_count(s)==2);
+        ps_feed(s,"!!\r",3);assert(ps_history_count(s)==2);
+        ps_feed(s,"!1\r",3);assert(!strcmp(ps_history_get(s,2),"echo a"));
+        ps_feed(s,"draft",5);ps_feed(s,"\033[18~",5);
+        assert(ps_terminal_state(s)==PS_TERMINAL_ALT_SCREEN);
+        ps_resize(s,40,10);ps_key(s,27);assert(!ps_terminal_state(s));
+        ps_key(s,13);assert(!strcmp(ps_history_get(s,3),"draft"));
+        ps_key(s,PS_KEY_F7);ps_key(s,PS_KEY_HOME);ps_key(s,9);
+        ps_feed(s," edited\r",8);assert(!strcmp(ps_history_get(s,4),"echo a edited"));
+        ps_key(s,PS_KEY_F7);ps_key(s,PS_KEY_HOME);ps_key(s,13);
+        assert(!strcmp(ps_history_get(s,5),"echo a"));
+        ps_feed(s,"!999\r",5);assert(ps_history_count(s)==6&&ps_status(s)==2);
+        ps_key(s,3);ps_key(s,PS_KEY_F7);ps_close(s);assert(!ps_terminal_state(s));
     }
 #endif
     assert(ps_screen_init(&screen,cells,presented,96,24));whole=ps_screen_window(&screen,0,0,96,24);

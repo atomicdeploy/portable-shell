@@ -220,6 +220,7 @@ struct ps_session {
     unsigned len, pos;
     char history[PS_HISTORY][PS_LINE];
     unsigned history_count, history_head, history_nav, history_limit;
+    unsigned history_dialog, history_selected, history_top;
     ps_history_filter_fn history_filter;
     void *history_context;
     char notice[128], filter[64], edit[PS_VALUE];
@@ -1629,6 +1630,7 @@ static void history_search(ps_session *s) {
     notice(s, "No older match");
 }
 #include "portable_form.inc"
+#include "portable_history.inc"
 static void shell_key(ps_session *s, unsigned key) {
     unsigned i;
     if (s->exit)
@@ -1638,6 +1640,20 @@ static void shell_key(ps_session *s, unsigned key) {
 #endif
     if(s->file_count){file_key(s,key);return;}
     if(s->document_open){document_key(s,key);return;}
+    if(s->history_dialog){
+        if(key==27||key==3){history_dialog_close(s);prompt(s);return;}
+        if(key==PS_KEY_UP&&s->history_selected)--s->history_selected;
+        else if(key==PS_KEY_DOWN&&s->history_selected+1<s->history_count)++s->history_selected;
+        else if(key==PS_KEY_HOME)s->history_selected=0;
+        else if(key==PS_KEY_END)s->history_selected=s->history_count-1;
+        else if(key==13||key==9){
+            line_set(s,ps_history_get(s,s->history_selected));
+            history_dialog_close(s);
+            if(key==9){prompt(s);return;}
+            shell_key(s,13);return;
+        }
+        history_dialog_draw(s);return;
+    }
     if(s->menu_depth){menu_key(s,key);return;}
     if(table_prompt(s) && key==PS_KEY_F4 && !s->editing) {
         s->table_prompt_focus=!s->table_prompt_focus;s->dirty=1;render(s);return;
@@ -1685,6 +1701,15 @@ static void shell_key(ps_session *s, unsigned key) {
             prompt(s);
             return;
         }
+#if PS_HISTORY_DIALOG
+    if(key==PS_KEY_F7&&(s->io.flags&PS_INTERACTIVE)){
+        if(!s->history_count||s->io.rows<6){ps_ring_bell(s);return;}
+        s->history_dialog=1;s->history_selected=s->history_count-1;s->history_top=0;
+        if(!s->board)ansi(s,"\033[?1049h");
+        else ansi(s,"\033[r");
+        history_dialog_draw(s);return;
+    }
+#endif
     if (key != 9)
         s->completion = 0;
 #if PS_WORKBENCH
@@ -1700,6 +1725,10 @@ if (key == 13) {
             ps_newline(s);
             s->status = 2;
         } else if (s->len) {
+            if((s->io.flags&PS_INTERACTIVE)&&!history_expand_line(s)){
+                ps_ring_bell(s);out(s,"History entry not found");ps_newline(s);s->status=2;
+                prompt(s);return;
+            }
             ps_history_add(s, s->line);
             ps_execute(s, s->line);
         }
@@ -1837,6 +1866,7 @@ if (key == 13) {
 }
 
 PS_API void ps_key(ps_session *s,unsigned key){
+    if(s->history_dialog){shell_key(s,key);return;}
 #if PS_UNDO_DEPTH
     unsigned binding,bound=0;
     for(binding=0;binding<s->binding_count;++binding)if(s->bindings[binding].key==key){bound=1;break;}
@@ -2020,6 +2050,8 @@ static void escape_key(ps_session *s) {
         key = PS_KEY_F3;
     else if (equal(p, "OS") || equal(p, "[14~"))
         key = PS_KEY_F4;
+    else if (equal(p, "[18~"))
+        key = PS_KEY_F7;
     else if (equal(p, "[1;5D"))
         key = PS_KEY_WORDLEFT;
     else if (equal(p, "[1;5C"))
@@ -2205,7 +2237,7 @@ PS_API void ps_tick(ps_session *s, ps_u32 now) {
 #if PS_WORKBENCH
 #include "../host/workbench/job_tick.inc"
 #endif
-    if (s->board && (s->dirty || (s->tab == 3 && now / 1000 != s->last_paint / 1000)) &&
+    if (!s->history_dialog && s->board && (s->dirty || (s->tab == 3 && now / 1000 != s->last_paint / 1000)) &&
         (ps_u32)(now - s->last_paint) >= 100)
         render(s);
 }
@@ -2216,6 +2248,7 @@ PS_API void ps_resize(ps_session *s, unsigned columns, unsigned rows) {
 #if PS_FORM
     if(s->form){form_render(s);return;}
 #endif
+    if(s->history_dialog){history_dialog_draw(s);return;}
     if(s->document_open){document_render(s);return;}
     if(s->file_count){file_render(s);return;}
     if(s->menu_depth){ps_menu_refresh(s);return;}
@@ -2237,6 +2270,7 @@ PS_API void ps_finish(ps_session *s) {
         ps_tick(s, s->now + 1);
 }
 PS_API void ps_close(ps_session *s) {
+    history_dialog_close(s);
     ps_terminal_report_progress(s,0,0);
     ps_form_close(s);
     ps_file_picker_close(s);
@@ -2255,6 +2289,7 @@ PS_API unsigned ps_terminal_state(const ps_session *s) {
     if(!s || !(s->io.flags & PS_INTERACTIVE))return 0;
     if(s->board || s->menu_screen || s->file_count || ps_form_active(s))
         state=PS_TERMINAL_ALT_SCREEN | (PS_MOUSE ? PS_TERMINAL_MOUSE : 0);
+    if(s->history_dialog)return PS_TERMINAL_ALT_SCREEN;
     if(s->document_open)state|=PS_TERMINAL_ALT_SCREEN;
     return state;
 }

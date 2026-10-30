@@ -1,3 +1,10 @@
+/* Optional interactive history UI and whole-line event recall. */
+#ifndef PS_HISTORY_DIALOG
+#define PS_HISTORY_DIALOG 1
+#endif
+#ifndef PS_HISTORY_EXPANSION
+#define PS_HISTORY_EXPANSION 1
+#endif
 #ifndef PORTABLE_SHELL_H
 #define PORTABLE_SHELL_H
 #include "portable_util.h"
@@ -264,6 +271,7 @@ enum {
     PS_KEY_F4,
     PS_KEY_WORDLEFT,
     PS_KEY_WORDRIGHT,
+    PS_KEY_F7 = 282,
     PS_KEY_UNDO = 280, PS_KEY_REDO,
     PS_KEY_KILLWORD = 272
 };
