@@ -175,7 +175,7 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
         grid_divide(s);
     }
     ink(s, 4);
-    out(s, s->selected == index ? ((s->io.flags & PS_UNICODE) ? "▸ " : "> ") : "  ");
+    out(s, !s->control_header && s->selected == index ? ((s->io.flags & PS_UNICODE) ? "▸ " : "> ") : "  ");
     grid_text(s, c->label, g->widths[col++] - 2);
     grid_divide(s);
     w = g->widths[col];

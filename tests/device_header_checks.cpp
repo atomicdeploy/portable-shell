@@ -36,7 +36,7 @@ int main(){
             const auto rows=lines(output);assert(rows.size()>=3);
 #if PS_DEVICE_VIEW_TABLE && PS_STYLE_THEMES
             if(ansi){
-                // The selected surface must contain exactly the bracketed label,
+                // The selected surface must contain exactly the padded label,
                 // with neither table padding nor the separator between tabs.
                 const std::string surface=ps_style_surface(theme,rgb,1);
                 const size_t start=output.find(surface,output.find('\n')+1);
@@ -48,7 +48,7 @@ int main(){
                 std::string label;for(const auto &cell:selected[0])label+=cell;
                 const char *names[]={"Device","Network","Matrix","Pixels","Game","Terminal","Cloud","Notifications","Clock"};
                 assert(unsigned(view.page())<sizeof(names)/sizeof(names[0]));
-                assert(label==std::string("[")+names[view.page()]+"]");
+                assert(label==std::string(PS_TAB_BRACKETS?"[":" ")+names[view.page()]+(PS_TAB_BRACKETS?"]":" "));
             }
 #endif
             const unsigned expected=(PS_DEVICE_VIEW_TABLE?width:width>100?100:width)-1;

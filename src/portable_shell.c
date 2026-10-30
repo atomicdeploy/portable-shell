@@ -299,6 +299,22 @@ static void field(ps_session *s, const char *p, unsigned cap) {
     }
     spaces(s, cap - w);
 }
+static void footer_field(ps_session *s,const char *p,unsigned cap,unsigned status){
+    unsigned used=0;
+    while(*p&&used<cap){
+        char token[96];unsigned n=0,w,styled;
+        if(*p==' '){out(s," ");++p;++used;continue;}
+        while(p[n]&&p[n]!=' '&&n+1<sizeof token){token[n]=p[n];++n;}
+        token[n]=0;
+        w=min(cells(token,n,s->io.flags),cap-used);
+        styled=PS_FOOTER_KEYCAPS&&!(s->table_style&PS_TABLE_PLAIN_KEYS)&&ps_style_key_token(token,n);
+        if(styled)ansi(s,PS_KEYCAP_STYLE);
+        field(s,token,w);
+        if(styled){ansi(s,"\033[0m");reset(s);if(status)surface(s,0);ink(s,0);}
+        used+=w;p+=n;
+    }
+    spaces(s,cap-used);
+}
 static void notice(ps_session *s, const char *p) {
     str(s->notice, p, sizeof s->notice);
     s->dirty = 1;
@@ -597,7 +613,7 @@ PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsi
     return width - left;
 }
 PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
-    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE;
+    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS;
     if (s->editing)
         flags = (flags & ~layout) | (s->table_style & layout);
     if ((s->table_style ^ flags) & layout)
@@ -933,7 +949,7 @@ static void render(ps_session *s) {
     for (i = 0; i < (s->control_view ? s->panel->count : 4); ++i) {
         const char *title = s->control_view ? s->panel->pages[i].title : w<60?(i==1?"Vars":i==3?"Info":tabs[i]):tabs[i];
         unsigned titleWidth=s->control_view?min(16,w>=80?(w-3)/s->panel->count-6:w-12):length(title);
-        unsigned segment=titleWidth+5+((i==s->tab&&!(s->io.flags&PS_COLOR))?2:0);
+        unsigned segment=titleWidth+5+((i==s->tab&&(!(s->io.flags&PS_COLOR)||PS_TAB_BRACKETS||(s->table_style&PS_TABLE_TAB_BRACKETS)))?2:0);
         if (((s->control_view && w < 80) || (inside && w<60)) && i != s->tab)
             continue;
         if(inside&&tabUsed+segment>w-4)continue;
@@ -941,7 +957,7 @@ static void render(ps_session *s) {
         s->mouse_tab_right[i]=s->mouse_tab_left[i]+segment-1;
         if (i == s->tab) {
             surface(s, 1);
-            if (!(s->io.flags & PS_COLOR))
+            if (!(s->io.flags & PS_COLOR)||PS_TAB_BRACKETS||(s->table_style&PS_TABLE_TAB_BRACKETS))
                 out(s, "[");
         } else
             ink(s, 0);
@@ -950,7 +966,7 @@ static void render(ps_session *s) {
         out(s, " ");
         grid_text(s,title,titleWidth);
         out(s, " ");
-        if (i == s->tab && !(s->io.flags & PS_COLOR))
+        if (i == s->tab && (!(s->io.flags & PS_COLOR)||PS_TAB_BRACKETS||(s->table_style&PS_TABLE_TAB_BRACKETS)))
             out(s, "]");
         reset(s);
         out(s, " ");
@@ -1122,7 +1138,7 @@ static void render(ps_session *s) {
     ansi(s, "\033[2K");
     out(s, "  ");
     ink(s, 0);
-    field(s,
+    footer_field(s,
           s->control_view ? control_hint(s)
           : s->editing    ? "Enter save   Esc cancel"
           : s->tab == 0   ? (w < 60 ? "n new  Enter edit  d done  / filter"
@@ -1130,13 +1146,14 @@ static void render(ps_session *s) {
           : s->tab == 1   ? "Enter edit value   Del remove"
           : s->tab == 2   ? "c cancel job"
                           : "Live session counters",
-          w - 4);
+          w - 4,0);
     reset(s);
     at(s, h, 1);
     ansi(s, "\033[2K");
     surface(s, 0);
+    ink(s,0);
     out(s, "  ");
-    field(
+    footer_field(
         s,
         s->control_view && s->editing ? "Draft   Esc cancel"
         : s->editing ? ((s->io.flags & PS_UNICODE) ? "←/→ cursor  Home/End  ^U clear"
@@ -1146,7 +1163,7 @@ static void render(ps_session *s) {
         : (s->io.flags & PS_UNICODE)
             ? (w < 60 ? "↑↓ move   Tab tabs   Esc shell" : "↑/↓ move   ←/→ tabs   Esc shell")
             : (w < 60 ? "Up/Dn move  Tab tabs  Esc shell" : "Up/Down move   Tab tabs   Esc shell"),
-        w - 3);
+        w - 3,1);
     reset(s);
     if (w >= 76) {
         at(s, h, w - 23);
