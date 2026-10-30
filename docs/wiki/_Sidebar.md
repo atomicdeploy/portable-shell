@@ -16,3 +16,4 @@
 - [🛡️ Automation](Automation.md)
 - [🧪 Verification](Verification.md)
 * [Progress and values](Meters.md)
+* [File tree picker](File-picker.md)

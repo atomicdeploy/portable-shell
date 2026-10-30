@@ -76,3 +76,17 @@ static void table_mouse(ps_session *s,const ps_mouse_event *e) {
         }else if(!drag)ps_key(s,13);
     }else if(!drag)ps_key(s,13);
 }
+
+/* Click selects; Enter activates. Wheel shares keyboard focus/scroll behavior. */
+static void workspace_mouse(ps_session *s,const ps_mouse_event *e){
+    unsigned b=e->button,y=e->row,x=e->column;
+    if(e->release||b&60U||x>s->io.columns||y>s->io.rows)return;
+    if(b&64U){if((b&3)<2)ps_key(s,(b&1)?PS_KEY_DOWN:PS_KEY_UP);return;}
+    if((b&3)!=0)return;
+    if(s->file_count&&s->io.rows>=7&&y>=3&&y<s->io.rows-3&&x>1&&x<s->io.columns-1){
+        unsigned ids[128],depths[128],count=file_visible(s,ids,depths),p=s->file_top+y-3;
+        if(p<count){s->file_selected=p;file_render(s);}
+    }else if(s->menu_depth&&menu_framed(s)&&y>=4&&y<4+s->menu_slots&&x>s->menu_x&&x<s->menu_x+s->menu_width-1){
+        s->menu_selected=s->menu_top+y-4;s->menu_length=s->menu_bad=0;menu_draw(s);
+    }
+}
