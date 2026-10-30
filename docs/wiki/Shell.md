@@ -14,8 +14,8 @@ calc 1024 * 32
 hash "portable bytes" --rounds 100000
 board jobs
 bind F4 "board variables"
-theme mono
-theme ascii
+display color mono
+display glyphs ascii
 status
 ```
 

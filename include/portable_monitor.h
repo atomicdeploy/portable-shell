@@ -83,7 +83,7 @@ static inline void ps_monitor_action(ps_monitor *m,unsigned action){
 }
 static inline void ps_monitor_emit(ps_terminal_write write,void *ctx,const char *text){ps_meter_emit(write,ctx,text);}
 static inline void ps_monitor_ink(ps_terminal_write write,void *ctx,const ps_monitor_style *s,unsigned role){
-    if(s->color)ps_monitor_emit(write,ctx,ps_style_ink(PS_STYLE_SEMANTIC,1,0,role));
+    if(s->color)ps_monitor_emit(write,ctx,ps_style_ink(PS_THEME_DEFAULT,1,0,role));
 }
 static inline void ps_monitor_at(ps_terminal_write write,void *ctx,unsigned row,unsigned col){
     char b[32];ps_terminal_format(b,sizeof b,"\033[%u;%uH",row,col);ps_monitor_emit(write,ctx,b);
@@ -109,7 +109,7 @@ static inline unsigned ps_monitor_render(const ps_monitor *m,const ps_monitor_st
     if(!m||!s||!write||s->columns<40||s->columns>240||s->rows<12||s->rows>80)return 0;
     width=s->columns-4;
     ps_monitor_emit(write,ctx,"\033[?2026h\033[?25l");
-    if(s->color)ps_monitor_emit(write,ctx,ps_style_base(PS_STYLE_SEMANTIC,1));
+    if(s->color)ps_monitor_emit(write,ctx,ps_style_base(PS_THEME_DEFAULT,1));
     for(i=1;i<=s->rows;++i){ps_monitor_at(write,ctx,i,1);ps_monitor_emit(write,ctx,"\033[2K");}
     ps_monitor_at(write,ctx,1,3);ps_monitor_ink(write,ctx,s,PS_INK_HEADING);
     ps_monitor_copy(title,sizeof title,s->title?s->title:"Live monitor");ps_monitor_field(write,ctx,title,width);

@@ -18,10 +18,11 @@ static const char *const help_summaries[]={
     "Transform text.","Calculate with integers.","Hash text in a background job.",
     "Inspect or cancel background work.","Ring the terminal bell.",
     "Print text.","Inspect parsed arguments.","Review or clear command history.",
-    "Bind a function key to a command.","Configure terminal colors and capabilities.",
+    "Bind a function key to a command.","Choose an appearance palette.","Configure color depth and character output.",
     "Customize prompt text, colors and lines.","Render a seven-segment display.",
     "Clear the terminal.","Show session status.","Close this session."
 };
+typedef char help_summary_count_matches[(sizeof(help_summaries)/sizeof(help_summaries[0])==sizeof(builtins)/sizeof(builtins[0]))?1:-1];
 static const ps_help_item segment_arguments[]={
     {"TEXT","Digits, a minus sign, decimal points and colons. Quote text containing spaces."}
 };

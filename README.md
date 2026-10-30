@@ -76,7 +76,7 @@ saves are in memory unless the embedding application supplies persistence.
 
 These are emitted-byte replay fixtures rendered with pinned Agave and antialiasing,
 not hardware captures. [Full gallery](docs/wiki/Gallery.md) includes vertical tabs,
-inline editing, dialogs, matrix controls, Lumen, One Dark and ASCII examples.
+inline editing, dialogs, matrix controls, Cyan, One Dark and ASCII examples.
 CI regenerates all previews and rejects stale images.
 
 ```text

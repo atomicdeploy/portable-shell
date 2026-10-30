@@ -90,24 +90,36 @@ are deferred by the caller while an edit is active (the API preserves the draft)
 removes C++ section state, and `PS_DEVICE_VIEW_CATEGORY_COLUMN=1` selects the
 legacy third column by default. Narrow terminals omit that optional third column.
 
-| Choice | Full-shell command / host option | Default |
+### Palettes
+
+| Theme | Command | Purpose |
 | --- | --- | --- |
-| Semantic roles | `theme semantic` | Yes |
-| Violet / magenta | `theme violet` | No |
-| Warm red / rose | `theme red` | No |
-| Original cyan Lumen | `theme lumen` | No |
-| One Dark | `theme onedark` | No |
-| RGB color | `theme color` | Native interactive host |
-| ANSI 256-color | `theme ansi` | Embedded `PS_COLOR` without `PS_TRUECOLOR` |
-| Monochrome | `theme mono`, `--no-color` | No |
-| Unicode borders / key symbols | `theme unicode` | Yes |
-| ASCII characters | `theme ascii`, `--ascii` | No; independent of color |
-| Fixed ASCII + monochrome | Build `PORTABLE_SHELL_ASCII_ONLY=ON` | Off; cannot re-enable at runtime |
+| Default | theme default | Default semantic roles: neutral surfaces, green success, amber warning, red error, cyan headings |
+| Cyan | theme cyan | Preserved original cyan palette and gray borders |
+| Violet | theme violet | Magenta/violet accents with a violet-tinted surface |
+| Red | theme red | Warm rose accents and surface |
+| One Dark | theme onedark | Distinct charcoal surface and familiar muted palette |
+
+These five palettes remain distinct. Default replaces the old semantic name; Cyan replaces lumen without changing its palette or numeric ID.
+
+### Terminal capabilities (not themes)
+
+| Setting | Command | Meaning |
+| --- | --- | --- |
+| RGB | display color rgb | Enable 24-bit color output |
+| ANSI | display color ansi | Enable 256-color output |
+| Monochrome | display color mono | Disable color; equivalent to host --no-color |
+| Unicode | display glyphs unicode | Unicode borders and key symbols |
+| ASCII | display glyphs ascii | ASCII fallback characters; equivalent to host --ascii |
+
+Palette, color depth and glyph selection are independent. Selecting a theme does not enable color or change color depth. Host configuration determines initial capabilities.
+
+Old theme semantic/lumen and theme color/ansi/mono/unicode/ascii commands remain accepted as hidden compatibility aliases. Help, menus and completion only advertise canonical names. C++ consumers use Theme::Default and Theme::Cyan; previous enumerators remain aliases with unchanged numeric IDs. The shared C palette constant is PS_THEME_DEFAULT; PS_STYLE_SEMANTIC remains a compatibility alias (PS_STYLE_DEFAULT already names a separate text style).
 
 Tables independently expose `PS_TABLE_GRID`, `PS_TABLE_RED_BORDER`, and
 `PS_TABLE_TITLE_BAR`; grid and title bar are enabled by default. Red borders are opt-in. Embedders select any
 combination using `ps_set_table_style()`. Omit `PS_TABLE_RED_BORDER` for the
-theme's border color. The preserved Lumen palette always uses its original gray
+theme's border color. The preserved Cyan palette always uses its original gray
 border, even when the red-border flag is set. Font selection and antialiasing belong to the terminal;
 Agave is used for the supplied byte-replay pictures, not forced on live sessions.
 

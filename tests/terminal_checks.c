@@ -55,7 +55,7 @@ int portable_terminal_checks(void) {
     if (ps_editor_feed(&editor, '\r', discard, 0) != PS_EDIT_TOO_LONG)
         return 9;
 #if PS_STYLE_THEMES
-    /* Original six Lumen inks must survive palette extraction/theme additions. */
+    /* Original six Cyan inks must survive palette extraction/theme additions. */
     {
         static const char *const original[] = {"\033[38;5;245m", "\033[38;5;80m",
             "\033[38;5;223m", "\033[38;5;203m", "\033[1;38;5;231m", "\033[38;5;151m"};

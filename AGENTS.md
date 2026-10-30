@@ -10,7 +10,7 @@
   and borders, green success/enabled, gray inactive/unknown, amber warning/pending,
   red errors, orange numbers, green strings, violet commands/choices, cyan headings/actions.
   Selection uses contrast independently of value meaning. Legacy themes are opt-in.
-- Preserve the original Lumen color scheme as an available theme.
+- Preserve the original cyan color scheme as the Cyan theme; old names belong only in compatibility aliases or provenance.
 - Name implementation APIs, files, macros and profiles by their function, never by
   a donor product. Keep exact donor identities, legal attribution and old-name
   migration mappings in provenance documents and Git history.

@@ -19,9 +19,9 @@ int main(int argc, char **argv) {
     config.flags = PS_INTERACTIVE | PS_COLOR | PS_TRUECOLOR | PS_UNICODE;
     s = ps_init(memory.bytes, sizeof memory.bytes, &config);
     if (!s) { fclose(out); return 4; }
-    ps_execute(s, !strcmp(argv[2], "lumen") ? "theme lumen" : "theme onedark");
+    ps_execute(s, !strcmp(argv[2], "cyan") ? "theme cyan" : "theme onedark");
     ps_start(s);
-    keys = "help\rtheme lum";
+    keys = "help\rtheme cya";
     ps_feed(s, keys, (unsigned)strlen(keys));
     return fclose(out) != 0;
 }

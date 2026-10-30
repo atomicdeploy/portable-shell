@@ -32,9 +32,9 @@ Tabs are outside by default. Optional first-row tabs:
 | --- | --- |
 | ![Full device table](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-full.png) | ![Vertical navigation and inline editing](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-inline.png) |
 
-| Red | Lumen | One Dark |
+| Red | Cyan | One Dark |
 | --- | --- | --- |
-| ![Red workspace](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/red.png) | ![Lumen workspace](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/lumen.png) | ![One Dark control panel](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/onedark.png) |
+| ![Red workspace](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/red.png) | ![Cyan workspace](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/cyan.png) | ![One Dark control panel](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/onedark.png) |
 
 More captures: [controls](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls.png), [dialog](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/dialog.png),
 [ASCII](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/ascii.png), [vertical tabs](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-vertical.png),

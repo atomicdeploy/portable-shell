@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
     char command[2048], received[65536];
     static const unsigned char negotiate[] = {255,253,1,255,253,3,255,251,31,
                                               255,250,31,0,96,0,36,255,240};
-    static const char keys[] = "\bth\033[C lum\033[F\rhistory\rhelp\rhelp --compact\rbell\recho live-feedback-ok\rexit\r";
+    static const char keys[] = "\bth\033[C cya\033[F\rhistory\rhelp\rhelp --compact\rbell\recho live-feedback-ok\rexit\r";
     if (argc < 2 || WSAStartup(MAKEWORD(2,2), &data)) return 2;
     reservation = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     memset(&address, 0, sizeof address);
@@ -52,14 +52,14 @@ int main(int argc, char **argv) {
         total += n;
     received[total] = 0;
     /* NVT cursor-return sequences contain CR NUL; inspect the entire byte span. */
-    ok = contains(received, total, "theme lumen") && contains(received, total, "Workspace:") &&
+    ok = contains(received, total, "theme cyan") && contains(received, total, "Workspace:") &&
          contains(received, total, "live-feedback-ok\r\n") &&
          (!!memchr(received, 7, (size_t)total) == !mute) &&
          memchr(received, 255, (size_t)total);
     printf("native Telnet: %s, %d received bytes, BEL %s\n", ok ? "PASS" : "FAIL",
            total, mute ? "muted" : "present");
     if (!ok) printf("history=%d headings=%d echo=%d bell=%d negotiation=%d\n",
-        !!contains(received, total, "theme lumen"), !!contains(received, total, "Workspace:"),
+        !!contains(received, total, "theme cyan"), !!contains(received, total, "Workspace:"),
         !!contains(received, total, "live-feedback-ok"), !!memchr(received,7,(size_t)total),
         !!memchr(received,255,(size_t)total));
 done:

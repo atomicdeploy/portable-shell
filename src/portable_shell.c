@@ -277,7 +277,7 @@ static void canvas_begin(ps_session *s,unsigned kind,unsigned key) {
 static void reset(ps_session *s) {
     ansi(s, "\033[0m");
     if (s->board) {
-        if(s->theme==PS_STYLE_SEMANTIC){color(s,ps_style_base(s->theme,(s->io.flags&PS_TRUECOLOR)!=0));return;}
+        if(s->theme==PS_THEME_DEFAULT){color(s,ps_style_base(s->theme,(s->io.flags&PS_TRUECOLOR)!=0));return;}
         if (s->io.flags & PS_TRUECOLOR)
             color(s, s->theme == 3   ? "\033[38;2;171;178;191m\033[48;2;40;44;52m"
                      : s->theme == 2 ? "\033[38;2;220;228;238m\033[48;2;12;18;29m"
@@ -403,7 +403,7 @@ static int name_match(ps_session *s, const char *a, const char *b, int partial) 
 }
 static void style(ps_session *s, unsigned value) {
     if(value==PS_STYLE_BLUE){color(s,"\033[94m");return;}
-    if(s->theme==PS_STYLE_SEMANTIC && value){
+    if(s->theme==PS_THEME_DEFAULT && value){
         static const unsigned roles[]={PS_INK_TEXT,PS_INK_HEADING,PS_INK_SUCCESS,PS_INK_WARNING,PS_INK_ERROR,PS_INK_SUCCESS,PS_INK_MUTED,PS_INK_COMMAND,PS_INK_HEADING};
         ink(s,roles[value<=PS_STYLE_BLUE?value:0]);return;
     }
@@ -647,7 +647,8 @@ static const ps_command builtins[] = {
     {"args", "[ARGUMENT ...]", "Shell", builtin, 0, 0},
     {"history", "[clear]", "Shell", builtin, 0, 0},
     {"bind", "F1|F2|F3|F4 COMMAND", "Shell", builtin, 0, 0},
-    {"theme", "semantic|violet|red|lumen|onedark|color|ansi|mono|ascii|unicode", "Terminal", builtin, 0, 0},
+    {"theme", "default|cyan|violet|red|onedark", "Appearance", builtin, 0, 0},
+    {"display", "color rgb|ansi|mono; glyphs unicode|ascii", "Terminal", builtin, 0, 0},
     {"prompt", "reset | STYLE TEXT [STYLE TEXT ...]", "Terminal", builtin, 0, 0},
     {"segments", "TEXT [--large] [--red] [--mono] [--ascii]", "Tools", builtin, 0, 0},
     {"clear", "", "Terminal", builtin, 0, 0},
@@ -722,7 +723,7 @@ PS_API ps_session *ps_init(void *memory, unsigned bytes, const ps_config *c) {
     s->io = *c;
     s->table_style = PS_TABLE_DEFAULT;
     s->menu_style=PS_MENU_TABLE|PS_MENU_NUMBERS;s->document_style=PS_EDITOR_HEADER;
-    s->theme = PS_STYLE_SEMANTIC;
+    s->theme = PS_THEME_DEFAULT;
 #ifdef PS_ASCII_ONLY
     s->io.flags &= ~(PS_COLOR | PS_UNICODE);
 #endif
@@ -900,7 +901,7 @@ static void pair_row(ps_session *s, const char *key, const char *value, const Gr
     ink(s, 1);
     grid_text(s, key, g->widths[0]);
     grid_divide(s);
-    ink(s, s->theme==PS_STYLE_SEMANTIC?PS_INK_STRING:2);
+    ink(s, s->theme==PS_THEME_DEFAULT?PS_INK_STRING:2);
     grid_text(s, value, g->widths[1]);
 }
 static void stat_row(ps_session *s, unsigned i, const Grid *g) {
@@ -1235,7 +1236,7 @@ static void render(ps_session *s) {
         ansi(s, "\033[?25h");
     } else {
         ink(s, 5);
-        if(s->theme==PS_STYLE_SEMANTIC)ink(s,PS_INK_TEXT);
+        if(s->theme==PS_THEME_DEFAULT)ink(s,PS_INK_TEXT);
         field(s, s->notice, w - 4);
         reset(s);
     }
@@ -1709,8 +1710,8 @@ static unsigned collect_completions(ps_session *s, unsigned *start, unsigned *en
         static const char *const task[] = {"add", "done", "remove", "rename", "list"};
         static const char *const board[] = {"tasks", "variables", "jobs", "session"};
         static const char *const controls[] = {"open", "list", "get", "set", "dashboard"};
-        static const char *const theme[] = {"violet", "red",   "lumen",   "color",  "ansi",
-                                            "mono",   "ascii", "unicode", "onedark", "semantic"};
+        static const char *const theme[] = {"default", "cyan", "violet", "red", "onedark"};
+        static const char *const display[] = {"color", "glyphs"}, *const colors[] = {"rgb", "ansi", "mono"}, *const glyphs[] = {"unicode", "ascii"};
         static const char *const txt[] = {"upper", "lower", "trim", "slug"};
         static const char *const hash_options[] = {"--rounds"};
         const char *const *opts = 0;
@@ -1742,7 +1743,11 @@ static unsigned collect_completions(ps_session *s, unsigned *start, unsigned *en
                     count = PS_DASHBOARD ? 5 : 4;
                 } else if (equal(args.argv[0], "theme")) {
                     opts = theme;
-                    count = 10;
+                    count = 5;
+                } else if (equal(args.argv[0], "display")) {
+                    if(args.argc==1){opts=display;count=2;}
+                    else if(equal(args.argv[1],"color")){opts=colors;count=3;}
+                    else if(equal(args.argv[1],"glyphs")){opts=glyphs;count=2;}
                 } else if (equal(args.argv[0], "text") && args.argc == 1) {
                     opts = txt;
                     count = 4;
@@ -2419,33 +2424,41 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
         }
         return ps_set_prompt_parts(s,parts,n)?fail(s,"prompt exceeds limits or contains controls"):0;
     }
-    if (equal(cmd, "theme")) {
-        if (argc != 2)
-            return fail(s, "theme semantic|violet|red|lumen|onedark|color|ansi|mono|ascii|unicode");
+    if (equal(cmd, "theme") || equal(cmd, "display")) {
+        const char *choice;
+        if(equal(cmd,"display")){
+            if(argc!=3)return fail(s,"display color rgb|ansi|mono; display glyphs unicode|ascii");
+            if(equal(a[1],"color")&&(equal(a[2],"rgb")||equal(a[2],"ansi")||equal(a[2],"mono")))
+                choice=equal(a[2],"rgb")?"color":a[2];
+            else if(equal(a[1],"glyphs")&&(equal(a[2],"unicode")||equal(a[2],"ascii")))choice=a[2];
+            else return fail(s,"unknown display setting");
+        }else{
+            if(argc!=2)return fail(s,"theme default|cyan|violet|red|onedark");
+            choice=equal(a[1],"semantic")?"default":equal(a[1],"lumen")?"cyan":a[1];
+        }
 #ifdef PS_ASCII_ONLY
-        if (equal(a[1], "color") || equal(a[1], "unicode") || equal(a[1], "violet") ||
-            equal(a[1], "red") || equal(a[1], "lumen") || equal(a[1], "onedark") || equal(a[1], "semantic") ||
-            equal(a[1], "ansi"))
+        if (equal(choice, "color") || equal(choice, "unicode") || equal(choice, "violet") ||
+            equal(choice, "red") || equal(choice, "cyan") || equal(choice, "onedark") || equal(choice, "default") ||
+            equal(choice, "ansi"))
             return fail(s, "disabled in ASCII-only build");
 #endif
-        if (equal(a[1], "violet") || equal(a[1], "red") || equal(a[1], "lumen") ||
-            equal(a[1], "onedark") || equal(a[1], "semantic")) {
-            s->theme = equal(a[1], "semantic") ? PS_STYLE_SEMANTIC : equal(a[1], "onedark") ? 3
-                       : equal(a[1], "lumen") ? 2
-                       : equal(a[1], "red")   ? 1
+        if (equal(choice, "violet") || equal(choice, "red") || equal(choice, "cyan") ||
+            equal(choice, "onedark") || equal(choice, "default")) {
+            s->theme = equal(choice, "default") ? PS_THEME_DEFAULT : equal(choice, "onedark") ? 3
+                       : equal(choice, "cyan") ? 2
+                       : equal(choice, "red")   ? 1
                                               : 0;
+        } else if (equal(choice, "color"))
             s->io.flags |= PS_COLOR | PS_TRUECOLOR;
-        } else if (equal(a[1], "color"))
-            s->io.flags |= PS_COLOR | PS_TRUECOLOR;
-        else if (equal(a[1], "ansi")) {
+        else if (equal(choice, "ansi")) {
             s->io.flags |= PS_COLOR;
             s->io.flags &= ~PS_TRUECOLOR;
-        } else if (equal(a[1], "mono")) {
+        } else if (equal(choice, "mono")) {
             s->io.flags &= ~PS_COLOR;
             reset(s);
-        } else if (equal(a[1], "ascii"))
+        } else if (equal(choice, "ascii"))
             s->io.flags &= ~PS_UNICODE;
-        else if (equal(a[1], "unicode"))
+        else if (equal(choice, "unicode"))
             s->io.flags |= PS_UNICODE;
         else
             return fail(s, "unknown theme");

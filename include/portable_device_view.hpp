@@ -57,7 +57,7 @@
 namespace PortableShell {
 class DeviceView {
   public:
-    enum Theme : uint8_t { Violet, Red, Lumen, OneDark, Semantic };
+    enum Theme : uint8_t { Violet, Red, Cyan, OneDark, Default, Lumen=Cyan, Semantic=Default };
     enum TabLayout : uint8_t { HorizontalTabs, VerticalTabs };
     enum GroupLayout : uint8_t { SectionRows, CategoryColumn };
     enum Kind : uint8_t { Text, Toggle, Level, Choice };
@@ -190,7 +190,7 @@ class DeviceView {
             dirty_ = full_ = true;
         }
     }
-    void setTheme(Theme theme) { if (theme <= Semantic && theme_ != theme) {theme_=theme;dirty_=full_=true;} }
+    void setTheme(Theme theme) { if (theme <= Default && theme_ != theme) {theme_=theme;dirty_=full_=true;} }
     Theme theme() const { return theme_; }
     void setTabLayout(TabLayout layout) {
         if (layout <= VerticalTabs && tabs_ != layout) { tabs_=layout;dirty_=full_=true; }
@@ -979,7 +979,7 @@ class DeviceView {
     }
     Page page_ = Device;
 #include "portable_device_table.hpp"
-    Theme theme_ = Semantic;
+    Theme theme_ = Default;
     TabLayout tabs_ = HorizontalTabs;
     GroupLayout groups_ = PS_DEVICE_VIEW_CATEGORY_COLUMN ? CategoryColumn : SectionRows;
     bool sectionFocus_ = false;
