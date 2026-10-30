@@ -73,7 +73,7 @@ hardware commands correctly return `Device backend not attached.` rather than
 claiming a save or reboot. Use `--command` for raw commands; `-- ARGV` cannot retain
 original whitespace and is explicitly rejected for those commands.
 
-For firmware, compile `portable_shell.c` and `portable_shell_device.c`, initialize
+For firmware, compile `src/portable_shell.c` and `compat/device_profile.c`, initialize
 with `PS_NO_BUILTINS | PS_CASE_INSENSITIVE | PS_LEGACY_KEYS`, then attach the profile
 before `ps_start`. See `examples/device_transport.c`. Omit the profile to retain
 the modern workbench; replace individual commands or prompt settings independently.
