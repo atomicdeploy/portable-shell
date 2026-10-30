@@ -10,6 +10,7 @@
 enum { PS_SETTING_BOOL, PS_SETTING_INT, PS_SETTING_UINT, PS_SETTING_CHOICE, PS_SETTING_TEXT };
 enum { PS_SETTING_OK, PS_SETTING_NOT_FOUND, PS_SETTING_READ_ONLY, PS_SETTING_INVALID,
        PS_SETTING_REJECTED, PS_SETTING_UNAVAILABLE, PS_SETTING_FULL };
+/* INT uses integer; BOOL/UINT/CHOICE use natural (choice index); TEXT uses text. */
 typedef struct { int integer; ps_u32 natural; const char *text; } ps_setting_value;
 typedef int (*ps_setting_read_fn)(void *,ps_setting_value *);
 typedef int (*ps_setting_write_fn)(void *,const ps_setting_value *);
