@@ -48,5 +48,24 @@ int main(){
     char field[244];assert(!ps_meter_value_field(field,4,8,"80",1));
     assert(ps_meter_value_field(field,sizeof field,8,"80",1));
     assert(std::string(field)==" « 80 » ");
+    s.style=PS_METER_BLOCKS|PS_METER_ADJUST_MARKERS;s.text=PS_METER_TEXT_INSIDE;
+    s.panel=0;s.title=s.subtitle=0;s.width=48;m.show_requested=0;m.observed=50;
+    m.adjustable=1;out.clear();ps_meter_render(&m,&s,output,&out);
+    assert(out.find("◀")!=std::string::npos&&out.find("▶")!=std::string::npos);
+    assert(out.find("█")==std::string::npos); /* Backgrounds remain seamless. */
+    m.adjustable=0;out.clear();ps_meter_render(&m,&s,output,&out);
+    assert(out.find("◀")==std::string::npos&&out.find("▶")==std::string::npos);
+    m.adjustable=1;s.unicode=0;s.color=0;
+    for(unsigned w=8;w<=240;++w){
+        s.width=w;out.clear();ps_meter_render(&m,&s,output,&out);
+        assert(out.size()==w+2);
+        if(w>=18){
+            size_t left=out.find("<"),right=out.find(">");
+            assert(left!=std::string::npos&&right!=std::string::npos);
+            assert(left==w-1-right || left+1==w-1-right);
+        }
+    }
+    s.style=PS_METER_LINE;s.text=PS_METER_TEXT_NONE;out.clear();
+    ps_meter_render(&m,&s,output,&out);assert(out.find('%')==std::string::npos);
     m.maximum=0;out.clear();assert(!ps_meter_render(&m,&s,output,&out)&&out.empty());
 }

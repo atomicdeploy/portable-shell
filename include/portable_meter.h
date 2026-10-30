@@ -7,6 +7,8 @@
 #include "portable_terminal.h"
 #include <stdint.h>
 enum { PS_METER_LINE, PS_METER_BLOCKS, PS_METER_TICKS, PS_METER_CHEVRONS };
+/* OR into style: opt-in paired markers for adjustable, centered block labels. */
+enum { PS_METER_ADJUST_MARKERS = 256, PS_METER_STYLE_MASK = 255 };
 enum { PS_METER_TEXT_ABOVE, PS_METER_TEXT_INSIDE, PS_METER_TEXT_NONE };
 enum { PS_METER_DECREASE, PS_METER_INCREASE, PS_METER_MINIMUM, PS_METER_MAXIMUM };
 typedef struct {
@@ -62,12 +64,13 @@ static inline int ps_meter_position(ps_meter *m,unsigned position,unsigned cells
     return ps_meter_request(m,m->minimum+v,fn,ctx);
 }
 static inline const char *ps_meter_cell(unsigned style,unsigned filled,unsigned unicode){
+    style &= PS_METER_STYLE_MASK;
     if(style==PS_METER_TICKS)return unicode?(filled?"┃":"┊"):(filled?"|":":");
     return unicode?(style==PS_METER_BLOCKS?(filled?"█":"░"):(filled?"━":"─")):(filled?(style==PS_METER_BLOCKS?"#":"="):".");
 }
 /* Spaced segments share their geometry between standalone and table renderers. */
 static inline const char *ps_meter_track_cell(unsigned style,unsigned filled,unsigned unicode,unsigned index){
-    return style==PS_METER_TICKS&&(index&1)?" ":ps_meter_cell(style,filled,unicode);
+    return (style&PS_METER_STYLE_MASK)==PS_METER_TICKS&&(index&1)?" ":ps_meter_cell(style,filled,unicode);
 }
 /* A fixed-cell-width value field, including chevrons. Input is sanitized ASCII;
  * generated delimiters use Unicode. Capacity includes UTF-8 expansion and NUL. */
@@ -99,10 +102,11 @@ static inline void ps_meter_edge(ps_terminal_write write,void *ctx,const ps_mete
  * Generated borders/tracks use Unicode when enabled. Color never conveys state
  * alone: observed and target values remain explicitly labeled. */
 static inline unsigned ps_meter_render(const ps_meter *m,const ps_meter_style *s,ps_terminal_write write,void *ctx){
-    char value[96],labels[3][241];unsigned width,filled,rows=0,i,j,count=0,n,start;
+    char value[96],labels[3][241];unsigned width,filled,rows=0,i,j,count=0,n,start,kind,markers=0;
     uint32_t observed;
     if(!m||!s||!write||m->maximum<=m->minimum||s->width<8||s->width>240)return 0;
     width=s->width-(s->panel?2:0);observed=ps_meter_clamp(m,m->observed);
+    kind=s->style&PS_METER_STYLE_MASK;
     filled=ps_meter_fraction(observed-m->minimum,m->maximum-m->minimum,width);
     if(m->show_requested)ps_terminal_format(value,sizeof value,"%u%%  Value %u  Target %u",ps_meter_fraction(observed-m->minimum,m->maximum-m->minimum,100),(unsigned)observed,(unsigned)ps_meter_clamp(m,m->requested));
     else ps_terminal_format(value,sizeof value,"%u%%  %u / %u",ps_meter_fraction(observed-m->minimum,m->maximum-m->minimum,100),(unsigned)observed,(unsigned)m->maximum);
@@ -120,22 +124,33 @@ static inline unsigned ps_meter_render(const ps_meter *m,const ps_meter_style *s
         ps_meter_emit(write,ctx,"\r\n");++rows;
     }
     n=0;if(s->text==PS_METER_TEXT_INSIDE)while(value[n]&&n<width)++n;
+    if(kind==PS_METER_BLOCKS && (s->style&PS_METER_ADJUST_MARKERS) &&
+       m->adjustable && n && n+4<=width){markers=1;n+=4;}
     start=(width-n)/2;
     if(s->panel)ps_meter_emit(write,ctx,s->unicode?"│":"|");
-    if(s->style==PS_METER_CHEVRONS){
+    if(kind==PS_METER_CHEVRONS){
         char field[244];ps_meter_value_field(field,sizeof field,width,value,s->unicode);
         if(s->color)ps_meter_emit(write,ctx,"\033[33m");
         ps_meter_emit(write,ctx,field);
     }else for(i=0;i<width;++i){
+        char letter[2]={0,0};const char *cell=" ";
+        unsigned in_label=n&&i>=start&&i<start+n;
+        if(in_label){
+            unsigned offset=i-start;
+            if(markers&&(offset==0||offset==n-1))
+                cell=s->unicode?(offset==0?"◀":"▶"):(offset==0?"<":">");
+            else if(!markers || (offset>=2&&offset<n-2)){
+                letter[0]=value[offset-(markers?2:0)];cell=letter;
+            }
+        }
         /* A colored solid track uses cell backgrounds throughout. Mixing font
          * block glyphs with label backgrounds produces font-dependent seams. */
-        if(s->color&&s->style==PS_METER_BLOCKS){
+        if(s->color&&kind==PS_METER_BLOCKS){
             ps_meter_emit(write,ctx,i<filled?"\033[30;42m":"\033[97;100m");
-            if(n&&i>=start&&i<start+n)write(ctx,(const unsigned char *)value+i-start,1);
-            else ps_meter_emit(write,ctx," ");
-        }else if(n&&i>=start&&i<start+n){
+            ps_meter_emit(write,ctx,cell);
+        }else if(in_label){
             if(s->color)ps_meter_emit(write,ctx,i<filled?"\033[30;42m":"\033[97;40m");
-            write(ctx,(const unsigned char *)value+i-start,1);
+            ps_meter_emit(write,ctx,cell);
         }else{
             if(s->color)ps_meter_emit(write,ctx,i<filled?"\033[0;32m":"\033[0;90m");
             ps_meter_emit(write,ctx,ps_meter_track_cell(s->style,i<filled,s->unicode,i));

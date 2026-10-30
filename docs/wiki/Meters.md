@@ -7,6 +7,7 @@ OS calls or required runtime library. Presentation and input permissions are ind
 | --- | --- | --- |
 | Track | PS_METER_LINE, PS_METER_BLOCKS, PS_METER_TICKS, PS_METER_CHEVRONS | Line |
 | Text | `PS_METER_TEXT_ABOVE`, `PS_METER_TEXT_INSIDE`, `PS_METER_TEXT_NONE` | Above |
+| Adjustable block markers | OR `PS_METER_ADJUST_MARKERS` into style | Off |
 | Panel | `panel = 0` or `1` | Off |
 | Title / subtitle | Borrowed strings or NULL | Optional |
 | Terminal | `unicode`, `color` independently | Host capability |
@@ -18,7 +19,7 @@ OS calls or required runtime library. Presentation and input permissions are ind
 ```c
 #include "portable_meter.h"
 ps_meter level = {0, 100, 64, 80, 5, 1, 1};
-ps_meter_style style = {60, PS_METER_BLOCKS, PS_METER_TEXT_INSIDE,
+ps_meter_style style = {60, PS_METER_BLOCKS | PS_METER_ADJUST_MARKERS, PS_METER_TEXT_INSIDE,
                         1, 1, 1, "Output", "Observed / target"};
 /* write_bytes uses ps_terminal_write's size_t count signature. */
 ps_meter_render(&level, &style, write_bytes, transport);
@@ -52,6 +53,25 @@ Device table `Row::meterStyle` selects LINE, BLOCKS, TICKS or CHEVRONS (LINE rem
 their existing meanings. Panels and multiline labels use the standalone renderer;
 they do not silently expand the existing fixed-height table rows. This does not
 change the shell's existing Jobs page layout.
+
+## Labels and adjustable markers
+
+Line, block and tick tracks support labels above, centered inside, or hidden with
+`PS_METER_TEXT_NONE`. Block labels are centered within the track, including any
+markers. Colored blocks use continuous cell backgrounds for consistent height.
+
+For an adjustable block, OR `PS_METER_ADJUST_MARKERS` into `style` to display the
+matched Unicode pair `◀ value ▶` (ASCII: `< value >`). Markers appear only when
+`adjustable` is nonzero and text is inside. Read-only controls never gain these
+markers, even if the flag is set. They are omitted when the full label and both
+markers cannot fit; ordinary label clipping still applies. Setting the flag does
+not change input handling, request validation or observed readback.
+
+The gallery shows all four track styles, optional line values, centered blocks
+with and without adjustment markers, independent target/readback, compact tracks,
+panels, and ASCII/Unicode monochrome fallbacks. Values are replay fixtures, not live
+hardware readings. Titles, subtitles, panels, text placement and color remain
+independent options.
 
 ## Segmented bars and value controls
 
