@@ -387,9 +387,7 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
             choice=equal(a[1],"semantic")?"default":equal(a[1],"lumen")?"cyan":a[1];
         }
 #ifdef PS_ASCII_ONLY
-        if (equal(choice, "color") || equal(choice, "unicode") || equal(choice, "violet") ||
-            equal(choice, "red") || equal(choice, "cyan") || equal(choice, "onedark") || equal(choice, "default") ||
-            equal(choice, "ansi"))
+        if (equal(choice, "color") || equal(choice, "unicode") || equal(choice, "ansi"))
             return fail(s, "disabled in ASCII-only build");
 #endif
         if (equal(choice, "violet") || equal(choice, "red") || equal(choice, "cyan") ||

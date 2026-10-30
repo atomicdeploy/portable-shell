@@ -762,9 +762,13 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         CHECK(!ps_execute(s,"theme semantic")&&!ps_execute(s,"theme lumen"),"legacy theme aliases");
         clear();ps_message(s,PS_STYLE_SUCCESS,"plain");
         CHECK(!has(t.output,"\033[92m")&&!has(t.output,"\033[38;"),"theme does not enable colors");
+#ifdef PS_ASCII_ONLY
+        CHECK(ps_execute(s,"display color ansi")!=0,"ASCII build rejects color capability");
+#else
         CHECK(!ps_execute(s,"display color ansi"),"ANSI capability");
         ps_execute(s,"theme default");clear();ps_message(s,PS_STYLE_SUCCESS,"colored");
         CHECK(has(t.output,"\033[")&&!has(t.output,";2;"),"theme preserves ANSI depth");
+#endif
         CHECK(!ps_execute(s,"display color mono")&&!ps_execute(s,"display glyphs ascii"),"independent plain settings");
         CHECK(ps_execute(s,"display glyphs rgb")!=0,"reject mismatched capability");
         cfg.flags=PS_INTERACTIVE;s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);

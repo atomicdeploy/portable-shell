@@ -53,7 +53,11 @@ int main(int argc,char **argv){
     ps_key(s,21);ps_key(s,PS_KEY_UP);assert(ps_replay_column()==12);
     ps_key(s,PS_KEY_DOWN);assert(ps_replay_column()==2);
     assert(ps_set_prompt(s,"one\ntwo\nthree\n$ ",PS_STYLE_BLUE)==0);
+#ifdef PS_ASCII_ONLY
+    assert(!strstr(output,"\033[94m"));
+#else
     assert(strstr(output,"\033[94m"));
+#endif
     ps_resize(s,12,4);assert(ps_replay_column()==2);
     ps_key(s,12);assert(ps_replay_row()==2);
     assert(!strcmp(ps_replay_cell(0,0),"t"));
