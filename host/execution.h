@@ -51,6 +51,7 @@ static int host_attach(ps_session *s){
         }
     }
     ps_set_line_executor(s,host_line,0);
+    host_report_directory(s);
     #endif
     ps_set_executor(s,host_execute,0);return 0;
 }

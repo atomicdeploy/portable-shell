@@ -13,7 +13,7 @@ ctest --test-dir build --output-on-failure
 
 Core only: add `-DPORTABLE_SHELL_BUILD_HOST=OFF -DPORTABLE_SHELL_BUILD_TESTS=OFF`.
 Small embedded buffers: add `-DPORTABLE_SHELL_COMPACT=ON` (128-byte line storage,
-4 history entries, 4 table rows, 28 commands). Definitions propagate to consumers.
+4 history entries, 4 table rows, 30 commands). Definitions propagate to consumers.
 For ESP8266, put `xtensa-lx106-elf-gcc` on PATH and select
 `-DCMAKE_TOOLCHAIN_FILE=cmake/esp8266-gcc.cmake`. This includes our optional
 freestanding compiler helpers; it does not link libc or libgcc.
@@ -42,4 +42,3 @@ cmake --build build-arm
 ARM32 GCC cross-build and symbol-audit results are recorded in GitHub Actions. Earlier local Clang measurements are historical evidence, not a description of the current build. Other ARM cores need their own CPU flags; targets without hardware division
 may require compiler arithmetic helpers. No startup code, board linker script, or
 flashable firmware is supplied—the library is linked into the caller's application.
-

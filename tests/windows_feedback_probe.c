@@ -5,6 +5,9 @@
 #include <windows.h>
 #include <stdio.h>
 #include <string.h>
+#ifndef PS_OSC
+#define PS_OSC 1
+#endif
 static int contains(const char *bytes, int count, const char *text) {
     int i, n = (int)strlen(text);
     for (i = 0; i + n <= count; ++i)
@@ -23,7 +26,7 @@ int main(int argc, char **argv) {
     char command[2048], received[65536];
     static const unsigned char negotiate[] = {255,253,1,255,253,3,255,251,31,
                                               255,250,31,0,96,0,36,255,240};
-    static const char keys[] = "\bth\033[C cya\033[F\rhistory\rhelp\rhelp --compact\rbell\recho live-feedback-ok\rexit\r";
+    static const char keys[] = "\bth\033[C cya\033[F\rhistory\rhelp\rhelp --compact\rbell\rtitle Live OSC\rosc progress normal 37\rosc path testhost \"/a b\"\recho live-feedback-ok\rexit\r";
     if (argc < 2 || WSAStartup(MAKEWORD(2,2), &data)) return 2;
     reservation = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     memset(&address, 0, sizeof address);
@@ -56,6 +59,11 @@ int main(int argc, char **argv) {
          contains(received, total, "live-feedback-ok\r\n") &&
          (!!memchr(received, 7, (size_t)total) == !mute) &&
          memchr(received, 255, (size_t)total);
+#if PS_OSC
+    ok = ok && contains(received,total,"\033]2;Live OSC\033\\") &&
+         contains(received,total,"\033]9;4;1;37\033\\") &&
+         contains(received,total,"\033]7;file://testhost/a%20b\033\\");
+#endif
     printf("native Telnet: %s, %d received bytes, BEL %s\n", ok ? "PASS" : "FAIL",
            total, mute ? "muted" : "present");
     if (!ok) printf("history=%d headings=%d echo=%d bell=%d negotiation=%d\n",

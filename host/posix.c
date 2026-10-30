@@ -277,6 +277,8 @@ int main(int argc, char **argv) {
             flags &= ~PS_UNICODE;
         else if (equal(argv[i], "--no-color") || equal(argv[i], "--mono"))
             flags &= ~PS_COLOR;
+        else if (equal(argv[i], "--no-osc"))
+            flags |= PS_NO_OSC;
         else if (equal(argv[i], "--no-bell"))
             flags |= PS_NO_BELL;
         else if (equal(argv[i], "--no-suggestions"))
@@ -306,7 +308,7 @@ int main(int argc, char **argv) {
             command_at = i + 1;
             break;
         } else if (equal(argv[i], "--help")) {
-            say("PortableShell [--device-commands] [--board|--controls|--menu|--edit|--files] [--ascii] [--no-color] [--no-bell] [--no-suggestions] [--history FILE]\n      "
+            say("PortableShell [--device-commands] [--board|--controls|--menu|--edit|--files] [--ascii] [--no-color] [--no-bell] [--no-osc] [--no-suggestions] [--history FILE]\n      "
                 "[--command TEXT | "
                 "-- ARGV...] [--batch | --interactive] [--no-exec] [--shortcuts]\n      [--listen PORT [--bind IPv4]] "
                 "[--serial PATH [--baud N]]\n");
