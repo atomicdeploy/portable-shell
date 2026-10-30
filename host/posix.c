@@ -18,6 +18,7 @@ static ps_device_profile profiles[4];
 #include <netinet/in.h>
 #include <signal.h>
 #include <time.h>
+#include "filesystem.h"
 #define CLIENTS 4
 #define QUEUE 131072
 typedef struct {
@@ -284,6 +285,8 @@ int main(int argc, char **argv) {
             board = 1;
         else if (equal(argv[i], "--edit"))
             board = 4;
+        else if (equal(argv[i], "--files"))
+            board = 5;
         else if (equal(argv[i], "--menu"))
             board = 3;
         else if (equal(argv[i], "--controls"))
@@ -292,7 +295,7 @@ int main(int argc, char **argv) {
             command_at = i + 1;
             break;
         } else if (equal(argv[i], "--help")) {
-            say("PortableShell [--device-commands] [--board|--controls|--menu|--edit] [--ascii] [--no-color] [--no-bell] [--no-suggestions] [--history FILE]\n      "
+            say("PortableShell [--device-commands] [--board|--controls|--menu|--edit|--files] [--ascii] [--no-color] [--no-bell] [--no-suggestions] [--history FILE]\n      "
                 "[--command TEXT | "
                 "-- ARGV...] [--batch | --interactive]\n      [--listen PORT [--bind IPv4]] "
                 "[--serial PATH [--baud N]]\n");
@@ -343,6 +346,7 @@ int main(int argc, char **argv) {
         return 1;
     if (use_device_commands)
         ps_device_attach(s, &profiles[0], 0, 0);
+    if (!serial && !use_device_commands && fs_attach(s)) return 2;
     if (command || command_at) {
         result =
             command ? ps_execute(s, command)
@@ -382,7 +386,7 @@ int main(int argc, char **argv) {
         resize(s, outfd);
     ps_start(s);
     if (board)
-        ps_execute(s, board == 4 ? "edit" : board == 3 ? "menu" : board == 2 ? "controls" : "board");
+        ps_execute(s, board == 5 ? "files" : board == 4 ? "edit" : board == 3 ? "menu" : board == 2 ? "controls" : "board");
     start = clock_ms();
     while (!stopping && !ps_exited(s) && !channels[0].failed) {
         struct pollfd p = {fd, POLLIN, 0};

@@ -12,7 +12,7 @@
 #endif
 typedef struct {
     char text[5];
-    unsigned fg, bg;
+    unsigned fg, bg, span;
 } Cell;
 static Cell screen[H][W];
 static unsigned row, col, fg = 0xf1e7ff, bg = 0x17131f, escape, used;
@@ -56,6 +56,7 @@ static unsigned len(const char *p) {
 static void blank(unsigned r, unsigned c) {
     screen[r][c].text[0] = ' ';
     screen[r][c].text[1] = 0;
+    screen[r][c].span = 1;
     screen[r][c].fg = fg;
     screen[r][c].bg = bg;
 }
@@ -145,15 +146,17 @@ static void csi(char end) {
     }
 }
 static void put(const char *p) {
-    unsigned i;
+    unsigned i, span = (unsigned char)p[0] == 0xf0 && (unsigned char)p[1] == 0x9f ? 2 : 1;
     if (row < H && col < W) {
         for (i = 0; p[i] && i < 4; ++i)
             screen[row][col].text[i] = p[i];
         screen[row][col].text[i] = 0;
+        screen[row][col].span = span;
+        if(span==2 && col+1<W){blank(row,col+1);screen[row][col+1].span=0;}
         screen[row][col].fg = fg;
         screen[row][col].bg = bg;
     }
-    ++col;
+    col+=span;
 }
 static void sink(void *ctx, const unsigned char *p, unsigned count) {
     (void)ctx;
@@ -316,19 +319,23 @@ static unsigned svg(char *p) {
     for (r = 0; r < H; ++r)
         for (c = 0; c < W; ++c) {
             Cell *v = &screen[r][c];
+            if(!v->span)continue;
             if (v->bg != screen[0][0].bg) {
                 add("<rect x=\"");
                 number(32 + c * 12);
                 add("\" y=\"");
                 number(32 + r * 26);
-                add("\" width=\"12\" height=\"26\" fill=\"#");
+                add(v->span==2?"\" width=\"24\" height=\"26\" fill=\"#":"\" width=\"12\" height=\"26\" fill=\"#");
                 hex(v->bg);
                 add("\"/>");
             }
             if (box(v, 32 + c * 12, 32 + r * 26))
                 continue;
             if (v->text[0] && v->text[0] != ' ') {
-                add("<text x=\"");
+                add("<text ");
+                if((unsigned char)v->text[0]==0xef && ((unsigned char)v->text[1]&0xc0)==0x80)add("font-family=\"Agave Nerd Font Mono\" ");
+                if((unsigned char)v->text[0]==0xf0)add("font-family=\"Noto Emoji\" ");
+                add("x=\"");
                 number(32 + c * 12);
                 add("\" y=\"");
                 number(52 + r * 26);

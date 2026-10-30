@@ -43,3 +43,13 @@ function(preview_download url sha path)
   endif()
   file(RENAME "${path}.download" "${path}")
 endfunction()
+
+# Optional icon-font renditions, never runtime dependencies.
+set(nerd_url "https://raw.githubusercontent.com/ryanoasis/nerd-fonts/adbd16ab7ca911eaca7ce3b0f2b7994207c7ecae/patched-fonts/Agave/AgaveNerdFontMono-Regular.ttf")
+set(nerd_sha 896711f20d7dcbb915b9e0c0926da5b4eb5e7b2e6d56950d98b62c3d62b5da1a)
+set(nerd_license_url "https://raw.githubusercontent.com/ryanoasis/nerd-fonts/adbd16ab7ca911eaca7ce3b0f2b7994207c7ecae/patched-fonts/Agave/LICENSE")
+set(nerd_license_sha 9814d6629c8a81da02e1dbd4cd509abe16a32e435bd7693e8b951d7127bb85b7)
+set(emoji_url "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf")
+set(emoji_sha de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551)
+set(emoji_license_url "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notoemoji/OFL.txt")
+set(emoji_license_sha 500bb1ccf43df7bbb522112f9133a52b16e1c35e809632f5d8609b179152de5b)

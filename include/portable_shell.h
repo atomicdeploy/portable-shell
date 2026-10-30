@@ -93,7 +93,7 @@ typedef const char *(*ps_menu_description_fn)(void *, const ps_menu *, unsigned 
    Description callback borrows text for the duration of each render. */
 PS_API void ps_menu_set_style(ps_session *, unsigned flags);
 PS_API void ps_menu_set_description(ps_session *, ps_menu_description_fn, void *);
-enum { PS_FILE_DIRECTORY=1, PS_FILE_DISABLED=2, PS_FILE_ROOT=65535 };
+enum { PS_FILE_DIRECTORY=1, PS_FILE_DISABLED=2, PS_FILE_LINK=4, PS_FILE_ROOT=65535 };
 typedef struct { const char *name; unsigned parent, flags; } ps_file_node;
 /* Flat caller-owned tree, parent before child, at most 128 nodes. No filesystem
    calls. A file callback receives its stable node index AFTER picker close;
@@ -103,6 +103,15 @@ PS_API int ps_file_picker_open(ps_session *, const char *title, const ps_file_no
                                unsigned count, ps_file_pick_fn, void *);
 PS_API unsigned ps_file_picker_active(const ps_session *);
 PS_API void ps_file_picker_close(ps_session *);
+enum { PS_FILE_TREE, PS_FILE_LIST, PS_FILE_SPLIT };
+enum { PS_FILE_ICONS_UNICODE, PS_FILE_ICONS_NERD, PS_FILE_ICONS_EMOJI, PS_FILE_ICONS_ASCII };
+/* Append children to the borrowed node array (capacity 128), preserving existing
+   indices. Return new count, or 0 on failure. Called once per directory until
+   reopen; no session reentry. Names must remain alive. Full snapshots report a limit. */
+typedef unsigned (*ps_file_load_fn)(void *, unsigned parent, unsigned count);
+PS_API void ps_file_picker_style(ps_session *, unsigned layout, unsigned icons);
+PS_API int ps_file_browser_open(ps_session *, const char *, const ps_file_node *, unsigned,
+                                ps_file_pick_fn, ps_file_load_fn, void *);
 /* Borrowed immutable definitions; retain them and context until detach/session end.
    Callbacks run on the owning loop, must not reenter the session. No allocation.
    read supplies observed state, never a speculative requested value. write must
