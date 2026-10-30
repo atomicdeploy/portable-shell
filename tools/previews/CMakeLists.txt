@@ -6,7 +6,7 @@ add_executable(workspace_preview "${root}/tests/export_previews.c" "${root}/test
 add_executable(full_preview "${root}/tests/render_device_profiles.cpp" "${root}/tests/render.c")
 add_executable(reduced_preview "${root}/tests/render_device_profiles.cpp" "${root}/tests/render.c")
 target_compile_definitions(full_preview PRIVATE PS_REPLAY_ONLY)
-target_compile_definitions(reduced_preview PRIVATE PS_REPLAY_ONLY PS_DEVICE_VIEW_TABLE=0 PS_DEVICE_VIEW_WIDGETS=0
+target_compile_definitions(reduced_preview PRIVATE PS_REPLAY_ONLY PS_PREVIEW_REDUCED=1 PS_DEVICE_VIEW_RETAIN_ROWS=0 PS_DEVICE_VIEW_WIDGETS=0
   PS_DEVICE_VIEW_DIALOGS=0 PS_DEVICE_VIEW_MATRIX=0 PS_STYLE_THEMES=0 PS_DEVICE_VIEW_VERTICAL_TABS=0)
 add_executable(meter_preview "${root}/tests/render_meters.c" "${root}/tests/render.c")
 target_compile_definitions(meter_preview PRIVATE PS_REPLAY_ONLY)
