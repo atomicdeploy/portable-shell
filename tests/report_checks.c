@@ -49,6 +49,13 @@ int main(int argc,char **argv){
     assert(ps_print_report(s,rows,14,0)==0&&used==0);
     assert(ps_execute(s,"status --report")!=0);
 #endif
+    cfg.flags=PS_COLOR|PS_TRUECOLOR;
+    s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);used=0;
+#if PS_REPORT
+    assert(!ps_execute(s,"status --report"));
+    assert(strstr(output,"Storage caller-owned bytes")&&strstr(output,"Heap core allocations"));
+    assert(strstr(output,"Commands executed")&&strstr(output,"Input bytes")&&strstr(output,"Output bytes before this report"));
+#endif
     if(argc==1)return 0;
     if(argc!=3)return 2;
     cfg.flags=PS_INTERACTIVE|PS_COLOR|PS_TRUECOLOR|PS_UNICODE;s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);

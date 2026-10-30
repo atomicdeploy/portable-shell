@@ -438,14 +438,14 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
             char storage[11],executions[11],tasks[11],received[11],sent[11];
             ps_report_row rows[]={
                 {"Session",0,PS_VERSION,PS_REPORT_SECTION},
-                {"Storage","caller-owned bytes",storage,PS_REPORT_NUMBER},
-                {"Heap","core allocations","0",PS_REPORT_NUMBER},
+                {"Storage caller-owned bytes",0,storage,PS_REPORT_NUMBER},
+                {"Heap core allocations",0,"0",PS_REPORT_NUMBER},
                 {"Backend",0,ps_memory_backend(),0},
                 {"Activity",0,0,PS_REPORT_SECTION|PS_REPORT_GAP},
-                {"Commands","executed",executions,PS_REPORT_NUMBER},
+                {"Commands executed",0,executions,PS_REPORT_NUMBER},
                 {"Tasks",0,tasks,PS_REPORT_NUMBER},
-                {"Input","bytes",received,PS_REPORT_NUMBER},
-                {"Output","bytes before this report",sent,PS_REPORT_NUMBER}
+                {"Input bytes",0,received,PS_REPORT_NUMBER},
+                {"Output bytes before this report",0,sent,PS_REPORT_NUMBER}
             };
             dec(storage,sizeof *s);dec(executions,s->executions);dec(tasks,s->task_count);
             dec(received,s->bytes_in);dec(sent,s->bytes_out);
