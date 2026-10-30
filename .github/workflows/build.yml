@@ -6,6 +6,20 @@ on:
 permissions:
   contents: read
 jobs:
+  previews:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check current README images
+        run: cmake -DGENERATOR=Ninja -P tools/rebuild-previews.cmake
+      - name: Reject stale or missing images
+        run: cmake -P tests/preview_guard.cmake
+      - name: Audit public naming and local documentation links
+        run: cmake -P tools/check-public-docs.cmake
   avr-components:
     runs-on: ubuntu-latest
     steps:

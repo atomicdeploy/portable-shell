@@ -85,7 +85,7 @@ the original goal remain paused; this pass does not mark the broader goal comple
 
 ## 0.5.0 — PCController controls, 2026-10-28
 
-See `PCCONTROLLER-DESIGN.md` and `pccontroller-donor.json` for pinned donor evidence
+See `control-design.md` and `control-sources.json` for pinned donor evidence
 and callback boundaries. **92 assertions pass** in native, fixed ASCII and compact
 configurations, including 26 provider/control assertions. The C provider example
 also compiles as C++11. The POSIX adapter compiled and ran a controls listing under
@@ -153,7 +153,7 @@ Final-host loopback sample: working set 4,317,184 bytes; private committed memor
 server was stopped afterward. The visual-preview user process remains open with
 its state preserved. New 0.4.0 binaries and libraries have versioned filenames.
 The final executable includes the caller-progress correction described in
-`RAYANPBX-DESIGN.md`; its SHA-256 is
+`workspace-design.md`; its SHA-256 is
 `69E0E6682AE7CFC90527F633801C9743F577FC7F7ED0DDD6655B2A59BDE03DD4`.
 
 No RayanPBX files or services were changed. No native PBX/Go runtime, board execution,
@@ -161,7 +161,7 @@ or exhaustive terminal acceptance is implied by this design adaptation.
 
 ## 0.3.0 — PU850 compatibility preparation, 2026-10-28
 
-See `PU850-COMPATIBILITY.md` for pinned donor provenance and the replacement boundary.
+See `command-profile.md` for pinned donor provenance and the replacement boundary.
 59 assertions pass in native color, fixed ASCII and compact configurations. They
 include 4,096 native cross-check samples for the freestanding integer helpers.
 The C integration example also compiles as C++11. The POSIX adapter compiled under

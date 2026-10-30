@@ -111,4 +111,4 @@ Agave on a One Dark background. Fixture values are explicitly supplied by
 `tests/device_view_render.cpp`; they are not live hardware observations.
 
 
-The [rich workspace verification](DEVICE-WORKSPACE-VERIFICATION.md) includes the actual consumer's nine-page key-injection fixture, ANSI captures, Agave pictures, exact source identities and resource measurements.
+The [rich workspace verification](device-verification.md) includes the actual consumer's nine-page key-injection fixture, ANSI captures, Agave pictures, exact source identities and resource measurements.

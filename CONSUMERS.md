@@ -47,8 +47,6 @@ I/O, PTY/resize and disconnect handling with the same dispatcher. A Telnet liste
 is not SSH. Report build-disabled/unsupported transport accurately rather than
 silently enabling an alternate protocol.
 
-Current coordinated consumers: `atomicdeploy/PakarController` (application owner
-implements device behavior) and `DRSDavidSoft/Ardush` (serial-console adapter).
-Keep their existing source locks and review ledgers; do not create divergent local
-copies of shared headers. Test results and deployed/physical acceptance remain
-separate evidence.
+Keep consumer source locks and review ledgers; do not create divergent copies of
+shared headers. [Recorded integrations](docs/provenance/README.md#recorded-consumers)
+retain their repository identities and attribution.

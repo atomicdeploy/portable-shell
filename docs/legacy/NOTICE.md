@@ -6,4 +6,6 @@ not current specifications or verified claims. In particular, the older claims
 of complete completion/editing, ~500-byte memory, thread safety and universal
 platform coverage should not be used for deployment decisions.
 
-Use the root README, MIGRATION.md, PORTABILITY.md and VERIFICATION.md instead.
+Use the [current README](../../README.md), [portability guide](../../PORTABILITY.md),
+[runtime history](../provenance/runtime-history.md) and
+[verification history](../provenance/verification-history.md) instead.

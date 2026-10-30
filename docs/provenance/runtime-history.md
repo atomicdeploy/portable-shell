@@ -71,7 +71,7 @@ callbacks supply transport. C++ uses native `bool`; no Arduino macro redefines i
 
 ## Compatibility boundaries and corrected behavior
 
-The [preservation audit](PRESERVATION-AUDIT.md) records the 2026-10-29
+The [preservation audit](preservation-audit.md) records the 2026-10-29
 behavior/style comparison and corrections. The optional adapter retains green
 SGR 32 prompts, repeated explicit prompt calls, restart after stop/EOF, `yes/no`
 boolean aliases, unregisterable original built-ins and visible parameter types.
@@ -126,5 +126,5 @@ or the core byte API for prompt-free batch input.
 The original tests, new adapter/transport checks, and canonical byte checks run
 in CTest. GitHub Actions covers Windows, Linux and macOS, both memory backends,
 ASCII, compact and LTO profiles, plus an ARM GCC compile and symbol audit.
-See `VERIFICATION.md` for actually observed results; workflow configuration alone
+See `verification-history.md` for actually observed results; workflow configuration alone
 does not establish a passing run, board execution, or human acceptance.

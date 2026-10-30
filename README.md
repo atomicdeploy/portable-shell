@@ -2,11 +2,6 @@
 
 Canonical repository: https://github.com/atomicdeploy/portable-shell
 
-The original repository and desktop implementation are unified. See
-[MIGRATION.md](MIGRATION.md) for the full feature/file reconciliation, optional
-original API adapter, compatibility boundaries and preserved history.
-
-
 A byte-driven C99 shell and terminal workbench. The core is written from scratch,
 heap-free and independent of the operating system. The default build is freestanding;
 an explicit libc backend can use the host's memory/string primitives. Compiler type
@@ -18,47 +13,76 @@ Winsock imports, without CRT startup; the optional libc host uses normal CRT sta
 The POSIX adapter uses the platform's system-call wrappers and startup.
 No Python, JavaScript, ncurses, readline, or third-party runtime is required.
 
-## Shared firmware components
+## Preview gallery
 
-PakarController's editor, Telnet and snapshot/action TUI now have their canonical
-implementation here. See [component selection and comparison](PAKAR-INTEGRATION.md).
-Both the full runtime and callback editor are available on capable MCUs. Feature flags, not CPU detection, select smaller builds. The shared device table now defaults to rich presentation.
-Ardush now consumes these same components for AVR and STM32, contributing a
-bounded asynchronous terminal-size probe and a shared in-place tokenizer. See
-[AVR/STM32 profiles and Ardush reconciliation](ARDUSH-INTEGRATION.md).
+These are **byte-replay captures of the current implementation**, using simulated
+fixture data and pinned Agave typography with antialiasing. They are not mockups
+or proof of connected hardware. CI rebuilds every image from current source and
+rejects stale or missing files.
 
-## Run the supplied Windows build
+**Task workspace — Violet**
 
-Packaged downloads include `bin/`; Git source checkouts exclude generated binaries.
-For a source checkout, follow Build below and run `build/PortableShell` (`.exe` on Windows).
+![PortableShell task workspace in Violet](previews/workspace.png)
 
-The latest builds are `bin/PortableShell-0.14.0.exe` (portable primitives) and
-`bin/PortableShell-libc-0.14.0.exe` (host C runtime). Launch with `--controls` for the
-PCController-style tabs, grouped tables, toggles, PWM sliders, inline values and
-draft/confirmation dialogs. See [PCController controls](PCCONTROLLER-DESIGN.md)
-for provider callbacks and source provenance. Red framed tables, shared column
-layout, title bars and contextual footers from the RayanPBX adaptation remain.
-See [RayanPBX design](RAYANPBX-DESIGN.md) for source provenance and configuration.
-The optional `--device-commands` prompt/command profile remains available; see [PU850 compatibility](PU850-COMPATIBILITY.md)
-for the donor audit and future firmware integration. The unversioned 0.2.0 binary
-is retained to preserve an existing running user session. Current builds
-still default to the violet PortableShell workbench.
+**Control panel — inline value editing**
 
-Open `bin/PortableShell-0.14.0.exe`. Use **F2** for the workspace, **F1** for the command registry,
-and **Tab** at the prompt for completion. The program has no startup tutorial.
+![PortableShell control panel with inline value editing](previews/inline.png)
+
+| Shared device view | Optional vertical tabs |
+| --- | --- |
+| ![Full device table](previews/device-full.png) | ![Vertical navigation and inline editing](previews/device-inline.png) |
+
+| Red | Lumen | One Dark |
+| --- | --- | --- |
+| ![Red workspace](previews/red.png) | ![Lumen workspace](previews/lumen.png) | ![One Dark control panel](previews/onedark.png) |
+
+More captures: [controls](previews/controls.png), [dialog](previews/dialog.png),
+[ASCII](previews/ascii.png), [vertical tabs](previews/device-vertical.png),
+[matrix](previews/device-matrix.png), [explicitly reduced view](previews/device-reduced.png).
+The reduced view is selected by feature flags; an MCU does not automatically lose features.
+
+Rebuild or check the gallery with GCC, CMake and the pinned host-only image tools:
 
 ```text
-bin/PortableShell-0.14.0.exe --controls
-bin/PortableShell-0.14.0.exe --board
-bin/PortableShell-0.14.0.exe --ascii --no-color
-bin/PortableShell-0.14.0.exe --history history.txt
-bin/PortableShell-0.14.0.exe --command "calc 21 * 2"
-bin/PortableShell-0.14.0.exe -- args "a b" --name=value
-bin/PortableShell-0.14.0.exe --batch
-bin/PortableShell-0.14.0.exe --listen 2323
-bin/PortableShell-0.14.0.exe --serial COM9 --baud 115200
+cmake -DMODE=UPDATE -DGENERATOR=Ninja -P tools/rebuild-previews.cmake
+cmake -DGENERATOR=Ninja -P tools/rebuild-previews.cmake
 ```
 
+The script verifies the downloaded Agave/font-license and rasterizer hashes.
+These tools are never linked into PortableShell. Historical captures and source
+attribution are preserved separately under [provenance](docs/provenance/README.md).
+
+## Shared firmware components
+
+The reusable editor, Telnet parser, tokenizer, terminal-size probe and
+snapshot/action device view are maintained here. Both the full C runtime and
+callback editor are available on capable MCUs. Feature flags, not CPU detection,
+select smaller builds. The shared device table defaults to rich presentation.
+See [integration contracts](CONSUMERS.md), [profiles and options](OPTIONS.md), and
+[portability](PORTABILITY.md) for host, AVR, ARM and serial integration boundaries.
+
+## Run
+
+Build from source using the instructions below, then run `build/PortableShell`
+(`build/PortableShell.exe` on Windows). Launch with `--controls` for tabs, grouped
+tables, toggles, PWM sliders, inline values and confirmation dialogs. The optional
+`--device-commands` profile provides device-oriented prompt and command behavior.
+Violet is the default theme.
+
+Use **F2** for the workspace, **F1** for the command registry, and **Tab** at the
+prompt for completion. The program has no startup tutorial.
+
+```text
+build/PortableShell --controls
+build/PortableShell --board
+build/PortableShell --ascii --no-color
+build/PortableShell --history history.txt
+build/PortableShell --command "calc 21 * 2"
+build/PortableShell -- args "a b" --name=value
+build/PortableShell --batch
+build/PortableShell --listen 2323
+build/PortableShell --serial COM9 --baud 115200
+```
 `--batch` reads commands from stdin, including a final line without a newline.
 Redirected input/output automatically selects batch mode. `--command` accepts one
 shell expression; `--` passes the remaining host arguments directly to the command
@@ -82,10 +106,8 @@ for the preserved original palette. `theme ansi` selects the 256-color fallback;
 Unicode mode uses actual ↑/↓ and ←/→ key symbols. Embedders opt into RGB output
 with `PS_TRUECOLOR`; `PS_COLOR` alone uses ANSI palette colors.
 
-The [violet](previews/violet-agave.png), [red](previews/red-agave.png), and
-[Lumen](previews/lumen-agave.png) pictures replay real emitted terminal bytes with
-fixture tasks, rendered in the locally installed Agave font. The terminal emulator
-controls the font in a live session; PortableShell does not change global settings.
+The terminal emulator controls the font in a live session; PortableShell does not
+change global settings.
 
 | Tab | Live content | Actions |
 | --- | --- | --- |
@@ -102,7 +124,7 @@ The active cell is highlighted and scrolls horizontally with the cursor; Enter
 commits the draft and Esc cancels it. New-task entry and filtering still use the
 footer because they do not target an existing value cell. Control text/levels and
 the small device view also edit in their cells; F2 dialogs remain optional in the
-control panel. [Actual inline value preview](previews/value-inline-agave.png).
+control panel. [Inline editing preview](previews/inline.png).
 The workspace uses the alternate screen and restores the prompt on exit. Minimum
 workspace size is 42×14; smaller terminals receive a compact size indicator.
 
@@ -257,7 +279,7 @@ Small embedded buffers: add `-DPORTABLE_SHELL_COMPACT=ON` (128-byte line storage
 For ESP8266, put `xtensa-lx106-elf-gcc` on PATH and select
 `-DCMAKE_TOOLCHAIN_FILE=cmake/esp8266-gcc.cmake`. This includes our optional
 freestanding compiler helpers; it does not link libc or libgcc.
-Fixed ASCII/monochrome: add `-DPORTABLE_SHELL_ASCII_ONLY=ON`. The supplied `bin/PortableShell-ascii-0.8.0.exe`
+Fixed ASCII/monochrome: add `-DPORTABLE_SHELL_ASCII_ONLY=ON`. The resulting executable
 cannot enable color/Unicode at runtime. Normal builds can switch with `theme`.
 ASCII mode substitutes `?` for non-ASCII display characters but preserves stored
 UTF-8 input bytes. Monochrome uses reverse-video selection; batch output has no VT.
@@ -288,10 +310,10 @@ flashable firmware is supplied—the library is linked into the caller's applica
 
 ## Verification boundary
 
-See `VERIFICATION.md` for measured sizes and the completed brief checks. The SVG/PNG
+See [verification history](docs/provenance/verification-history.md) for measured sizes and completed checks. The SVG/PNG
 previews are generated from actual ANSI output after scripted input, using the
-small C renderer in `tests/render.c`; they are not UI mockups. Fixture tasks appear
-only in that test. Your live session starts empty.
+small C renderer in `tests/render.c`; they are not UI mockups. Captures use fixture
+tasks and simulated device values. Your normal workspace starts empty.
 
 This is a working initial embedded shell, **not full Bash/Fish/Zsh or ncurses API
 compatibility**. There is no filesystem completion, process execution, pipes,
