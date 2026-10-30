@@ -20,11 +20,11 @@ static unsigned control_items(ps_session *s, unsigned short *items, unsigned *fo
                 if (frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS) && n && !(items[n-1]&0x2000)) items[n++] = (unsigned short)(i | 0x4000);
                 if (s->selected == i && s->control_header) *focus = n;
                 items[n++] = (unsigned short)(i | 0x8000);
-                if (frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS)) items[n++] = (unsigned short)(i | 0x2000);
+                if (frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS) && (s->table_style & PS_TABLE_SECTION_BOTTOM)) items[n++] = (unsigned short)(i | 0x2000);
             }
         }
         if (closed) {
-            if (i == s->selected) { s->selected = start; s->control_header = 1; *focus = n-1-(frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS)); }
+            if (i == s->selected) { s->selected = start; s->control_header = 1; *focus = n-1-(frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS) && (s->table_style & PS_TABLE_SECTION_BOTTOM)); }
         } else {
             if (i == s->selected && !s->control_header) *focus = n;
             items[n++] = (unsigned short)i;

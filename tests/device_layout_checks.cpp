@@ -122,7 +122,7 @@ int main(){
         // Shrinking populated content must erase old rows, including sidebar updates.
         s.rowCount=32;render(true);
         screen.tableBorders(left,unicode,inside,compact);
-        const unsigned presentation=32+(PS_DEVICE_VIEW_SECTIONS&&!PS_DEVICE_VIEW_CATEGORY_COLUMN?(borders?5:2):0);
+        const unsigned presentation=32+(PS_DEVICE_VIEW_SECTIONS&&!PS_DEVICE_VIEW_CATEGORY_COLUMN?(borders?3:2):0);
         if(presentation>height-9-(inside?0:1)){
             feed("\x1b[F");render(false);
             if(!compact&&width-left>=64)for(unsigned r=inside?5:6;r<height-4;++r)assert(screen.cells[r][right+1]==" ");
