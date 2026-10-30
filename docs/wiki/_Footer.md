@@ -1,0 +1,1 @@
+[Source repository](https://github.com/atomicdeploy/portable-shell) · [Report an issue](https://github.com/atomicdeploy/portable-shell/issues) · [Security policy](https://github.com/atomicdeploy/portable-shell/blob/main/SECURITY.md)

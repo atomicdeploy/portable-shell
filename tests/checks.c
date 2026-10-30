@@ -118,6 +118,15 @@ static int probe_write(void *ctx, unsigned id, const ps_control_value *v, ps_u32
     ++p->values[id].revision;
     return 1;
 }
+#if PS_EDITOR
+static char document_saved[PS_EDITOR_CAPACITY];
+static unsigned document_save_calls,document_save_ok;
+static int save_document(void *ctx,const char *p,unsigned n){
+    unsigned i;(void)ctx;++document_save_calls;
+    if(!document_save_ok)return 0;
+    for(i=0;i<n;++i)document_saved[i]=p[i];document_saved[n]=0;return 1;
+}
+#endif
 static int menu_test_action(ps_session *s,void *context){
     unsigned *calls=context;++*calls;ps_write(s,"menu-action");return 0;
 }
@@ -695,6 +704,35 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         CHECK(ps_menu_choose(s,1)==2&&ps_menu_active(s)==PS_MENU_DEPTH,"cyclic menu depth is bounded");
         ps_menu_close(s);
     }
+#if PS_EDITOR
+    {
+        cfg.flags=PS_INTERACTIVE|PS_UNICODE;cfg.columns=20;cfg.rows=8;
+        s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);document_save_calls=0;document_save_ok=0;
+        CHECK(ps_editor_open(s,"Notes","one two three four five",save_document,0),"document opens");
+        ps_key(s,PS_KEY_END);ps_key(s,'!');
+        CHECK(eq(ps_editor_text(s),"one two three four !five"),"word wrapping preserves bytes and End follows visual row");
+        ps_key(s,26);CHECK(eq(ps_editor_text(s),"one two three four five"),"document undo");
+        ps_key(s,26);CHECK(has(ps_editor_text(s),"!five"),"document redo");
+        clear();ps_resize(s,8,4);CHECK(has(t.output,"\033[2J")&&ps_editor_active(s),"editor resize redraws viewport");ps_resize(s,20,8);
+        ps_key(s,19);CHECK(ps_editor_active(s)&&document_save_calls==1,"failed save retains draft");
+        ps_key(s,27);ps_key(s,'c');CHECK(ps_editor_active(s),"cancel close keeps draft");
+        ps_key(s,27);ps_key(s,'d');CHECK(!ps_editor_active(s)&&document_save_calls==1,"discard does not call persistence");
+        ps_editor_open(s,"Notes","",save_document,0);
+        feed(s,"\033[200~first\r\nsecond\033[201~");
+        CHECK(eq(ps_editor_text(s),"first\nsecond"),"bracketed paste preserves normalized multiline text");
+        ps_key(s,26);CHECK(eq(ps_editor_text(s),""),"paste undo is one transaction");ps_key(s,26);
+        document_save_ok=1;ps_key(s,27);ps_key(s,'s');
+        CHECK(!ps_editor_active(s)&&eq(document_saved,"first\nsecond"),"Save and close invokes callback");
+        ps_editor_open(s,"UTF-8","",save_document,0);feed(s,"\xc3\xa9");ps_key(s,26);
+        CHECK(eq(ps_editor_text(s),""),"UTF-8 undo removes entire character");
+        ps_key(s,26);ps_key(s,8);CHECK(eq(ps_editor_text(s),""),"UTF-8 backspace removes entire character");
+        ps_key(s,27);ps_key(s,'d');
+        ps_execute(s,"edit");feed(s,"retained");ps_key(s,19);ps_key(s,27);ps_execute(s,"edit");
+        CHECK(eq(ps_editor_text(s),"retained"),"built-in notes save survives reopening");ps_key(s,27);
+        cfg.flags=0;s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);clear();
+        CHECK(ps_execute(s,"edit")!=0&&!ps_editor_active(s)&&!has(t.output,"\033"),"batch edit refuses interactive workspace cleanly");
+    }
+#endif
     CHECK(!portable_terminal_checks(), "shared firmware C components");
     {
         cfg.flags = 0;

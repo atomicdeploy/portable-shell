@@ -43,6 +43,23 @@ typedef char
 typedef unsigned int ps_u32;
 typedef char ps_requires_32_bit_unsigned[(sizeof(ps_u32) == 4) ? 1 : -1];
 typedef struct ps_session ps_session;
+#ifndef PS_EDITOR
+#define PS_EDITOR 1
+#endif
+#ifndef PS_EDITOR_CAPACITY
+#define PS_EDITOR_CAPACITY 2048
+#endif
+#if PS_EDITOR_CAPACITY < 128
+#error "PS_EDITOR_CAPACITY must be at least 128"
+#endif
+/* Save returns 1 only after accepting the complete document; failure leaves
+   the draft open. Title/context remain borrowed until close. LF text, UTF-8.
+   The editor copies initial text; discard never calls save. No filesystem API. */
+typedef int (*ps_editor_save_fn)(void *, const char *, unsigned);
+PS_API int ps_editor_open(ps_session *, const char *title, const char *text,
+                          ps_editor_save_fn, void *context);
+PS_API unsigned ps_editor_active(const ps_session *);
+PS_API const char *ps_editor_text(const ps_session *);
 #ifndef PS_MENU_DEPTH
 #define PS_MENU_DEPTH 8
 #endif

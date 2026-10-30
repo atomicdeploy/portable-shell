@@ -374,6 +374,7 @@ __attribute__((noinline, noipa)) int render_complete(void) {
     return 0;
 }
 char preview_menu[400000];unsigned preview_menu_n;
+char preview_document[400000];unsigned preview_document_n;
 int render_entry(void) {
     unsigned r, c;
     ps_config cfg = {sink, 0, W, H, PS_INTERACTIVE | PS_COLOR | PS_UNICODE | PS_TRUECOLOR};
@@ -532,6 +533,10 @@ int render_entry(void) {
     s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);
     ps_execute(s,"menu");feed(s,"2\r3\r");
     preview_menu_n=svg(preview_menu);
+    ps_replay_reset();s=ps_init(memory.bytes,sizeof memory.bytes,&cfg);
+    ps_editor_open(s,"Deployment notes", "Release checklist\n\nReview the device settings, verify the relay states, and confirm that every endpoint is reachable before applying the configuration. This paragraph wraps to the available terminal width without changing the saved text.\n\nNetwork\n\tHostname: workshop-controller\n\tTransport: serial or TCP\n\nFollow-up\n\tCheck the status page after saving.\n",0,0);
+    ps_key(s,PS_KEY_DOWN);ps_key(s,PS_KEY_DOWN);ps_key(s,PS_KEY_END);feed(s,"now ");
+    preview_document_n=svg(preview_document);
     return render_complete();
 }
 #endif
