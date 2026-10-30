@@ -93,7 +93,7 @@ int main(){
         assert(screen.cells[height-4][width-2]==(unicode?"\xe2\x95\xaf":"+"));
         assert(screen.line(height-1).find("Tab pages")!=std::string::npos);
         assert(screen.line(height-2).find("select")!=std::string::npos);
-        if(left)assert(screen.line(2).find("[Device]")!=std::string::npos);
+        if(left)assert(screen.line(2).find(PS_TAB_BRACKETS||!PS_STYLE_THEMES?"[Device]":" Device ")!=std::string::npos);
 #if PS_DEVICE_VIEW_SECTIONS && !PS_DEVICE_VIEW_CATEGORY_COLUMN
         feed("\x1b[A");render(false);assert(view.sectionSelected());
         auto heading=screen.cells;render(true);assert(heading==screen.cells);

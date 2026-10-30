@@ -414,6 +414,8 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         CHECK(ps_panel_attach(s, &panel) && ps_panel_open(s, 0), "provider pages attach and open");
 #if PS_CONTROL_SECTION_ROWS
         ps_key(s, PS_KEY_UP);
+        clear();ps_feed(s,"",0);
+        CHECK(!has(t.output,"▸ "),"selected category does not mark its unselected first child");
         feed(s, "\r\n");
         clear(); ps_feed(s, "", 0);
         CHECK(!has(t.output, "Relay ") && probe.writes == 0,

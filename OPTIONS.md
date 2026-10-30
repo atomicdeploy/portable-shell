@@ -139,6 +139,17 @@ palette, `ansi` / `plain` commands, and `PS_CONSOLE_ASCII_ONLY`.
 
 ## Entry screen and I/O
 
+Footer shortcuts use bold inverse keycaps by default. `PS_FOOTER_KEYCAPS=0`
+disables them at build time; `PS_KEYCAP_STYLE` overrides their ANSI attributes
+(default `"\033[1;7m"`). Set `PS_TABLE_PLAIN_KEYS` through `ps_set_table_style()`
+or call `DeviceView::setFooterKeycaps(false)` to disable them per session.
+
+Selected tabs use their background without brackets by default. Set
+`PS_TAB_BRACKETS=1`, the C table flag `PS_TABLE_TAB_BRACKETS`, or
+`DeviceView::setTabBrackets(true)` to restore brackets. Plain output retains a
+bracketed selection because no selection background is available. Label padding
+is preserved, so changing this style does not move device-view mouse hitboxes.
+
 Mouse input is enabled by default in interactive tables (`PS_MOUSE=0` compiles
 out routing and reporting). The Windows C adapter translates console mouse events
 to the same SGR byte packets accepted over serial or Telnet. A remote terminal must

@@ -34,6 +34,12 @@ int main(){
     std::string output;auto write=[&](const uint8_t *p,size_t n){output.append((const char*)p,n);};
     auto feed=[&](const char *keys){bool emitted=false;while(*keys)emitted=v.feed(uint8_t(*keys++),s,a)||emitted;return emitted;};
     v.begin();v.render(s,write);
+    assert(output.find("[Device]")==std::string::npos);
+    assert(output.find(PS_KEYCAP_STYLE "Space")!=std::string::npos);
+    v.setTabBrackets(true);v.setFooterKeycaps(false);output.clear();v.render(s,write);
+    assert(output.find("[Device]")!=std::string::npos);
+    assert(output.find(PS_KEYCAP_STYLE "Space")==std::string::npos);
+    v.setTabBrackets(false);v.setFooterKeycaps(true);output.clear();v.render(s,write);
 #if PS_MOUSE
     {
         V m;V::Snapshot ms=s;ms.rowCount=3;V::Action ma;
@@ -97,7 +103,7 @@ int main(){
     assert(output.find("20 \xc3\x97 4 staggered")!=std::string::npos);
     assert(output.find("\x1b[48;2;51;221;153m")!=std::string::npos); // Configured won color, not gray.
     assert(output.find("\x1b[48;2;216;40;85m")!=std::string::npos); // Configured lost color, not fixed red.
-    assert(output.find("Category")==std::string::npos&&output.find("W idle")!=std::string::npos&&output.find("Tab pages")==output.rfind("Tab pages"));
+    assert(output.find("Category")==std::string::npos&&output.find("idle")!=std::string::npos&&output.find("Tab pages")==output.rfind("Tab pages"));
     auto arrow=[&](char key){matrix.feed(27,board,a);matrix.feed('[',board,a);matrix.feed(key,board,a);assert(a.type==V::Action::None);};
     arrow('C');assert(matrix.selectedCell()==11);arrow('C');assert(matrix.selectedCell()==2);
     arrow('B');assert(matrix.selectedCell()==22);arrow('D');assert(matrix.selectedCell()==31);
