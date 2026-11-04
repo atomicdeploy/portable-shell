@@ -73,6 +73,14 @@ Emitted-byte replay fixture with simulated observations; [configuration](Meters.
 
 ## Menus, editor and file tree
 
+The [contextual menu example](Menus.md#context-and-service-consoles) demonstrates
+consumer-supplied status, breadcrumbs and pointer selection. These are simulated
+service observations, rendered through the same byte API.
+
+| Contextual menu | Nested operations | Masked setup input |
+| --- | --- | --- |
+| ![Service menu](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-context.png) | ![Operations](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-service.png) | ![Password form](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/form-password.png) |
+
 [Centered and split menus](Menus.md), [framed editor](Text-editor.md), and [file tree](File-picker.md) include emitted-byte Agave previews.
 
 ## Custom prompts

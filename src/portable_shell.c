@@ -167,6 +167,11 @@ struct ps_session {
     unsigned document_style;
     const char *document_notice;
     const ps_menu *menu_stack[PS_MENU_DEPTH];
+#if PS_MENU_CONTEXT
+    unsigned short menu_selections[PS_MENU_DEPTH];
+    ps_menu_notice_fn menu_notice;
+    void *menu_notice_context;
+#endif
     unsigned menu_depth, menu_length, menu_bad;
     char menu_input[4];
 #if PS_MENU_LIST_VIEW

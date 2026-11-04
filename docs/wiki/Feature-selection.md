@@ -66,6 +66,12 @@ current-session pointer. Connection close and reconnect stay with the adapter.
 
 ## Evidence and limits
 
+Menu contexts are independently selectable with `PS_MENU_CONTEXT=0`: this removes
+notice callbacks, breadcrumbs and remembered parent selections. `PS_MENU_LIST_VIEW`
+and `PS_FORM` separately control list filtering and forms. Password input reuses
+the form editor. See [Service consoles](Service-consoles.md) for a composition that
+keeps service operations and state in consumer callbacks.
+
 The C selection tests verify zero-history editing, cursor/draft preservation,
 bell behavior, yellow bare prompts, signed boundaries and pattern substitution.
 On the tested x86-64 compiler with 32-byte lines and undo disabled, editor storage

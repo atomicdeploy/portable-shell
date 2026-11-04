@@ -8,6 +8,7 @@
 - [⌨️ Shell](Shell.md)
 - [📋 Workspace](Workspace.md)
 - [🔢 Menus](Menus.md)
+- [Service consoles](Service-consoles.md)
 - [📝 Text editor](Text-editor.md)
 - [⚙️ Options](Options.md)
 - [🔌 Transports](Transports.md)

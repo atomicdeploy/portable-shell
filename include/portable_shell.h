@@ -129,12 +129,20 @@ PS_API unsigned ps_menu_active(const ps_session *);
 #ifndef PS_MENU_LIST_VIEW
 #define PS_MENU_LIST_VIEW 1
 #endif
-enum { PS_MENU_TABLE=1, PS_MENU_NUMBERS=2, PS_MENU_DETAILS=4, PS_MENU_LIST=8 };
+#ifndef PS_MENU_CONTEXT
+#define PS_MENU_CONTEXT 1
+#endif
+enum { PS_MENU_TABLE=1, PS_MENU_NUMBERS=2, PS_MENU_DETAILS=4, PS_MENU_LIST=8,
+       PS_MENU_BREADCRUMBS=16, PS_MENU_MARKER=32 };
 typedef const char *(*ps_menu_description_fn)(void *, const ps_menu *, unsigned index);
+/* Called while drawing; return borrowed printable text and a PS_INK_* role.
+   Refresh after provider state changes. No background polling or I/O in core. */
+typedef const char *(*ps_menu_notice_fn)(void *, const ps_menu *, unsigned *role);
 /* Style 0 retains the original transcript menu. Interactive default: table + numbers.
    Description callback borrows text for the duration of each render. */
 PS_API void ps_menu_set_style(ps_session *, unsigned flags);
 PS_API void ps_menu_set_description(ps_session *, ps_menu_description_fn, void *);
+PS_API void ps_menu_set_notice(ps_session *, ps_menu_notice_fn, void *);
 enum { PS_FILE_DIRECTORY=1, PS_FILE_DISABLED=2, PS_FILE_LINK=4, PS_FILE_ROOT=65535 };
 typedef struct { const char *name; unsigned parent, flags; } ps_file_node;
 /* Flat caller-owned tree, parent before child, at most 128 nodes. No filesystem
@@ -372,7 +380,7 @@ PS_API unsigned ps_print_report(ps_session *,const ps_report_row *,unsigned coun
 #ifndef PS_FORM
 #define PS_FORM 1
 #endif
-enum { PS_FORM_TEXT, PS_FORM_CHOICE };
+enum { PS_FORM_TEXT, PS_FORM_CHOICE, PS_FORM_PASSWORD };
 typedef const char *(*ps_form_validate_fn)(void *,unsigned field,const char *value);
 typedef void (*ps_form_done_fn)(ps_session *,void *,int accepted);
 typedef struct {

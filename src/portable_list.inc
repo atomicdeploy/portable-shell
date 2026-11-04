@@ -28,8 +28,8 @@ static void list_draw(ps_session *s){
     page=s->menu_selected/slots;pages=(total+slots-1)/slots;s->menu_top=page*slots;s->menu_slots=slots;
     canvas_begin(s,11,0);ansi(s,"\033[?25l");
     for(i=1;i<=s->io.rows;++i){at(s,i,1);ansi(s,"\033[2K");}
-    at(s,1,3);ink(s,PS_INK_HEADING);field(s,m->title,w);reset(s);
-    at(s,2,3);ink(s,PS_INK_MUTED);ps_number(s,total);out(s," / ");ps_number(s,m->count);out(s," items");reset(s);
+    at(s,1,3);menu_heading(s,w);
+    at(s,2,3);if(!menu_notice(s,w)){ink(s,PS_INK_MUTED);ps_number(s,total);out(s," / ");ps_number(s,m->count);out(s," items");reset(s);}
     while(s->menu_filtering&&cells(s->menu_filter+start,s->menu_filter_pos-start,s->io.flags)>=w-8)start=next(s->menu_filter,start);
     at(s,3,3);ink(s,PS_INK_ACTION);out(s,s->menu_filtering?"Filter: ":"Filter  ");field(s,s->menu_filter+start,w-8);reset(s);
     for(i=0;i<slots&&s->menu_top+i<total;++i){

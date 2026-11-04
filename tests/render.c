@@ -130,6 +130,10 @@ static void csi(char end) {
 #endif
                 fg = default_fg;
                 bg = default_bg;
+            } else if (a[i] == 39) {
+                fg = default_fg;
+            } else if (a[i] == 49) {
+                bg = default_bg;
             } else if (a[i] == 7) {
                 unsigned t = fg;
                 fg = bg;
@@ -139,6 +143,10 @@ static void csi(char end) {
 #ifdef PS_RICH_REPLAY
             } else if(a[i]==1||a[i]==2||a[i]==3||a[i]==4||a[i]==9){
                 attributes|=1u<<a[i];
+            } else if(a[i]==22){attributes&=~((1u<<1)|(1u<<2));
+            } else if(a[i]==23){attributes&=~(1u<<3);
+            } else if(a[i]==24){attributes&=~(1u<<4);
+            } else if(a[i]==29){attributes&=~(1u<<9);
 #endif
             } else if (a[i] >= 90 && a[i] <= 97) {
                 fg = palette(a[i] - 90 + 8);
@@ -236,8 +244,11 @@ static void sink(void *ctx, const unsigned char *p, unsigned count) {
 }
 static char *dst;
 static unsigned size;
+#ifndef PS_REPLAY_SVG_CAPACITY
+#define PS_REPLAY_SVG_CAPACITY 400000
+#endif
 static void add(const char *p) {
-    while (*p && size < 399990)
+    while (*p && size < PS_REPLAY_SVG_CAPACITY-10)
         dst[size++] = *p++;
 }
 static void number(unsigned n) {
@@ -338,13 +349,13 @@ static unsigned svg(char *p) {
     add("\" height=\"");
     number(H * 26 + 64);
     add("\" rx=\"18\" fill=\"#");
-    hex(screen[0][0].bg);
+    hex(default_bg);
     add("\"/><g font-family=\"Agave\" font-size=\"24\">");
     for (r = 0; r < H; ++r)
         for (c = 0; c < W; ++c) {
             Cell *v = &screen[r][c];
             if(!v->span)continue;
-            if (v->bg != screen[0][0].bg) {
+            if (v->bg != default_bg) {
                 add("<rect x=\"");
                 number(32 + c * 12);
                 add("\" y=\"");

@@ -180,7 +180,13 @@ their caller buffers immediately; cancel leaves earlier accepted steps intact,
 so applications requiring atomic updates should use draft buffers and commit
 only in the successful done callback. Rejected/current drafts never overwrite
 the caller's value. The active input uses the existing PS_VALUE editor buffer.
-This is not a password-input API.
+Use `PS_FORM_PASSWORD` for masked input: the active draft and previous-answer
+summary show one bullet per code point (`*` in ASCII). Cursor movement and mouse
+placement use the same masked widths. Internal drafts are scrubbed between steps
+and on close; caller-owned accepted values remain available for the application
+to use and clear. Validation callbacks must not echo sensitive input in errors.
+
+![Masked setup field](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/form-password.png)
 
 Text supports insert/delete, Home/End, Ctrl-U and horizontal scrolling. Choices
 support Up/Down and Home/End, with a viewport for longer lists. Mouse clicks

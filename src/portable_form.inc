@@ -1,6 +1,12 @@
 #if PS_FORM
+static unsigned form_cells(ps_session *s,const char *text,unsigned bytes,int secret){
+    unsigned count=0,i=0;
+    if(!secret)return cells(text,bytes,s->io.flags);
+    while(i<bytes){i=next(text,i);++count;}return count;
+}
 static void form_load(ps_session *s){
     const ps_form_field *f=s->form->fields+s->form_index;unsigned i;
+    ps_secure_clear(s->edit,sizeof s->edit);
     str(s->edit,f->value,PS_VALUE);s->editpos=s->editlen=length(s->edit);
     s->form_error=0;s->form_top=s->form_choice=0;
     if(f->kind==PS_FORM_CHOICE)for(i=0;i<f->choice_count;++i)
@@ -9,9 +15,12 @@ static void form_load(ps_session *s){
 static void form_border(ps_session *s,unsigned y,unsigned w,int bottom,unsigned role){
     view_rule_color(s,y,2,w,bottom,ps_style_ink(s->theme,(s->io.flags&PS_TRUECOLOR)!=0,0,role));
 }
-static void form_value(ps_session *s,unsigned y,unsigned w,const char *value,unsigned role,unsigned border){
+static void form_value(ps_session *s,unsigned y,unsigned w,const char *value,unsigned role,unsigned border,int secret){
     at(s,y,2);ink(s,border);out(s,(s->io.flags&PS_UNICODE)?"│":"|");
-    out(s," ");ink(s,role);field(s,value,w-4);out(s," ");ink(s,border);
+    out(s," ");ink(s,role);
+    if(secret){unsigned i,n=min(form_cells(s,value,length(value),1),w-4);for(i=0;i<n;++i)out(s,(s->io.flags&PS_UNICODE)?"•":"*");spaces(s,w-4-n);}
+    else field(s,value,w-4);
+    out(s," ");ink(s,border);
     out(s,(s->io.flags&PS_UNICODE)?"│":"|");reset(s);
 }
 static void form_title(ps_session *s,unsigned y,unsigned w,const char *label,unsigned role){
@@ -27,13 +36,13 @@ static void form_render(ps_session *s){
     if(s->form_index&&s->io.rows>=15){
         const ps_form_field *previous=s->form->fields+s->form_index-1;
         form_title(s,y,w,previous->label,PS_INK_MUTED);
-        form_value(s,y+1,w,previous->value,PS_INK_TEXT,PS_INK_BORDER);
+        form_value(s,y+1,w,previous->value,PS_INK_TEXT,PS_INK_BORDER,previous->kind==PS_FORM_PASSWORD);
         form_border(s,y+2,w,1,PS_INK_BORDER);y+=5;
     }
     form_title(s,y,w,f->label,role);
-    if(f->kind==PS_FORM_TEXT){
-        while(start<s->editpos&&cells(s->edit+start,s->editpos-start,s->io.flags)>=w-4)start=next(s->edit,start);
-        form_value(s,y+1,w,s->edit+start,PS_INK_TEXT,role);slots=1;
+    if(f->kind!=PS_FORM_CHOICE){
+        while(start<s->editpos&&form_cells(s,s->edit+start,s->editpos-start,f->kind==PS_FORM_PASSWORD)>=w-4)start=next(s->edit,start);
+        form_value(s,y+1,w,s->edit+start,PS_INK_TEXT,role,f->kind==PS_FORM_PASSWORD);slots=1;
     }else{
         slots=min(f->choice_count,s->io.rows-y-5);
         if(s->form_choice<s->form_top)s->form_top=s->form_choice;
@@ -54,7 +63,7 @@ static void form_render(ps_session *s){
     reset(s);at(s,s->io.rows,2);
     footer_field(s,f->kind==PS_FORM_CHOICE?((s->io.flags&PS_UNICODE)?"↑/↓ Choose  Enter Continue  Esc Cancel":"Up/Down Choose  Enter Continue  Esc Cancel"):
         ((s->io.flags&PS_UNICODE)?"←/→ Edit  Enter Continue  Esc Cancel":"Left/Right Edit  Enter Continue  Esc Cancel"),s->io.columns-2,0);
-    if(f->kind==PS_FORM_TEXT){at(s,y+1,4+cells(s->edit+start,s->editpos-start,s->io.flags));ansi(s,"\033[?25h");}
+    if(f->kind!=PS_FORM_CHOICE){at(s,y+1,4+form_cells(s,s->edit+start,s->editpos-start,f->kind==PS_FORM_PASSWORD));ansi(s,"\033[?25h");}
     else ansi(s,"\033[?25l");
     frame_end(s);
 }
@@ -68,9 +77,9 @@ static void form_mouse(ps_session *s,unsigned x,unsigned y){
         if(y>=top&&y<top+slots){s->form_choice=s->form_top+y-top;s->form_error=0;form_render(s);}
     }else if(y==top){
         unsigned start=0,pos,cell=0;
-        while(start<s->editpos&&cells(s->edit+start,s->editpos-start,s->io.flags)>=w-4)start=next(s->edit,start);
+        while(start<s->editpos&&form_cells(s,s->edit+start,s->editpos-start,f->kind==PS_FORM_PASSWORD)>=w-4)start=next(s->edit,start);
         pos=start;
-        while(pos<s->editlen){unsigned n,c=rune(s->edit+pos,&n),cw=(s->io.flags&PS_UNICODE)?width(c):1;
+        while(pos<s->editlen){unsigned n,c=rune(s->edit+pos,&n),cw=f->kind==PS_FORM_PASSWORD?1:(s->io.flags&PS_UNICODE)?width(c):1;
             if(cell+cw>x-4)break;
             cell+=cw;pos+=n;
         }
@@ -116,7 +125,7 @@ static void form_key(ps_session *s,unsigned key){
         else if(key==PS_KEY_RIGHT)s->editpos=next(s->edit,s->editpos);
         else if(key==PS_KEY_HOME||key==1)s->editpos=0;
         else if(key==PS_KEY_END||key==5)s->editpos=s->editlen;
-        else if(key==21){s->edit[0]=0;s->editpos=s->editlen=0;}
+        else if(key==21){ps_secure_clear(s->edit,sizeof s->edit);s->editpos=s->editlen=0;}
         else if(key==8||key==127)edit_delete(s->edit,&s->editlen,&s->editpos,1);
         else if(key==PS_KEY_DELETE)edit_delete(s->edit,&s->editlen,&s->editpos,0);
         else if(key>=32&&key<256){
@@ -149,10 +158,10 @@ PS_API int ps_form_open(ps_session *s,const ps_form *form){
        !form||!form->fields||!form->count||form->count>64)return 0;
     for(i=0;i<form->count;++i){
         const ps_form_field *f=form->fields+i;
-        if(!f->label||!f->value||!f->capacity||f->kind>PS_FORM_CHOICE||
+        if(!f->label||!f->value||!f->capacity||f->kind>PS_FORM_PASSWORD||
            (f->maximum&&f->minimum>f->maximum))return 0;
         for(j=0;j<f->capacity&&f->value[j];++j){}
-        if(j==f->capacity||(f->kind==PS_FORM_TEXT&&j>=PS_VALUE))return 0;
+        if(j==f->capacity||(f->kind!=PS_FORM_CHOICE&&j>=PS_VALUE))return 0;
         if(f->kind==PS_FORM_CHOICE){
             if(!f->choices||!f->choice_count||f->choice_count>256)return 0;
             for(j=0;j<f->choice_count;++j)if(!f->choices[j]||length(f->choices[j])>=f->capacity)return 0;
