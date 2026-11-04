@@ -19,6 +19,8 @@ rejects stale or missing files.
 | ![Filled heading layout](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-filled.png) | ![Group title embedded in the border](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls.png) |
 
 Select a heading with **↑/↓**, then **Enter** or **Space** to toggle it.
+Expanded headings show their disclosure indicator only while selected; collapsed
+headings always show it. Indicator space stays reserved so titles do not jump.
 **←** collapses and **→** expands. Sections retain their state when switching
 pages; inline editing remains in the value cell. [Collapsed example](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-collapsed.png).
 The title and separator now occupy a single row. At the same viewport size this

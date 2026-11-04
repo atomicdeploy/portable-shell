@@ -267,6 +267,13 @@ Public APIs, profiles and paths describe their function. Use canonical names in 
 
 ### Table scrollbar and selection marker
 
+Group disclosure indicators appear when the heading is selected or collapsed.
+Expanded, unselected headings leave those cells blank, keeping title alignment
+stable. This applies to border-title and filled headings, including ASCII and
+plus/minus indicators. Use `PS_TABLE_SECTION_INDICATORS_ALWAYS` or
+`DeviceView::setSectionIndicatorsAlways(true)` to keep them visible. Explicit
+no-icon and non-collapsible settings still take precedence.
+
 Wide editable tables use a separate scrollbar column by default, with one blank
 cell between it and the uninterrupted table border. Unicode mode draws a thin
 track (│) and thick thumb (┃); ASCII uses | and #. Below 64 available columns

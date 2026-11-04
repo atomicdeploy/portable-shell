@@ -226,6 +226,7 @@ class DeviceView {
     void setFooterKeycaps(bool enabled){keycaps_=enabled;dirty_=full_=true;}
     // Indicators: 0 chevrons (ASCII +/-), 1 +/-, 2 none.
     void setSectionIndicators(unsigned style){if(!editing_&&style<3){sectionIndicators_=style;dirty_=full_=true;}}
+    void setSectionIndicatorsAlways(bool enabled){if(!editing_){sectionIndicatorsAlways_=enabled;dirty_=full_=true;}}
     void setSectionsCollapsible(bool enabled){if(!editing_){sectionsCollapsible_=enabled;dirty_=full_=true;}}
     void setReserveScrollbar(bool enabled){reserveScrollbar_=enabled;dirty_=full_=true;}
     void setCompactScrollbar(bool enabled){compactScrollbar_=enabled;dirty_=full_=true;}
@@ -1006,6 +1007,7 @@ class DeviceView {
     bool compactScrollbar_=false;
     const char *selectionMarker_=nullptr;
     bool sectionsCollapsible_=true,reserveScrollbar_=false;
+    bool sectionIndicatorsAlways_=false;
     unsigned sectionIndicators_=0,paintedGutter_=0;
     bool footerGrid_=PS_FOOTER_GRID!=0,footerEmphasis_=false;
     bool syncOutput_=PS_SYNC_OUTPUT!=0;

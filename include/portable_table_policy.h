@@ -4,8 +4,10 @@
 #define PS_SECTION_BORDER_TITLES 1
 #endif
 /* The same indicator policy is used by both table front ends. */
-static inline const char *ps_table_section_marker(int unicode,int collapsible,int style,int closed) {
+static inline const char *ps_table_section_marker(int unicode,int collapsible,int style,int closed,int selected,int always) {
     if(!collapsible||style==2)return "";
+    /* Reserve the indicator cells so focusing a heading never shifts its text. */
+    if(!closed&&!selected&&!always)return "  ";
     return unicode&&style==0?(closed?"▸ ":"▾ "):(closed?"+ ":"- ");
 }
 static inline const char *ps_table_junction(int unicode,int above,int below) {

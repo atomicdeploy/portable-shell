@@ -64,7 +64,8 @@ struct Screen {
             assert(cells[header+1][col]==(unicode?"┼":"+")||cells[header+1][col]==(unicode?"┴":"+"));
             for(unsigned r=body;r<height-4;++r){
                 const auto &marker=cells[r][left+2];
-                const bool section=marker=="▾"||marker=="▸"||marker=="-"||marker=="+";
+                const bool section=marker=="▾"||marker=="▸"||marker=="-"||marker=="+"||
+                    line(r).find("LIGHTING")!=std::string::npos||line(r).find("CONNECTION")!=std::string::npos;
                 const bool rule=cells[r][left]==(unicode?"├":"+");
                 if(!section&&!rule)assert(cells[r][col]==vertical);
                 if(rule&&unicode){

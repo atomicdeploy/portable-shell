@@ -420,7 +420,7 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
         if(group){
             char label[241];terminalText(label,sizeof label,r->category);
             for(unsigned j=0;label[j];++j)if(label[j]>='a'&&label[j]<='z')label[j]=char(label[j]-'a'+'A');
-            const char *marker=ps_table_section_marker(s.unicode,sectionsCollapsible_,sectionIndicators_,sectionClosed(at));
+            const char *marker=ps_table_section_marker(s.unicode,sectionsCollapsible_,sectionIndicators_,sectionClosed(at),selected,sectionIndicatorsAlways_);
             if(sectionBorderTitles_){
                 char clipped[241];const unsigned n=unsigned(terminalText(clipped,PS_DEVICE_VIEW_PLAIN_ROWS?w-8:labelWidth-2,label));
                 const unsigned markerWidth=*marker?2:0;

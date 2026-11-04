@@ -64,7 +64,8 @@ static void control_section_row(ps_session *s, unsigned index, unsigned width) {
     {
         const char *marker=ps_table_section_marker(!!(s->io.flags&PS_UNICODE),
             !(s->table_style&PS_TABLE_STATIC_SECTIONS),
-            s->table_style&PS_TABLE_SECTION_NO_ICONS?2:s->table_style&PS_TABLE_SECTION_PLUS_MINUS?1:0,closed);
+            s->table_style&PS_TABLE_SECTION_NO_ICONS?2:s->table_style&PS_TABLE_SECTION_PLUS_MINUS?1:0,closed,
+            s->control_header&&s->selected==index,!!(s->table_style&PS_TABLE_SECTION_INDICATORS_ALWAYS));
         unsigned marker_width=cells(marker,length(marker),s->io.flags);
         if(table_border_titles(s)) {
             if(s->control_header && s->selected==index)surface(s,1);else ink(s,PS_INK_HEADING);
