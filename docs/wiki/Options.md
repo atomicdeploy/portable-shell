@@ -268,8 +268,8 @@ Public APIs, profiles and paths describe their function. Use canonical names in 
 ### Table scrollbar and selection marker
 
 Group disclosure indicators appear when the heading is selected or collapsed.
-Expanded, unselected headings leave those cells blank, keeping title alignment
-stable. This applies to border-title and filled headings, including ASCII and
+Expanded, unselected headings omit the indicator and its padding entirely.
+This applies to border-title and filled headings, including ASCII and
 plus/minus indicators. Use `PS_TABLE_SECTION_INDICATORS_ALWAYS` or
 `DeviceView::setSectionIndicatorsAlways(true)` to keep them visible. Explicit
 no-icon and non-collapsible settings still take precedence.

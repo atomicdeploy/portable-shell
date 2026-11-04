@@ -29,7 +29,7 @@ static void check(unsigned style,const char *group,const char *marker,unsigned u
 }
 int main(void){
     /* Disclosure is contextual, independent of the selected value marker. */
-    assert(!strcmp(ps_table_section_marker(1,1,0,0,0,0),"  "));
+    assert(!strcmp(ps_table_section_marker(1,1,0,0,0,0),""));
     assert(!strcmp(ps_table_section_marker(1,1,0,0,1,0),"▾ "));
     assert(!strcmp(ps_table_section_marker(1,1,0,1,0,0),"▸ "));
     assert(!strcmp(ps_table_section_marker(1,1,0,0,0,1),"▾ "));

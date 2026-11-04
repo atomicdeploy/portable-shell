@@ -20,7 +20,7 @@ rejects stale or missing files.
 
 Select a heading with **↑/↓**, then **Enter** or **Space** to toggle it.
 Expanded headings show their disclosure indicator only while selected; collapsed
-headings always show it. Indicator space stays reserved so titles do not jump.
+headings always show it. Hidden indicators occupy no cells.
 **←** collapses and **→** expands. Sections retain their state when switching
 pages; inline editing remains in the value cell. [Collapsed example](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-collapsed.png).
 The title and separator now occupy a single row. At the same viewport size this
