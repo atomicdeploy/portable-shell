@@ -421,6 +421,7 @@ __attribute__((noinline, noipa)) int render_complete(void) {
 }
 char preview_menu[400000];unsigned preview_menu_n;
 char preview_document[400000];unsigned preview_document_n;
+char preview_control_filled[400000]; unsigned preview_control_filled_n;
 int render_entry(void) {
     unsigned r, c;
     ps_config cfg = {sink, 0, W, H, PS_INTERACTIVE | PS_COLOR | PS_UNICODE | PS_TRUECOLOR};
@@ -499,10 +500,12 @@ int render_entry(void) {
     ps_tick(s, 4800);
     ps_feed(s, "", 0);
     preview_controls_n = svg(preview_controls);
+    ps_set_table_style(s,PS_TABLE_DEFAULT|PS_TABLE_SECTION_FILLED);ps_feed(s,"",0);
+    preview_control_filled_n=svg(preview_control_filled);
     ps_set_table_style(s, PS_TABLE_DEFAULT | PS_TABLE_TABS_INSIDE);
     ps_feed(s, "", 0);
     preview_control_inside_n = svg(preview_control_inside);
-    ps_set_table_style(s, PS_TABLE_DEFAULT | PS_TABLE_COMPACT_SECTIONS);
+    ps_set_table_style(s, PS_TABLE_DEFAULT | PS_TABLE_SECTION_FILLED | PS_TABLE_COMPACT_SECTIONS);
     ps_feed(s, "", 0);
     preview_control_compact_n = svg(preview_control_compact);
     ps_set_table_style(s, PS_TABLE_DEFAULT | PS_TABLE_CATEGORY_COLUMN);

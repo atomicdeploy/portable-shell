@@ -49,4 +49,9 @@ commands that take over the terminal or launch full-screen external programs
 should be run after closing the table. The renderer uses the table layout instead
 of the dashboard layout while this mode is enabled.
 
-![Table and prompt](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/table-prompt.png)
+Run `board --framed-prompt` for a rounded border around the input. Embedders add
+`PS_TABLE_PROMPT_FRAME` alongside `PS_TABLE_PROMPT`. This reserves seven lower
+rows and requires 42 columns and 21 rows; smaller viewports automatically use
+the original unframed layout. Command output scrolls above the input frame.
+
+![Table and framed prompt](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/table-prompt-framed.png)

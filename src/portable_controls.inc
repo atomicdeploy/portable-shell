@@ -17,7 +17,7 @@ static unsigned control_items(ps_session *s, unsigned short *items, unsigned *fo
             closed = !(s->table_style&PS_TABLE_STATIC_SECTIONS) && *group && (s->control_closed[s->tab][i/8] & (1U << (i%8)));
             if (*group) {
                 /* Reuse an adjacent rule (column header or closed section). */
-                if (frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS) && n && !(items[n-1]&0x2000)) items[n++] = (unsigned short)(i | 0x4000);
+                if (frame && !table_border_titles(s) && !(s->table_style & PS_TABLE_COMPACT_SECTIONS) && n && !(items[n-1]&0x2000)) items[n++] = (unsigned short)(i | 0x4000);
                 if (s->selected == i && s->control_header) *focus = n;
                 items[n++] = (unsigned short)(i | 0x8000);
                 if (frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS) && (s->table_style & PS_TABLE_SECTION_BOTTOM)) items[n++] = (unsigned short)(i | 0x2000);
@@ -61,10 +61,20 @@ static void control_section_row(ps_session *s, unsigned index, unsigned width) {
     for (i=0; name[i] && i+1<sizeof label; ++i)
         label[i] = name[i]>='a' && name[i]<='z' ? (char)(name[i]-'a'+'A') : name[i];
     label[i]=0;
-    surface(s, s->control_header && s->selected == index ? 1 : 0);
-    out(s,(s->table_style&(PS_TABLE_STATIC_SECTIONS|PS_TABLE_SECTION_NO_ICONS))?"  ":
-        (s->io.flags&PS_UNICODE)&&!(s->table_style&PS_TABLE_SECTION_PLUS_MINUS)?(closed?"▸ ":"▾ "):(closed?"+ ":"- "));
-    grid_text(s,label,width-2);
+    {
+        const char *marker=ps_table_section_marker(!!(s->io.flags&PS_UNICODE),
+            !(s->table_style&PS_TABLE_STATIC_SECTIONS),
+            s->table_style&PS_TABLE_SECTION_NO_ICONS?2:s->table_style&PS_TABLE_SECTION_PLUS_MINUS?1:0,closed);
+        unsigned marker_width=cells(marker,length(marker),s->io.flags);
+        if(table_border_titles(s)) {
+            if(s->control_header && s->selected==index)surface(s,1);else ink(s,PS_INK_HEADING);
+            if(s->control_header && s->selected==index && !(s->io.flags&PS_COLOR))ansi(s,"\033[7m");
+            out(s,marker);grid_text(s,label,min(width-marker_width-1,cells(label,length(label),s->io.flags)));out(s," ");
+        } else {
+            surface(s,s->control_header && s->selected==index?1:0);
+            out(s,marker);grid_text(s,label,width-marker_width);
+        }
+    }
 }
 static const ps_control *control_selected(ps_session *s) {
     const ps_control_page *p = &s->panel->pages[s->tab];

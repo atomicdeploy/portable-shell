@@ -13,6 +13,7 @@
 #ifndef PORTABLE_SHELL_H
 #define PORTABLE_SHELL_H
 #include "portable_util.h"
+#include "portable_table_policy.h"
 #ifndef PS_MOUSE
 #define PS_MOUSE 1
 #endif
@@ -214,7 +215,8 @@ enum { PS_TABLE_GRID = 1, PS_TABLE_RED_BORDER = 2, PS_TABLE_TITLE_BAR = 4,
        PS_TABLE_TABS_INSIDE = 32, PS_TABLE_PLAIN_KEYS = 64,
        PS_TABLE_TAB_BRACKETS = 128, PS_TABLE_PROMINENT_KEYS = 256,
        PS_TABLE_COMPACT_FOOTER = 512, PS_TABLE_COMPACT_SCROLLBAR = 1024, PS_TABLE_SECTION_BOTTOM = 2048, PS_TABLE_STATIC_SECTIONS = 4096,
-       PS_TABLE_SECTION_PLUS_MINUS = 8192, PS_TABLE_SECTION_NO_ICONS = 16384, PS_TABLE_RESERVE_SCROLLBAR = 32768, PS_TABLE_PROMPT = 65536, PS_TABLE_DEFAULT = 5 };
+       PS_TABLE_SECTION_PLUS_MINUS = 8192, PS_TABLE_SECTION_NO_ICONS = 16384, PS_TABLE_RESERVE_SCROLLBAR = 32768, PS_TABLE_PROMPT = 65536,
+       PS_TABLE_SECTION_FILLED = 131072, PS_TABLE_PROMPT_FRAME = 262144, PS_TABLE_DEFAULT = 5 };
 /* Fits 1..8 columns into a framed width (max 240), including padding/separators.
    Returns occupied width, or 0 if minima do not fit / definitions are invalid. */
 PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsigned count,

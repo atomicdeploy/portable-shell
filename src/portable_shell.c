@@ -444,15 +444,22 @@ enum { TABLE_PROMPT_ROWS = 5 };
 static int table_prompt(const ps_session *s) {
     return s->board && (s->table_style & PS_TABLE_PROMPT);
 }
+static unsigned table_prompt_framed(const ps_session *s) {
+    return table_prompt(s)&&(s->table_style&PS_TABLE_PROMPT_FRAME)&&s->io.columns>=42&&s->io.rows>=21;
+}
+static unsigned table_output_bottom(const ps_session *s) {
+    return s->io.rows-(table_prompt_framed(s)?3:0);
+}
 static unsigned table_height(const ps_session *s) {
+    unsigned reserved=TABLE_PROMPT_ROWS+(table_prompt_framed(s)?2:0);
     return table_prompt(s)
-        ? (s->io.rows > TABLE_PROMPT_ROWS ? s->io.rows - TABLE_PROMPT_ROWS : 1)
+        ? (s->io.rows > reserved ? s->io.rows - reserved : 1)
         : s->io.rows;
 }
 static void table_prompt_region(ps_session *s) {
     if(table_prompt(s)) {
         ansi(s,"\033[");ps_number(s,table_height(s)+2);out(s,";");
-        ps_number(s,s->io.rows);out(s,"r");
+        ps_number(s,table_output_bottom(s));out(s,"r");
     }
 }
 #if PS_WORKBENCH
@@ -772,7 +779,7 @@ PS_API void ps_set_selection_marker(ps_session *s,const char *marker) {
     s->dirty=1;
 }
 PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
-    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER|PS_TABLE_COMPACT_SCROLLBAR|PS_TABLE_SECTION_BOTTOM|PS_TABLE_STATIC_SECTIONS|PS_TABLE_SECTION_PLUS_MINUS|PS_TABLE_SECTION_NO_ICONS|PS_TABLE_RESERVE_SCROLLBAR|PS_TABLE_PROMPT;
+    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER|PS_TABLE_COMPACT_SCROLLBAR|PS_TABLE_SECTION_BOTTOM|PS_TABLE_STATIC_SECTIONS|PS_TABLE_SECTION_PLUS_MINUS|PS_TABLE_SECTION_NO_ICONS|PS_TABLE_RESERVE_SCROLLBAR|PS_TABLE_PROMPT|PS_TABLE_SECTION_FILLED|PS_TABLE_PROMPT_FRAME;
     if (s->editing)
         flags = (flags & ~layout) | (s->table_style & layout);
     if ((s->table_style ^ flags) & layout)
@@ -889,9 +896,20 @@ static void grid_vertical(ps_session *s) {
     ink(s, 7);
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
 }
+static unsigned table_border_titles(const ps_session *s) {
+    if(PS_SECTION_BORDER_TITLES && PS_CONTROL_SECTION_ROWS && s->control_view &&
+        !(s->table_style&(PS_TABLE_CATEGORY_COLUMN|PS_TABLE_SECTION_FILLED))) {
+        const ps_control_page *p=&s->panel->pages[s->tab];unsigned i;
+        for(i=0;i<p->count;++i)if(*p->controls[i].group)return 1;
+    }
+    return 0;
+}
+static unsigned table_body(const ps_session *s) {
+    return 7+((s->table_style&PS_TABLE_TABS_INSIDE)&&table_height(s)>=15?1:0)-table_border_titles(s);
+}
 static unsigned table_slots(const ps_session *s) {
     unsigned height=table_height(s);
-    unsigned reserved=13+((s->table_style&PS_TABLE_TABS_INSIDE)&&height>=15?1:0);
+    unsigned reserved=table_body(s)+6;
     return height>reserved?height-reserved:1;
 }
 static void grid_divide(ps_session *s) {
@@ -987,7 +1005,7 @@ static void render(ps_session *s) {
     unsigned ids[PS_ROWS];
 #endif
     unsigned inside = !!(s->table_style & PS_TABLE_TABS_INSIDE) && h>=15;
-    unsigned body = 7+inside, tabUsed = 1;
+    unsigned body = table_body(s), tabUsed = 1;
     unsigned displayCount, focus;
     unsigned short controlItems[512];
     Grid grid;
@@ -1125,8 +1143,10 @@ static void render(ps_session *s) {
     out(s, " ");
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
     reset(s);
-    at(s, 6+inside, 2);
-    grid_border(s, &grid, s->control_view && s->scroll<displayCount && (controlItems[s->scroll]&0xe000) ? 3 : 1, 1);
+    if(!table_border_titles(s)) {
+        at(s, 6+inside, 2);
+        grid_border(s, &grid, s->control_view && s->scroll<displayCount && (controlItems[s->scroll]&0xe000) ? 3 : 1, 1);
+    }
 #if PS_WORKBENCH
 #include "../host/workbench/visible_rows.inc"
 #endif
@@ -1139,6 +1159,14 @@ static void render(ps_session *s) {
             idx = controlItems[idx] & 0x1fff;
         } else if (s->control_view) idx = count;
         at(s, body + i, 2);
+        if(heading && table_border_titles(s)) {
+            unsigned line=s->scroll+i;
+            int above=!i||!(controlItems[line-1]&0xe000);
+            int below=line+1>=displayCount||!(controlItems[line+1]&0xe000);
+            grid_border(s,&grid,above?(below?1:3):4,above||below);
+            at(s,body+i,4);out(s," ");
+            control_section_row(s,idx,(s->table_style&PS_TABLE_GRID)?grid.widths[0]-1:inner-2);reset(s);continue;
+        }
         if (rule) {
             unsigned line = s->scroll+i;
             unsigned joined = rule == 0x4000 ? (i && !(controlItems[line-1]&0xe000))
@@ -1189,7 +1217,7 @@ static void render(ps_session *s) {
         unsigned top = s->scroll * (slots-thumb) / (displayCount-slots);
         for(i=0;i<slots;++i){
             unsigned active = i>=top && i<top+thumb;
-            unsigned rule = s->control_view && s->scroll+i<displayCount && (controlItems[s->scroll+i]&0x6000);
+            unsigned rule = s->control_view && s->scroll+i<displayCount && (controlItems[s->scroll+i]&(table_border_titles(s)?0xe000:0x6000));
             at(s,body+i,w-1+gutter);ink(s,active?1:7);
             out(s,(s->io.flags&PS_UNICODE)?(!gutter&&rule?(active?"┫":"┤"):(active?"┃":"│")):(active?"#":!gutter&&rule?"+":"|"));
         }
@@ -1347,6 +1375,13 @@ static void prompt(ps_session *s) {
     }
     frame_begin(s);
     ansi(s, "\r");
+    if(table_prompt_framed(s)) {
+        const char *border=ps_style_ink(s->theme,!!(s->io.flags&PS_TRUECOLOR),0,PS_INK_BORDER);
+        avail=avail>4?avail-4:1;
+        view_rule_color(s,s->io.rows-2,1,s->io.columns-1,0,border);
+        view_rule_color(s,s->io.rows,1,s->io.columns-1,1,border);
+        at(s,s->io.rows-1,1);ink(s,PS_INK_BORDER);out(s,(s->io.flags&PS_UNICODE)?"│ ":"| ");reset(s);
+    }
     old=min(s->prompt_rows_drawn,s->io.rows-1);
     if(old){ansi(s,"\033[");ps_number(s,old);out(s,"A");}
     if(old>shown){
@@ -1400,19 +1435,29 @@ static void prompt(ps_session *s) {
         reset(s);
     } else
         ps_secure_clear(s->suggestion, sizeof s->suggestion);
-    ansi(s, "\033[K\r\033[");
-    ps_number(s, prompt_width + cells(s->line + start, s->pos - start, s->io.flags) + 1);
+    ansi(s, "\033[K\r");
+    if(table_prompt_framed(s)) {
+        at(s,s->io.rows-1,s->io.columns-1);ink(s,PS_INK_BORDER);out(s,(s->io.flags&PS_UNICODE)?"│":"|");reset(s);
+    }
+    ansi(s,"\033[");
+    ps_number(s, prompt_width + cells(s->line + start, s->pos - start, s->io.flags) + 1+(table_prompt_framed(s)?2:0));
     out(s, "G");
     if (s->search) {
+        unsigned query_width=min(cells(s->query,length(s->query),s->io.flags),s->io.columns/3);
         ansi(s, "\r");
+        if(table_prompt_framed(s))at(s,s->io.rows-1,3);
         ink(s, 1);
         out(s, "search: ");
-        ps_write(s, s->query);
+        field(s,s->query,query_width);
         ink(s, 0);
         out(s, "  ");
-        ps_write(s, s->line);
+        field(s,s->line,min(cells(s->line,s->len,s->io.flags),s->io.columns>query_width+14?s->io.columns-query_width-14:0));
         reset(s);
         ansi(s,"\033[K");
+        if(table_prompt_framed(s)) {
+            ansi(s,"\0337");at(s,s->io.rows-1,s->io.columns-1);ink(s,PS_INK_BORDER);
+            out(s,(s->io.flags&PS_UNICODE)?"│":"|");reset(s);ansi(s,"\0338");
+        }
     }
     if(table_prompt(s))ansi(s,s->table_prompt_focus?"\033[?25h":"\033[?25l");
     frame_end(s);
@@ -1676,7 +1721,7 @@ static void shell_key(ps_session *s, unsigned key) {
     }
     if(table_prompt(s)) {
         if(key==27){s->table_prompt_focus=0;s->dirty=1;render(s);return;}
-        table_prompt_region(s);at(s,s->io.rows,1);
+        table_prompt_region(s);at(s,table_output_bottom(s),1);
         if(key==13||key==3||key==12)s->dirty=1;
     }
     if (s->search) {

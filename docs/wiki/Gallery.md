@@ -14,16 +14,27 @@ rejects stale or missing files.
 
 ![PortableShell control panel with inline value editing](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/inline.png)
 
-| Optional category column (before) | Default collapsible sections (after) |
+| Filled group headings (optional) | Border-title groups (default) |
 | --- | --- |
-| ![Category-column layout](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-columns.png) | ![Uppercase full-width section rows](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls.png) |
+| ![Filled heading layout](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-filled.png) | ![Group title embedded in the border](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls.png) |
 
 Select a heading with **↑/↓**, then **Enter** or **Space** to toggle it.
 **←** collapses and **→** expands. Sections retain their state when switching
 pages; inline editing remains in the value cell. [Collapsed example](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-collapsed.png).
-Headings have continuous border rows above and below by default.
-[Compact sections](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-compact.png) omit those extra rows;
-see [presentation options](Options.md#presentation).
+The title and separator now occupy a single row. At the same viewport size this
+example fits all groups without a scrollbar. The filled style remains available
+with `PS_TABLE_SECTION_FILLED` or `view.setSectionBorderTitles(false)`.
+See [presentation options](Options.md#presentation) for build and runtime choices.
+
+| Optional group / setting / value columns | Optional bordered prompt |
+| --- | --- |
+| ![Group names appear once in three-column mode](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-columns.png) | ![Framed input below the table](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/table-prompt-framed.png) |
+
+Use `PS_TABLE_CATEGORY_COLUMN` for three columns; use
+`PS_TABLE_PROMPT | PS_TABLE_PROMPT_FRAME` for the framed prompt. The host demo
+command is `board --framed-prompt`. Tab placement and semantic value colors are
+unchanged: headings cyan, numbers orange, enabled values green, inactive values
+gray, choices violet, and neutral borders. Accent palettes remain optional.
 
 Tabs are outside by default. Optional first-row tabs:
 [control panel](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-inside.png), [device table](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-inside.png).

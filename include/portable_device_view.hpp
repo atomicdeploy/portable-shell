@@ -211,6 +211,10 @@ class DeviceView {
         if(!editing_ && sectionBorders_!=enabled){sectionBorders_=enabled;dirty_=full_=true;}
     }
     bool sectionBorders() const { return sectionBorders_; }
+    void setSectionBorderTitles(bool enabled) {
+        if(!editing_&&sectionBorderTitles_!=enabled){sectionBorderTitles_=enabled;dirty_=full_=true;}
+    }
+    bool sectionBorderTitles() const { return sectionBorderTitles_; }
     void setSectionBottomBorder(bool enabled) {
         if(!editing_ && sectionBottomBorder_!=enabled){sectionBottomBorder_=enabled;dirty_=full_=true;}
     }
@@ -612,7 +616,7 @@ class DeviceView {
                 closed=false;
                 if(sectionStart(s,i)){
                     // Adjacent headings share a rule; the column header frames the first.
-                    if(frame&&sectionBorders_&&total&&!(items[total-1]&0x2000))items[total++]=uint16_t(i|0x4000);
+                    if(frame&&!sectionBorderTitles_&&sectionBorders_&&total&&!(items[total-1]&0x2000))items[total++]=uint16_t(i|0x4000);
                     if(selected_==i&&sectionFocus_)focus=total;
                     items[total++]=uint16_t(i|0x8000);closed=sectionClosed(i);
                     if(frame&&sectionBorders_&&sectionBottomBorder_)items[total++]=uint16_t(i|0x2000);
@@ -993,6 +997,7 @@ class DeviceView {
     bool sectionFocus_ = false;
     bool sectionBorders_ = true;
     bool sectionBottomBorder_ = false;
+    bool sectionBorderTitles_ = PS_SECTION_BORDER_TITLES!=0;
     bool tabsInsideTable_ = false;
     uint8_t closed_[PS_DEVICE_VIEW_SECTIONS?PageCount:1][PS_DEVICE_VIEW_SECTIONS?(PS_DEVICE_VIEW_MAX_ROWS+7)/8:1]{};
     uint32_t sectionSchema_[PS_DEVICE_VIEW_SECTIONS?PageCount:1]{};

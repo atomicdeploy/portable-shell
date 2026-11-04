@@ -12,6 +12,13 @@ int main(){
     view.begin();view.setGroupLayout(V::SectionRows);
     auto keys=[&](const char *text){while(*text){assert(!view.feed(uint8_t(*text++),s,a));assert(a.type==V::Action::None);}};
     auto frame=[&](){std::string out;view.render(s,[&](const uint8_t*p,size_t n){out.append((const char*)p,n);},true);return out;};
+    assert(view.sectionBorderTitles()==bool(PS_SECTION_BORDER_TITLES));
+#if PS_MOUSE && PS_SECTION_BORDER_TITLES
+    frame();keys("\x1b[<0;5;6M");assert(view.sectionSelected());
+    assert(frame().find("First")==std::string::npos);
+    keys("\x1b[<0;5;6m\x1b[<0;5;6M");assert(frame().find("First")!=std::string::npos);
+    keys("\x1b[<0;5;6m\x1b[B");
+#endif
     // Automatic marker follows disclosure semantics; explicit values win.
     assert(frame().find("▸ First")==std::string::npos);
     view.setSectionIndicators(1);assert(frame().find("▸ First")!=std::string::npos);

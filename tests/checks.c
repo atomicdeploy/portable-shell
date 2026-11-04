@@ -473,6 +473,12 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
             }
             CHECK(groups == 1, "wide table does not repeat selected category above table");
         }
+#if PS_MOUSE && PS_CONTROL_SECTION_ROWS && PS_SECTION_BORDER_TITLES
+        feed(s,"\033[<0;8;6M\033[<0;8;6m");
+        CHECK(probe.writes==0,"border title click collapses without a provider write");
+        feed(s,"\033[<0;8;6M\033[<0;8;6m");
+        ps_key(s,PS_KEY_DOWN);
+#endif
         feed(s, " ");
         CHECK(probe.values[0].number == 1 && probe.writes == 1, "toggle dispatches provider write");
 #if PS_CONTROL_SECTION_ROWS

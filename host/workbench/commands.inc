@@ -115,12 +115,15 @@ static int builtin(ps_session *s, int argc, const char *const *a, void *ctx) {
     }
     if (equal(cmd, "board")) {
         unsigned tab = 0;
-        if(argc==2&&(equal(a[1],"--prompt")||equal(a[1],"--no-prompt"))) {
-            ps_set_table_style(s,equal(a[1],"--prompt")?s->table_style|PS_TABLE_PROMPT:s->table_style&~PS_TABLE_PROMPT);
+        if(argc==2&&(equal(a[1],"--prompt")||equal(a[1],"--framed-prompt")||equal(a[1],"--no-prompt"))) {
+            unsigned flags=s->table_style&~(PS_TABLE_PROMPT|PS_TABLE_PROMPT_FRAME);
+            if(!equal(a[1],"--no-prompt"))flags|=PS_TABLE_PROMPT;
+            if(equal(a[1],"--framed-prompt"))flags|=PS_TABLE_PROMPT_FRAME;
+            ps_set_table_style(s,flags);
             argc=1;
         }
         if (argc > 2)
-            return fail(s, "board [--prompt|--no-prompt|tasks|variables|jobs|session]");
+            return fail(s, "board [--prompt|--framed-prompt|--no-prompt|tasks|variables|jobs|session]");
         if (argc == 2) {
             if (equal(a[1], "variables"))
                 tab = 1;
