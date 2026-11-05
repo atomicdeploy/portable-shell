@@ -31,7 +31,7 @@ static void dashboard_render(ps_session *s){
             if(j+top<p->count){
                 if(i==tab&&j+top==selected)surface(s,2);
                 control_row(s,j+top,&g);reset(s);
-                if(i==tab&&j+top==selected){edity=b.y+1+j;editx=b.x+g.widths[0]+6;editwidth=g.widths[1];}
+                if(i==tab&&j+top==selected){edity=b.y+1+j;editx=b.x+g.widths[0]+5;editwidth=g.widths[1];}
             }else spaces(s,b.w-4);
             out(s," ");ink(s,role);out(s,(s->io.flags&PS_UNICODE)?"│":"|");reset(s);
         }
@@ -47,8 +47,8 @@ static void dashboard_render(ps_session *s){
         if(s->dialog)control_overlay(s,&active);
         else{
             unsigned start=0;
-            while(cells(s->edit+start,s->editpos-start,s->io.flags)>=editwidth-2)start=next(s->edit,start);
-            s->mouse_edit_x=editx;s->mouse_edit_y=edity;s->mouse_edit_start=start;s->mouse_edit_width=editwidth-2;
+            while(start<s->editpos&&cells(s->edit+start,s->editpos-start,s->io.flags)>=editwidth)start=next(s->edit,start);
+            s->mouse_edit_x=editx;s->mouse_edit_y=edity;s->mouse_edit_start=start;s->mouse_edit_width=editwidth;
             at(s,edity,editx+cells(s->edit+start,s->editpos-start,s->io.flags));ansi(s,"\033[?25h");
         }
     }

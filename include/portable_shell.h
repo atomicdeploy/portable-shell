@@ -17,6 +17,9 @@
 #ifndef PS_MOUSE
 #define PS_MOUSE 1
 #endif
+#ifndef PS_COMPLETION_MENU
+#define PS_COMPLETION_MENU 1
+#endif
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -321,7 +324,8 @@ enum {
     PS_NO_SUGGESTIONS = 512,
     PS_EXTENDED_KEYS = 1024, /* Alt-D/Alt-Backspace and Ctrl-T readline shortcuts */
     PS_NO_SYNC_OUTPUT = 2048,
-    PS_NO_OSC = 4096
+    PS_NO_OSC = 4096,
+    PS_NO_COMPLETION_MENU = 8192 /* Print-only candidates instead of a live selection. */
 };
 enum { PS_STYLE_DEFAULT, PS_STYLE_PROMPT, PS_STYLE_SUCCESS, PS_STYLE_WARNING, PS_STYLE_ERROR,
        PS_STYLE_GREEN, PS_STYLE_MUTED, PS_STYLE_COMMAND, PS_STYLE_BLUE };

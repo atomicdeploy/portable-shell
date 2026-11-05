@@ -6,6 +6,15 @@ fixture data and pinned Agave typography with antialiasing. They are not mockups
 or proof of connected hardware. CI rebuilds every image from current source and
 rejects stale or missing files.
 
+**Prompt completion — highlighted selection and rollover**
+
+![Tab completion selection](../../previews/completion-menu.png)
+
+First Tab lists matching candidates and extends their common prefix. Further Tab
+presses advance the highlighted candidate and update the prompt; Shift+Tab moves
+backwards. Both directions wrap. This replay selects `configure` from three
+consumer-registered commands. `PS_COMPLETION_MENU` defaults to `1`.
+
 **Action buttons — focused, available, read-only, pending and unknown**
 
 ![Action button states](../../previews/action-buttons.png)
@@ -21,6 +30,18 @@ The shared table and dashboard renderer use the same treatment.
 mode retains recognizable bracketed buttons without depending on color:
 
 ![Monochrome action buttons](../../previews/action-buttons-mono.png)
+
+**Dotted-key settings — shared typed registry and editable table**
+
+![Dotted-key settings editor](../../previews/settings-editor.png)
+
+Grouped keys, typed controls, inline/modal editing and read-only values use the
+same registry as command-line updates. [Run or embed the adapter](Settings-editor.md).
+This preview uses the example's in-memory settings, not connected service state.
+
+Inline editing keeps the value at the same cell origin, without adding a leading space:
+
+![Dotted-key settings inline editor](../../previews/settings-editor-inline.png)
 
 **Local .env manager — actual interactive document editing**
 
@@ -107,6 +128,21 @@ Tabs are outside by default. Optional first-row tabs:
 | Shared device view | Optional vertical tabs |
 | --- | --- |
 | ![Full device table](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-full.png) | ![Vertical navigation and inline editing](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-inline.png) |
+
+The same allocation-free device component also supports numbered choice menus
+and observed/draft dialogs. These are emitted by the C++11 snapshot/action view,
+so firmware consumers do not need the hosted application or a second renderer.
+
+| Choice picker | Observed/draft dialog |
+| --- | --- |
+| ![Device choice picker](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-choice.png) | ![Device dialog](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-dialog.png) |
+
+`PS_DEVICE_VIEW_CHOICE_MENU=1` (default with dialogs) opens a picker for `Choice`
+rows. `setChoiceMenus(false)` retains text editing for choices. ↑/↓ wraps, 1–9
+selects a numbered entry, Enter applies, and Esc cancels. Clicking an entry applies
+it; the wheel selects. F2 opens the observed/draft dialog for other editable rows.
+Tab focuses Draft, Apply, and Cancel. All changes remain validated `Action::Set`
+requests; the consuming firmware owns authorization, persistence, and hardware.
 
 | Red | Cyan | One Dark |
 | --- | --- | --- |

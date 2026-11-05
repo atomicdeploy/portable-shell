@@ -658,6 +658,9 @@ int host_main(void) {
 #if PS_HOST_ENV
     if (!serial && !use_device_commands && env_manager_register(s)) return 2;
 #endif
+#ifdef PS_HOST_SESSION_READY
+    if (!serial && !use_device_commands) PS_HOST_SESSION_READY(s);
+#endif
 #if PS_HOST_EXEC
 #if PS_HOST_LANGUAGE
     host_program(argv[0]);

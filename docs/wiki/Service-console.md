@@ -7,6 +7,10 @@ framework library or normal host executable.
 
 The example demonstrates these reusable components:
 
+For a direct `ps_settings` registry-backed version of the configuration table,
+see the [dotted-key settings editor](Settings-editor.md). It shares values and
+validation with registry commands; the service catalog remains a separate example.
+
 | Presentation | Framework API | Application responsibility |
 | --- | --- | --- |
 | Contextual numbered menu | `ps_menu_open`, description and notice callbacks | Items, route destinations and operations |

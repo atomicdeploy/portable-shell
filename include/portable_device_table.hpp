@@ -82,6 +82,33 @@ bool startDialog(const Snapshot &s,Action &a) {
     feed('\r',s,a);crPending_=false;
     if(editing_){dialog_=true;full_=dirty_=true;}return false;
 }
+bool choiceKey(uint8_t key,const Snapshot &s,Action &) {
+    const Row *r=currentRow(s);
+    if(!r||!ps_text_equal(r->key,editKey_)||!r->choices||!r->choiceCount||r->secret||r->pending||!r->editable||observed_!=rowHash(*r)){
+        clearDraft();setNotice("State changed; reopen editor");dirty_=full_=true;return false;
+    }
+    if(key=='A')choiceIndex_=uint8_t((choiceIndex_+r->choiceCount-1)%r->choiceCount);
+    else if(key=='B'||key=='\t'||key==' ')choiceIndex_=uint8_t((choiceIndex_+1)%r->choiceCount);
+    else if(key=='H')choiceIndex_=0;
+    else if(key=='F')choiceIndex_=uint8_t(r->choiceCount-1);
+    else if(key>='1'&&key<='9'&&unsigned(key-'1')<r->choiceCount)choiceIndex_=uint8_t(key-'1');
+    else return false;
+    copy(draft_,sizeof draft_,r->choices[choiceIndex_]);cursor_=ps_text_length(draft_);
+    draftChanged_=!ps_text_equal(draft_,r->value);dirty_=full_=true;return false;
+}
+struct ChoiceBounds { unsigned left,top,width,visible,start; };
+ChoiceBounds choiceBounds(const Snapshot &s,const Row &r) const {
+    const unsigned columns=s.columns>240?240:s.columns;
+    unsigned width=20;
+    char clean[241];
+    for(unsigned i=0;i<r.choiceCount;++i){
+        unsigned n=unsigned(terminalText(clean,sizeof clean,r.choiceLabels?r.choiceLabels[i]:r.choices[i]))+10;
+        if(n>width)width=n;
+    }
+    if(width>columns-4)width=columns-4;
+    const unsigned visible=r.choiceCount<s.lines-10?r.choiceCount:s.lines-10;
+    return {(columns-width)/2+1,4,width,visible,choiceIndex_>=visible?choiceIndex_-visible+1:0};
+}
 static const char *pageName(unsigned p) {
     static const char *const names[]={"Device","Network","Matrix","Pixels","Game","Terminal","Cloud","Notifications","Clock"};
     return p<PageCount?names[p]:"";
@@ -96,7 +123,7 @@ bool mouse(const ps_mouse_event &e,const Snapshot &s,Action &a){
     const unsigned b=e.button,x=e.column,y=e.row,button=b&3,drag=b&32;
     if(e.release){mouseDrag_=false;return false;}
     if(!ansi_||s.columns<40||s.lines<16||x>s.columns||y>s.lines||(b&~127U)||(b&28U))return false;
-    if(b&64U){if(!editing_&&!grid_&&button<2)for(unsigned i=0;i<3;++i)arrow(button?'B':'A',s,a);return false;}
+    if(b&64U){if((!editing_||choiceMenu_)&&!grid_&&button<2)for(unsigned i=0;i<3;++i)arrow(button?'B':'A',s,a);return false;}
     if(button!=0&&button!=2)return false;
     if(drag&&!mouseDrag_)return false;
     if(!drag)mouseDrag_=true;
@@ -105,7 +132,27 @@ bool mouse(const ps_mouse_event &e,const Snapshot &s,Action &a){
     const unsigned w=width-1-offset-tableGutter(s,width,offset),shift=tabsInsideTable_?0:1,body=6+shift-(PS_DEVICE_VIEW_PLAIN_ROWS?2:0)-titleBorderShift(s);
     if(editing_){
         if(button==2&&!drag){clearDraft();dirty_=full_=true;return false;}
+        if(choiceMenu_){
+            const Row *r=currentRow(s);if(!r||!r->choices||!r->choiceCount)return false;
+            const ChoiceBounds box=choiceBounds(s,*r);
+            if(!drag&&x>box.left&&x<box.left+box.width-1&&y>box.top&&y<=box.top+box.visible){
+                const unsigned index=box.start+y-box.top-1;
+                // Validate the snapshot through the same keyboard path before selecting.
+                choiceKey('H',s,a);if(!editing_)return false;
+                choiceIndex_=uint8_t(index);copy(draft_,sizeof draft_,r->choices[index]);
+                draftChanged_=!ps_text_equal(draft_,r->value);return edit('\r',s,a);
+            }
+            return false;
+        }
+        if(dialog_&&!drag){
+            const unsigned dw=width<76?width-6:70,left=(width-dw)/2+1,top=s.lines/2-3;
+            if(y==top+5&&x>=left+2&&x<left+19){
+                dialogFocus_=x<left+9?ApplyFocus:CancelFocus;
+                return edit('\r',s,a);
+            }
+        }
         if(y==editRow_&&x>=editColumn_&&x<editColumn_+editWidth_){
+            dialogFocus_=DraftFocus;
             const size_t start=cursor_>=editWidth_?cursor_-editWidth_+1:0;
             cursor_=start+x-editColumn_;if(cursor_>ps_text_length(draft_))cursor_=ps_text_length(draft_);
             dirty_=true;
@@ -487,15 +534,53 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     ink(out,theme_==Default?PS_INK_NUMBER:1);out.raw(status);out.raw("  ");ink(out,0);
     const char *context=*notice_?notice_:r&&r->pending?"Waiting for readback":r&&!r->editable?"Read only":"";
     out.safe(context,width-1-unsigned(ps_text_length(status))-2);out.raw("\r\n");footer(out,s,width-1);
-    if(PS_DEVICE_VIEW_DIALOGS&&dialog_&&editing_&&ansi_){
-        const unsigned dw=w<74?w-4:70,left=offset+(w-dw)/2+1,top=s.lines/2-3;
+    if(PS_DEVICE_VIEW_CHOICE_MENU&&choiceMenu_&&editing_&&ansi_){
+        const Row *choice=currentRow(s);
+        if(choice&&choice->choices&&choice->choiceCount){
+            const ChoiceBounds box=choiceBounds(s,*choice);
+            out.indent(0);out.raw("\x1b[H\x1b[2J");base(out);
+            out.position(1,box.left);ink(out,PS_INK_HEADING);out.safe(editLabel_,box.width);
+            auto line=[&](unsigned y,const char *left,const char *right){
+                out.position(y,box.left);ink(out,PS_INK_ERROR);out.raw(s.unicode?left:"+");
+                for(unsigned i=1;i<box.width-1;++i)out.raw(i==5?(s.unicode?(y==box.top?"┬":"┴"):"+"):(s.unicode?"─":"-"));
+                out.raw(s.unicode?right:"+");base(out);
+            };
+            line(box.top,"╭","╮");
+            for(unsigned i=0;i<box.visible;++i){
+                const unsigned index=box.start+i;char number[12];numberText(number,index+1);
+                out.position(box.top+i+1,box.left);ink(out,PS_INK_ERROR);out.raw(s.unicode?"│":"|");base(out);
+                const bool selected=index==choiceIndex_;
+                if(selected)out.raw(trueColor_?"\x1b[48;2;229;192;123m\x1b[30m":"\x1b[43;30m");
+                else ink(out,PS_INK_TEXT);
+                out.raw(" ");out.field(number,3);base(out);ink(out,PS_INK_ERROR);out.raw(s.unicode?"│":"|");base(out);
+                if(selected)out.raw(trueColor_?"\x1b[48;2;229;192;123m\x1b[30m":"\x1b[43;30m");else ink(out,PS_INK_TEXT);
+                out.raw(" ");out.field(choice->choiceLabels?choice->choiceLabels[index]:choice->choices[index],box.width-8);
+                base(out);ink(out,PS_INK_ERROR);out.raw(s.unicode?"│":"|");base(out);
+            }
+            line(box.top+box.visible+1,"╰","╯");
+            out.position(s.lines-2,2);ink(out,PS_INK_MUTED);out.safe(notice_,s.columns-3);
+            out.position(s.lines-1,2);hint(out,s.columns<64?(s.unicode?"↑/↓ select  Enter apply  Esc cancel":"Up/Down select Enter apply Esc cancel"):(s.unicode?"↑/↓ select  1-9 choose  Enter apply  Esc cancel":"Up/Down select  1-9 choose  Enter apply  Esc cancel"));
+            out.raw("\x1b[?25l");full_=true;
+        }
+    }else if(PS_DEVICE_VIEW_DIALOGS&&dialog_&&editing_&&ansi_){
+        const unsigned dw=width<76?width-6:70,left=(width-dw)/2+1,top=s.lines/2-3;
         auto position=[&](unsigned row){char b[24];ps_terminal_format(b,sizeof(b),"\x1b[%u;%uH",row,left);out.raw(b);};
         position(top);rule(out,s,dw,"\xe2\x95\xad","\xe2\x95\xae",false);
         position(top+1);edge(out,s,"\xe2\x94\x82 ","| ");ink(out,4);out.field(editLabel_,dw-4);edge(out,s," \xe2\x94\x82"," |");
-        position(top+2);edge(out,s,"\xe2\x94\x82 ","| ");editValue(out,dw-4);edge(out,s," \xe2\x94\x82"," |");
-        position(top+3);edge(out,s,"\xe2\x94\x82 ","| ");out.field("Enter apply   Esc cancel",dw-4);edge(out,s," \xe2\x94\x82"," |");
-        position(top+4);rule(out,s,dw,"\xe2\x95\xb0","\xe2\x95\xaf",false);
-        editRow_=top+2;editColumn_=left+2;editWidth_=dw-4;
+        position(top+2);edge(out,s,"│ ","| ");ink(out,PS_INK_MUTED);out.raw("Observed  ");base(out);out.field(secret_?"********":r?r->value:"Unavailable",dw-14);edge(out,s," │"," |");
+        position(top+3);edge(out,s,"│ ","| ");out.raw("Draft     ");editValue(out,dw-14);edge(out,s," │"," |");
+        char limits[96]={0};if(r&&r->kind==Level)ps_terminal_format(limits,sizeof limits,"%u..%u  step %u",r->minimum,r->maximum,r->step);
+        position(top+4);edge(out,s,"│ ","| ");ink(out,PS_INK_MUTED);out.field(*notice_?notice_:limits,dw-4);edge(out,s," │"," |");
+        position(top+5);edge(out,s,"│ ","| ");
+        if(PS_ACTION_BUTTONS)out.raw(ps_style_button(theme_,trueColor_,dialogFocus_==ApplyFocus?PS_BUTTON_FOCUSED:PS_BUTTON_IDLE));
+        else if(dialogFocus_==ApplyFocus)out.raw(ps_style_surface(theme_,trueColor_,1));else ink(out,PS_INK_SUCCESS);
+        out.raw(" Apply ");base(out);out.raw("  ");
+        if(PS_ACTION_BUTTONS)out.raw(ps_style_button(theme_,trueColor_,dialogFocus_==CancelFocus?PS_BUTTON_FOCUSED:PS_BUTTON_IDLE));
+        else if(dialogFocus_==CancelFocus)out.raw(ps_style_surface(theme_,trueColor_,1));
+        out.raw(" Cancel ");base(out);out.field("",dw-21);edge(out,s," │"," |");
+        position(top+6);rule(out,s,dw,"╰","╯",false);
+        out.indent(0);out.position(s.lines-1,2);hint(out,"Tab focus  Enter apply  Esc cancel");
+        editRow_=top+3;editColumn_=left+12;editWidth_=dw-14;
     }
     if(editing_&&!PS_DEVICE_VIEW_INLINE_EDIT&&!dialog_){
         char label[19];const unsigned n=unsigned(terminalText(label,sizeof label,editLabel_));

@@ -185,6 +185,7 @@ than losing rows. These capacities are independent of CPU architecture.
 | `PS_DEVICE_VIEW_INLINE_EDIT` | 1 | In-cell draft; a labeled editor uses the footer instead |
 | `PS_DEVICE_VIEW_WIDGETS` | 1 | Toggle/choice shortcuts and level meters; typed validation is always retained |
 | `PS_DEVICE_VIEW_DIALOGS` | 1 | Optional F2/right-click modal editing; inline or footer editing remains |
+| `PS_DEVICE_VIEW_CHOICE_MENU` | dialogs setting | Numbered, scrollable choice picker; set to 0 to retain text editing for choice rows |
 | `PS_DEVICE_VIEW_MATRIX` | 1 | Dedicated matrix layout; retained diagnostics remain |
 | `PS_DEVICE_VIEW_DIAGNOSTICS` | 1 | Matrix/pixel/game diagnostics (the simple serial adapter sets 0 because it has no such devices) |
 | `PS_STYLE_THEMES` | 1 | Color palettes; reset/bold/inverse remain for monochrome selection |

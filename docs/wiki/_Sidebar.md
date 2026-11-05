@@ -12,6 +12,7 @@
 - [Service consoles](Service-consoles.md)
 - [📝 Text editor](Text-editor.md)
 - [🗂️ .env manager](Environment-editor.md)
+- [Dotted-key settings editor](Settings-editor.md)
 - [⚙️ Options](Options.md)
 - [🔌 Transports](Transports.md)
 - [🖥️ Host execution and remote providers](Host-execution.md)

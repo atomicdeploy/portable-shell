@@ -120,6 +120,7 @@ bytes before returning; queueing and transport backpressure belong to the adapte
 UART, USB CDC, sockets and native consoles can all supply the same byte interface.
 
 Start from the [runnable command/settings consumer](examples/consumer_commands.c),
+[dotted-key settings editor](docs/wiki/Settings-editor.md),
 [firmware example](examples/firmware.c), or [async command example](examples/async_command.h).
 The [embedding guide](docs/wiki/Embedding.md) and
 [command registration guide](docs/wiki/Commands.md) explain the APIs and ownership rules.
