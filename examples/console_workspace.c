@@ -88,6 +88,9 @@ int cw_open(cw_workspace *w,const char *id){
     unsigned index=cw_find(w,id),i,j,page_count=0,selected=0;
     const cw_screen *screen;ps_session *s=w->session;
     if(index==w->count)return 0;
+    /* Reject unavailable views before closing the caller's current screen. */
+    if((w->screens[index].kind==CW_FORM&&!PS_FORM)||
+       (w->screens[index].kind==CW_DOCUMENT&&!PS_EDITOR))return 0;
     /* Closing is owned by the outer application, never a read/write callback. */
     if(ps_editor_active(s)){ps_key(s,27);if(ps_editor_active(s))return 0;}
     ps_form_close(s);ps_menu_close(s);ps_key(s,27);

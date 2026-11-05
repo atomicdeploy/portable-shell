@@ -186,7 +186,9 @@ static int form(env_manager *m,unsigned action){
     m->form_action=action;
     ps_panel_attach(m->session,0);ps_form_set_style(m->session,PS_FORM_OVERVIEW);
     ps_form_set_title(m->session,action==ENV_CLOSE?"Unsaved .env changes":action==ENV_DELETE?"Delete selected record?":action==ENV_RELOAD?"Reload discards the current draft":action==ENV_SEARCH?"Find configuration key":"Add configuration entry");
-    return ps_form_open(m->session,&m->form);
+    if(ps_form_open(m->session,&m->form))return 1;
+    m->form_action=ENV_IDLE;
+    message(m,"Forms are unavailable in this build; draft retained");show(m);return 0;
 }
 static int record_save(void *context,const char *text,unsigned n){
     env_manager *m=context;env_document *d=&m->document;env_record r=d->records[m->selected];
@@ -240,7 +242,10 @@ void env_manager_dispatch(env_manager *m){
             "Ctrl+E explicitly reveals the raw record. Changes stay in memory until saved.\n"
             "Save checks the original bytes and refuses external changes.\n";
         ps_panel_attach(m->session,0);ps_editor_set_style(m->session,PS_EDITOR_HEADER|PS_EDITOR_BORDER|PS_EDITOR_READ_ONLY);
-        ps_editor_open(m->session,".env keyboard reference",help,0,0);m->returning=1;return;
+        if(!ps_editor_open(m->session,".env keyboard reference",help,0,0)){
+            message(m,"Text editor unavailable in this build");show(m);return;
+        }
+        m->returning=1;return;
     }else if(action==ENV_RECORD){
         const env_record *r;unsigned n,i,k=0;
         if(m->selected>=d->count)return;
@@ -248,7 +253,9 @@ void env_manager_dispatch(env_manager *m){
         if(n>=sizeof m->drafts[0]){message(m,"Record exceeds editor capacity; untouched bytes are preserved");show(m);return;}
         for(i=0;i<n;++i){char ch=d->text[r->start+i];if(ch=='\r'&&i+1<n&&d->text[r->start+i+1]=='\n')continue;m->drafts[0][k++]=ch;}m->drafts[0][k]=0;
         ps_panel_attach(m->session,0);ps_editor_set_style(m->session,PS_EDITOR_HEADER|PS_EDITOR_BORDER);
-        if(!ps_editor_open(m->session,"Edit record | literal dotenv syntax | saves to draft",m->drafts[0],record_save,m))message(m,"Editor unavailable or record exceeds configured editor capacity");
+        if(!ps_editor_open(m->session,"Edit record | literal dotenv syntax | saves to draft",m->drafts[0],record_save,m)){
+            message(m,"Editor unavailable or record exceeds configured editor capacity");show(m);return;
+        }
         m->returning=1;return;
     }else if(action==ENV_RELOAD){
         if(m->form_action!=ENV_RELOAD){form(m,action);return;}

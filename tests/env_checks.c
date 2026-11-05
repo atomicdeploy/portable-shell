@@ -79,18 +79,39 @@ int main(int argc,char **argv){
     key(26);assert(strstr(manager.document.text,"PORT=8080\n"));
     assert(ps_panel_select(s,find_key("APP_NAME")));key(PS_KEY_F2);ps_tick(s,now+=200);assert(ps_panel_active(s));assert(!ps_panel_selection(s,&i));assert(visible("Apply")&&visible("Cancel"));capture(directory,"env-modal");key(27);
     key(9);ps_tick(s,now+=120);capture(directory,"env-source");
-    key(PS_KEY_F3);type("MAIL");key(13);assert(!strcmp(manager.filter,"MAIL"));capture(directory,"env-filter");
+    key(PS_KEY_F3);
+#if PS_FORM
+    type("MAIL");key(13);assert(!strcmp(manager.filter,"MAIL"));capture(directory,"env-filter");
+#else
+    assert(!ps_form_active(s)&&ps_panel_active(s)&&!manager.filter[0]);
+#endif
     assert(ps_panel_select(s,find_key("MAIL_ENABLED")+PS_ENV_RECORDS));key(20);assert(strstr(manager.document.text,"\nMAIL_ENABLED=true\n"));
-    key(5);assert(ps_editor_active(s));capture(directory,"env-record");key(27);assert(ps_panel_active(s));
+    key(5);
+#if PS_EDITOR
+    assert(ps_editor_active(s));capture(directory,"env-record");key(27);assert(ps_panel_active(s));
+#else
+    assert(!ps_editor_active(s)&&ps_panel_active(s));
+#endif
+#if PS_FORM
     key(27);assert(ps_form_active(s));capture(directory,"env-unsaved");key(27);assert(manager.open&&ps_panel_active(s));
     key(14);type("NEW_KEY");key(13);type("value");key(13);assert(strstr(manager.document.text,"NEW_KEY=value\n"));
-    key(PS_KEY_F1);assert(ps_editor_active(s));key('x');key(27);assert(ps_panel_active(s));
+#else
+    key(27);assert(!ps_form_active(s)&&manager.open&&ps_panel_active(s)&&env_dirty(&manager.document));
+#endif
+    key(PS_KEY_F1);
+#if PS_EDITOR
+    assert(ps_editor_active(s));key('x');key(27);assert(ps_panel_active(s));
+#else
+    assert(!ps_editor_active(s)&&ps_panel_active(s));
+#endif
     ps_resize(s,48,18);ps_tick(s,now+=120);
     assert(visible("Line")&&visible("Key")&&visible("MAIL"));
     ps_resize(s,100,32);ps_tick(s,now+=120);
     /* Byte decoder paths, including fragmented escape input. */
     ps_feed(s,(const ps_byte *)"\033[",2);ps_feed(s,(const ps_byte *)"B",1);env_manager_dispatch(&manager);
+#if PS_FORM
     key(PS_KEY_F3);key(21);key(13);assert(!manager.filter[0]);
+#endif
     for(i=0;i<manager.document.count;++i)assert(manager.document.records[i].end<=manager.document.size);
     ps_close(s);free(storage);
     printf("env document, disk conflict, inline/modal and navigation checks passed; model=%zu UI=%zu bytes\n",sizeof(env_document),sizeof(env_manager));return 0;

@@ -31,9 +31,15 @@ static void open_screen(ps_session *s,const char *id){
     if(!strcmp(id,"config-section")){cw_key(&workspace,PS_KEY_UP);cw_key(&workspace,13);}
 }
 static void tests(ps_session *s){
-    unsigned i,accepted,revision;char before[PS_EDITOR_CAPACITY];
+    unsigned i,revision;char before[PS_EDITOR_CAPACITY];
+#if PS_FORM
+    unsigned accepted;
+#endif
     /* Every screen opens; every menu target resolves; every viewport responds. */
     for(i=0;i<PS_COUNT_OF(service_console_screens);++i){const cw_screen *screen=&service_console_screens[i];unsigned j;
+        if((screen->kind==CW_FORM&&!PS_FORM)||(screen->kind==CW_DOCUMENT&&!PS_EDITOR)){
+            unsigned current=workspace.current;assert(!cw_open(&workspace,screen->id));assert(workspace.current==current);continue;
+        }
         assert(cw_open(&workspace,screen->id));
         ps_resize(s,64,20);ps_resize(s,PREVIEW_COLUMNS,PREVIEW_ROWS);
         if(screen->kind==CW_MENU){
@@ -41,7 +47,8 @@ static void tests(ps_session *s){
             for(j=0;j<screen->count;++j)if(screen->entries[j].target&&*screen->entries[j].target){
                 assert(cw_open(&workspace,screen->id));
                 assert(ps_menu_choose(s,j+1)!=2);cw_dispatch(&workspace);
-                assert(workspace.current==screen_index(screen->entries[j].target));
+                {unsigned target=screen_index(screen->entries[j].target);const cw_screen *dest=&service_console_screens[target];
+                 assert(workspace.current==(((dest->kind==CW_FORM&&!PS_FORM)||(dest->kind==CW_DOCUMENT&&!PS_EDITOR))?i:target));}
             }
         }else if(screen->kind==CW_TABLE){cw_key(&workspace,PS_KEY_PAGEDOWN);cw_key(&workspace,PS_KEY_PAGEUP);}
         else if(screen->kind==CW_DOCUMENT){
@@ -54,6 +61,7 @@ static void tests(ps_session *s){
             cw_key(&workspace,PS_KEY_PAGEDOWN);cw_key(&workspace,PS_KEY_PAGEUP);
         }
     }
+#if PS_FORM
     assert(cw_open(&workspace,"config-edit"));accepted=workspace.accepted;
     cw_key(&workspace,13);cw_key(&workspace,21);cw_feed(&workspace,"http://localhost:9000",PS_LITERAL_LENGTH("http://localhost:9000"));cw_key(&workspace,13);
     assert(workspace.accepted==accepted+1&&workspace.current==screen_index("configuration"));
@@ -64,15 +72,18 @@ static void tests(ps_session *s){
     assert(cw_open(&workspace,"diag-port"));cw_key(&workspace,13);cw_key(&workspace,21);cw_feed(&workspace,"999999",6);cw_key(&workspace,13);assert(ps_form_active(s));cw_key(&workspace,27);
     assert(cw_open(&workspace,"diag-port"));cw_key(&workspace,9);assert(ps_form_active(s)==2);
     cw_key(&workspace,PS_KEY_BACKTAB);assert(ps_form_active(s)==1);cw_key(&workspace,27);
+#endif
     assert(cw_open(&workspace,"settings"));revision=workspace.revision;
     cw_key(&workspace,PS_KEY_DOWN);cw_key(&workspace,PS_KEY_RIGHT);assert(workspace.revision>revision);
     assert(cw_open(&workspace,"phone-tab-0"));assert(workspace.panel.count==6);
     for(i=0;i<6;++i){cw_key(&workspace,9);assert(ps_panel_active(s)==(i+1)%6+1);}
+#if PS_FORM
     assert(cw_open(&workspace,"phone-tab-2"));accepted=workspace.requests;
     cw_key(&workspace,13);cw_key(&workspace,13);assert(workspace.requests==accepted); /* Cancel is initially focused. */
     cw_key(&workspace,13);cw_key(&workspace,9);cw_key(&workspace,13);
     assert(workspace.requests==accepted+1&&ps_form_active(s)&&workspace.current==screen_index("phone-provision"));
     cw_key(&workspace,27);
+#endif
     assert(cw_open(&workspace,"configuration"));cw_key(&workspace,13);cw_key(&workspace,27);
     assert(ps_panel_active(s));cw_key(&workspace,27);
     assert(!ps_panel_active(s)&&workspace.current==screen_index("main"));
