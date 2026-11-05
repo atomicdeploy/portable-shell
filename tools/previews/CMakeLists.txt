@@ -3,6 +3,7 @@ project(PortableShellPreviews LANGUAGES C CXX)
 get_filename_component(root "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 include("${root}/tools/service-console/target.cmake")
 include("${root}/tools/env-target.cmake")
+include("${root}/tools/action-button-target.cmake")
 add_executable(terminal_animation "${root}/tools/terminal_animation.c")
 add_executable(animation_demo "${root}/tests/animation_demo.c" "${root}/src/portable_shell.c")
 add_executable(workspace_preview "${root}/tests/export_previews.c" "${root}/tests/render.c"

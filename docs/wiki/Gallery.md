@@ -6,6 +6,22 @@ fixture data and pinned Agave typography with antialiasing. They are not mockups
 or proof of connected hardware. CI rebuilds every image from current source and
 rejects stale or missing files.
 
+**Action buttons — focused, available, read-only, pending and unknown**
+
+![Action button states](../../previews/action-buttons.png)
+
+`PS_CONTROL_ACTION` uses a padded background button by default, with brighter
+keyboard/mouse focus. Pending actions are amber; unavailable actions are muted
+and cannot execute. Clicking or pressing Enter opens the existing confirmation
+dialog; Cancel remains its initial focus. Providers may supply an action-specific
+label through `ps_control_value.text`, such as `Apply changes`; empty uses `Run`.
+The shared table and dashboard renderer use the same treatment.
+
+`PS_ACTION_BUTTONS=0` selects plain action text at build time. Monochrome/ASCII
+mode retains recognizable bracketed buttons without depending on color:
+
+![Monochrome action buttons](../../previews/action-buttons-mono.png)
+
 **Local .env manager — actual interactive document editing**
 
 | Values, masking and duplicate warnings | Complete source order |

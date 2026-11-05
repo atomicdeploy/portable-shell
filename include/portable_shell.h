@@ -196,7 +196,7 @@ typedef struct {
 typedef struct {
     unsigned number, flags;
     ps_u32 revision;
-    char text[64];
+    char text[64]; /* ACTION: optional button label; empty uses "Run". */
 } ps_control_value;
 typedef int (*ps_control_read_fn)(void *, unsigned id, ps_control_value *observed);
 typedef int (*ps_control_write_fn)(void *, unsigned id, const ps_control_value *requested,

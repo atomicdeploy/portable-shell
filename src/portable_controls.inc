@@ -172,10 +172,35 @@ static void control_value_text(ps_session *s, const ps_control *c, const ps_cont
     else if (c->kind == PS_CONTROL_LEVEL)
         dec(text, v->number);
     else if (c->kind == PS_CONTROL_ACTION)
-        str(text, "Run...", cap);
+        str(text, v->text[0] ? v->text : "Run", cap);
     else
         str(text, v->text, cap);
 }
+#if PS_ACTION_BUTTONS
+static void control_button(ps_session *s, const ps_control_value *v, const char *label,
+                           unsigned width, unsigned focused) {
+    enum { BUTTON_PADDING = 2, BUTTON_FRAME = 2 * BUTTON_PADDING };
+    unsigned state=focused?PS_BUTTON_FOCUSED:PS_BUTTON_IDLE;
+    unsigned span=min(width,cells(label,length(label),s->io.flags)+BUTTON_FRAME);
+    const char *status="";
+    if (!(v->flags&PS_CONTROL_VALID)) {state=PS_BUTTON_DISABLED;status="Unknown";}
+    else if (v->flags&PS_CONTROL_PENDING) {state=PS_BUTTON_PENDING;status="Pending";}
+    else if ((v->flags&PS_CONTROL_LOCKED)||!s->panel->write) {state=PS_BUTTON_DISABLED;status="Read only";}
+    if(span<BUTTON_FRAME){grid_text(s,label,width);return;}
+    ansi(s,"\033[0m");
+    if(s->io.flags&PS_COLOR)color(s,ps_style_button(s->theme,!!(s->io.flags&PS_TRUECOLOR),state));
+    else ansi(s,state==PS_BUTTON_FOCUSED?"\033[1;7m":state==PS_BUTTON_DISABLED?"\033[2m":"\033[1m");
+    out(s,s->io.flags&PS_COLOR?"  ":"[ ");
+    grid_text(s,label,span-BUTTON_FRAME);
+    out(s,s->io.flags&PS_COLOR?"  ":" ]");
+    /* Restore the row, so padding and the table border never inherit the button. */
+    reset(s);
+    if(focused){if(s->io.flags&PS_COLOR)surface(s,2);else ansi(s,"\033[7m");}
+    ink(s,state==PS_BUTTON_PENDING?PS_INK_WARNING:PS_INK_MUTED);
+    if(*status&&width-span>2){out(s,"  ");grid_text(s,status,width-span-2);}
+    else spaces(s,width-span);
+}
+#endif
 static void control_row(ps_session *s, unsigned index, const Grid *g) {
     const ps_control *c = &s->panel->pages[s->tab].controls[index];
     ps_control_value v;
@@ -219,6 +244,14 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
         out(s, " ");
         return;
     }
+#if PS_ACTION_BUTTONS
+    if(c->kind==PS_CONTROL_ACTION){
+        /* Keep the action name visible even when its state is unknown. */
+        str(b,v.text[0]?v.text:"Run",sizeof b);
+        control_button(s,&v,b,w,!s->control_header&&s->selected==index);
+        return;
+    }
+#endif
     if ((v.flags & PS_CONTROL_VALID) && !(v.flags & (PS_CONTROL_PENDING | PS_CONTROL_LOCKED | PS_CONTROL_NUMBER_ONLY)) &&
         c->kind == PS_CONTROL_LEVEL && w >= 18) {
         unsigned bar = w - 15;
