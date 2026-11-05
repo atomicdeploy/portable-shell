@@ -8,6 +8,19 @@ already compiled or running firmware; rebuild and use the consumer's authorized
 update mechanism. Never remove feature flags or replace application handlers with
 the desktop demonstration workspace.
 
+## Full-session completion
+
+The full C session has a live completion list by default. The first Tab extends
+the common prefix and shows matches; subsequent Tab presses select the next
+candidate, update the input and highlight its background. Shift+Tab cycles in
+reverse, with rollover in both directions. The list fits the viewport and pages
+to keep the selected candidate visible. It also works above the input in the
+combined table/prompt layout. Monochrome terminals use reverse video.
+`PS_COMPLETION_MENU=0` removes the live list at build time, or set
+`PS_NO_COMPLETION_MENU` in `ps_config.flags` for the original print-only list.
+This change is in the full session; standalone event-editor consumers retain
+their own completion presentation callbacks.
+
 ## Event-editor consumers
 
 - Call `ps_editor_suggest` / `LineEditor::suggest` after normal input. It offers

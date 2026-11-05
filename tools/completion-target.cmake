@@ -1,0 +1,11 @@
+add_executable(completion_checks "${root}/tests/completion_checks.c"
+  "${root}/tests/render.c" "${root}/src/portable_shell.c")
+target_include_directories(completion_checks PRIVATE "${root}/include")
+target_compile_features(completion_checks PRIVATE c_std_99)
+target_compile_definitions(completion_checks PRIVATE PS_REPLAY_ONLY PS_REPLAY_ATTRIBUTES W=80 H=12)
+if(MSVC)
+  target_compile_options(completion_checks PRIVATE /UNDEBUG /W4)
+else()
+  target_compile_options(completion_checks PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+endif()
+set_target_properties(completion_checks PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")

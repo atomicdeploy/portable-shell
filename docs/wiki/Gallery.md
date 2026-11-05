@@ -6,6 +6,15 @@ fixture data and pinned Agave typography with antialiasing. They are not mockups
 or proof of connected hardware. CI rebuilds every image from current source and
 rejects stale or missing files.
 
+**Prompt completion — highlighted selection and rollover**
+
+![Tab completion selection](../../previews/completion-menu.png)
+
+First Tab lists matching candidates and extends their common prefix. Further Tab
+presses advance the highlighted candidate and update the prompt; Shift+Tab moves
+backwards. Both directions wrap. This replay selects `configure` from three
+consumer-registered commands. `PS_COMPLETION_MENU` defaults to `1`.
+
 **Action buttons — focused, available, read-only, pending and unknown**
 
 ![Action button states](../../previews/action-buttons.png)
