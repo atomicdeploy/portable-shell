@@ -22,6 +22,14 @@ mode retains recognizable bracketed buttons without depending on color:
 
 ![Monochrome action buttons](../../previews/action-buttons-mono.png)
 
+**Dotted-key settings — shared typed registry and editable table**
+
+![Dotted-key settings editor](../../previews/settings-editor.png)
+
+Grouped keys, typed controls, inline/modal editing and read-only values use the
+same registry as command-line updates. [Run or embed the adapter](Settings-editor.md).
+This preview uses the example's in-memory settings, not connected service state.
+
 **Local .env manager — actual interactive document editing**
 
 | Values, inline comments and duplicate warnings | Tokenized source order and comment sections |
