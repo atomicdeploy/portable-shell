@@ -14,7 +14,7 @@ static int save(const char *path){
 }
 int main(int argc,char **argv){
     using V=PortableShell::DeviceView;
-    if(argc!=(PS_PREVIEW_REDUCED?2:9))return 2;
+    if(argc!=(PS_PREVIEW_REDUCED?2:11))return 2;
     V view;V::Snapshot s;V::Action a;
     V::Row rows[]={ {"Output","output","on",true},{"Brightness","brightness","160",true},
         {"Effect","effect","breathe",true},{"Hostname","hostname","workbench",true},
@@ -55,6 +55,13 @@ int main(int argc,char **argv){
     view.feed(27,s,a);view.feed('[',s,a);view.feed('B',s,a);
     view.feed('\r',s,a);view.feed(21,s,a);view.feed('2',s,a);view.feed('0',s,a);view.feed('0',s,a);
     render();if(save(argv[4]))return 6;
+    view.feed(27,s,a);view.flushEscape(a);
+    view.feed(27,s,a);view.feed('O',s,a);view.feed('Q',s,a);
+    view.feed(21,s,a);view.feed('2',s,a);view.feed('0',s,a);view.feed('0',s,a);
+    render();if(save(argv[9]))return 12;
+    view.feed(27,s,a);view.flushEscape(a);
+    view.feed(27,s,a);view.feed('[',s,a);view.feed('B',s,a);
+    view.feed('\r',s,a);render();if(save(argv[10]))return 13;
     V comparison;V::Snapshot list=s;V::Row entries[32];
     for(unsigned i=0;i<32;++i){entries[i]=rows[i%6];entries[i].category=i<16?"Lighting":"Connection";}
     list.rows=entries;list.rowCount=32;comparison.begin();

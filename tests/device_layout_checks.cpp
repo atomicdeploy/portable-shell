@@ -139,7 +139,8 @@ int main(){
         screen.tableBorders(left,unicode,inside,compact);
 #if PS_DEVICE_VIEW_DIALOGS
         feed("\x1b[12~");render(false);assert(view.editing());
-        assert(screen.line(height/2-1).find("Enter apply")!=std::string::npos);
+        assert(screen.line(height/2-1).find("Observed")!=std::string::npos);
+        assert(screen.line(height-2).find("Enter apply")!=std::string::npos);
         assert(screen.line(height-1).find("Tab pages")==std::string::npos);
         feed("\x1b");view.flushEscape(a);render(false);
 #endif

@@ -108,6 +108,21 @@ Tabs are outside by default. Optional first-row tabs:
 | --- | --- |
 | ![Full device table](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-full.png) | ![Vertical navigation and inline editing](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-inline.png) |
 
+The same allocation-free device component also supports numbered choice menus
+and observed/draft dialogs. These are emitted by the C++11 snapshot/action view,
+so firmware consumers do not need the hosted application or a second renderer.
+
+| Choice picker | Observed/draft dialog |
+| --- | --- |
+| ![Device choice picker](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-choice.png) | ![Device dialog](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-dialog.png) |
+
+`PS_DEVICE_VIEW_CHOICE_MENU=1` (default with dialogs) opens a picker for `Choice`
+rows. `setChoiceMenus(false)` retains text editing for choices. ↑/↓ wraps, 1–9
+selects a numbered entry, Enter applies, and Esc cancels. Clicking an entry applies
+it; the wheel selects. F2 opens the observed/draft dialog for other editable rows.
+Tab focuses Draft, Apply, and Cancel. All changes remain validated `Action::Set`
+requests; the consuming firmware owns authorization, persistence, and hardware.
+
 | Red | Cyan | One Dark |
 | --- | --- | --- |
 | ![Red workspace](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/red.png) | ![Cyan workspace](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/cyan.png) | ![One Dark control panel](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/onedark.png) |

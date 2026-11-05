@@ -101,7 +101,20 @@ int main(){
     feed("\r\x15" "200");assert(feed("\r")&&std::string(a.value)=="200");
     feed("\x1b[B");assert(feed(" ")&&std::string(a.value)=="static");
     feed("\x1b[12~");assert(v.editing());output.clear();v.render(s,write);
-    assert(output.find("Enter apply   Esc cancel")!=std::string::npos);
+    assert(output.find(" apply")!=std::string::npos);
+#if PS_DEVICE_VIEW_CHOICE_MENU
+    assert(output.find("1  ")!=std::string::npos);
+    assert(!feed("\x1b[A")&&std::string(v.draft())=="static"); // wrap
+    assert(!feed("\x1b[B")&&std::string(v.draft())=="effects");
+    assert(!feed("2")&&std::string(v.draft())=="static");
+    assert(feed("\r")&&std::string(a.value)=="static");
+    feed("\x1b[12~");rows[2].pending=true;
+    assert(!feed("\x1b[B")&&!v.editing());rows[2].pending=false;
+    v.setChoiceMenus(false);feed("\x1b[12~");output.clear();v.render(s,write);
+    assert(output.find("Observed")!=std::string::npos&&output.find("Draft")!=std::string::npos);
+    feed("\t\t\r");assert(!v.editing()&&a.type==V::Action::None);
+    feed("\x1b[12~");
+#endif
     assert(output.find("cursor  Enter apply")==std::string::npos);
     feed("\x1b");v.flushEscape(a);
     for(unsigned theme=0;theme<4;++theme){v.setTheme(V::Theme(theme));output.clear();assert(v.render(s,write));assert(output.find("\x1b[48;")!=std::string::npos);}
