@@ -22,6 +22,8 @@ int main(void){
     a=checkpoints[0].frame;b=checkpoints[1].frame;
     assert(a==checkpoints[2].frame&&a!=b&&frame_count==3); /* includes initial blank */
     assert(frames[a].shape==5&&frames[a].visible&&!frames[b].visible);
+    assert(!export_drawings("missing-animation-output-directory"));
+    assert(!import_drawings("missing-animation-output-directory"));
     assert(strstr(frames[a].drawing,"&lt;")&&strstr(frames[a].drawing,"&amp;"));
     assert(!strstr(frames[a].drawing,"invisible title"));
     exported(2,0,1,0);assert(strstr(xml,"dur=\"1000.000000ms\""));

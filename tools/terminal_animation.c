@@ -125,9 +125,57 @@ static void cursor_svg(FILE *out,const ReplayFrame *f,int blink) {
     fputs("</rect>",out);
 }
 static void drawing_svg(FILE *out,const ReplayFrame *f) {
-    const char *start=strchr(f->drawing,'>')+1;
-    size_t n=strlen(start)-strlen("</svg>");
+    const char *start=strchr(strstr(f->drawing,"<svg"),'>')+1;
+    size_t n=(size_t)(strstr(start,"</svg>")-start);
     fwrite(start,1,n,out);
+}
+/* Conversion is a host build step. Assemble converted drawings only after the
+   static SVG converter has finished, so it never strips timing or cursor SMIL. */
+static int drawing_path(char *path,size_t capacity,const char *directory,unsigned index) {
+    int n=snprintf(path,capacity,"%s/frame-%u.svg",directory,index);
+    return n>0&&(size_t)n<capacity;
+}
+static int export_drawings(const char *directory) {
+    unsigned i;char path[4096];FILE *manifest;
+    int n=snprintf(path,sizeof path,"%s/frames.txt",directory);
+    if(n<0||(size_t)n>=sizeof path)return 0;
+    manifest=fopen(path,"wb");if(!manifest)return 0;
+    for(i=0;i<frame_count;++i)if(frames[i].drawing_index==i){
+        FILE *out;int bad;
+        if(!drawing_path(path,sizeof path,directory,i)){fclose(manifest);return 0;}
+        out=fopen(path,"wb");if(!out){fclose(manifest);return 0;}
+        bad=fputs(frames[i].drawing,out)==EOF;
+        if(fclose(out))bad=1;
+        if(bad||fprintf(manifest,"frame-%u.svg\n",i)<0){fclose(manifest);return 0;}
+    }
+    return fclose(manifest)==0;
+}
+static int import_drawings(const char *directory) {
+    unsigned i,j;char path[4096];
+    for(i=0;i<frame_count;++i)if(frames[i].drawing_index==i){
+        FILE *in;long size;char *drawing,*root,*end;size_t old=strlen(frames[i].drawing)+1;
+        if(!drawing_path(path,sizeof path,directory,i))return 0;
+        in=fopen(path,"rb");if(!in)return 0;
+        if(fseek(in,0,SEEK_END)||(size=ftell(in))<=0||size>=PS_REPLAY_SVG_CAPACITY||
+           retained_bytes-old+(size_t)size+1>MAX_CAPTURE_BYTES||fseek(in,0,SEEK_SET)){
+            fclose(in);return 0;
+        }
+        drawing=(char *)malloc((size_t)size+1);if(!drawing){fclose(in);return 0;}
+        if(fread(drawing,1,(size_t)size,in)!=(size_t)size||ferror(in)){
+            free(drawing);fclose(in);return 0;
+        }
+        fclose(in);drawing[size]=0;
+        root=strstr(drawing,"<svg");end=root?strchr(root,'>'):0;
+        /* This option accepts trusted static converter output, never a font or
+           arbitrary webpage. Missing outlines fail rather than silently falling back. */
+        if(!end||!strstr(end,"</svg>")||strstr(drawing,"<text")||strstr(drawing,"@font-face")||
+           strstr(drawing,"<script")||strstr(drawing,"<image")||strstr(drawing,"<foreignObject")){
+            free(drawing);return 0;
+        }
+        free(frames[i].drawing);retained_bytes=retained_bytes-old+(size_t)size+1;
+        for(j=i;j<frame_count;++j)if(frames[j].drawing_index==i)frames[j].drawing=drawing;
+    }
+    return 1;
 }
 static int embedded_font(FILE *out,const char *path) {
     static const char alphabet[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -186,9 +234,9 @@ static int export_file(const char *path,double speed,int loop,int blink,int post
     return good;
 }
 int main(int argc,char **argv) {
-    int i,loop=1,blink=1,good;double speed=1;const char *font=0,*poster=0;FILE *in;
+    int i,loop=1,blink=1,good;double speed=1;const char *font=0,*poster=0,*export_dir=0,*import_dir=0;FILE *in;
     if(argc<3){
-        fputs("Usage: terminal_animation recording.psrec output.svg [--once] [--speed N] [--no-blink] [--font Agave.ttf] [--poster static.svg]\n",stderr);return 2;
+        fputs("Usage: terminal_animation recording.psrec output.svg [--once] [--speed N] [--no-blink] [--font Agave.ttf] [--poster static.svg] [--export-drawings DIR] [--drawings DIR]\n",stderr);return 2;
     }
     for(i=3;i<argc;++i){
         if(!strcmp(argv[i],"--once"))loop=0;
@@ -198,12 +246,17 @@ int main(int argc,char **argv) {
             if(*end||!isfinite(speed)||speed<0.01||speed>100)return 2;
         }else if(!strcmp(argv[i],"--font")&&i+1<argc)font=argv[++i];
         else if(!strcmp(argv[i],"--poster")&&i+1<argc)poster=argv[++i];
+        else if(!strcmp(argv[i],"--export-drawings")&&i+1<argc)export_dir=argv[++i];
+        else if(!strcmp(argv[i],"--drawings")&&i+1<argc)import_dir=argv[++i];
         else {fprintf(stderr,"Unknown or incomplete option: %s\n",argv[i]);return 2;}
     }
-    if(!strcmp(argv[1],argv[2]) || (poster&&(!strcmp(poster,argv[1])||!strcmp(poster,argv[2]))))return 2;
+    if((import_dir&&(export_dir||font))||!strcmp(argv[1],argv[2]) || (poster&&(!strcmp(poster,argv[1])||!strcmp(poster,argv[2]))))return 2;
     in=fopen(argv[1],"rb");if(!in){perror(argv[1]);return 3;}
     good=read_recording(in);fclose(in);
     if(!good){fputs("Invalid, incomplete, or oversized PSREPLAY recording.\n",stderr);release_frames();return 4;}
+    if((export_dir&&!export_drawings(export_dir))||(import_dir&&!import_drawings(import_dir))){
+        fputs("Could not export/import static outlined drawings.\n",stderr);release_frames();return 5;
+    }
     good=export_file(argv[2],speed,loop,blink,0,font);
     if(good&&poster)good=export_file(poster,speed,loop,blink,1,font);
     if(good)fprintf(stderr,"%u unique frames, %u visual checkpoints, %u input events; %.3f seconds\n",frame_count,checkpoint_count,input_count,duration/speed/1000);

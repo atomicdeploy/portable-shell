@@ -34,12 +34,25 @@ with `gcc -std=c99 -O2 tools/terminal_animation.c -o terminal_animation`.
 | `--once` | Play once and retain the final screen |
 | `--speed 2` | Double playback speed; accepts 0.01–100 |
 | `--no-blink` | Show visible cursors steadily |
-| `--font path/to/Agave.ttf` | Embed the font; no font installation/network required |
+| `--font path/to/Agave.ttf` | Embed a font for viewers whose security policy permits data fonts |
 | `--poster session-static.svg` | Export the final screen with a steady cursor |
+| `--export-drawings directory` | Export unique static frame SVGs and `frames.txt` for host-side conversion |
+| `--drawings directory` | Assemble trusted converted frame SVGs containing outlined text |
 
-The gallery embeds the pinned Agave font and ships its [license](../../previews/Agave-LICENSE.txt).
-Without `--font`, install Agave for the intended typography. Other glyph fallback
-fonts remain the viewer's responsibility.
+The gallery converts pinned Agave lettering to vector paths using pinned usvg
+before assembling the animation, and ships its [license](../../previews/Agave-LICENSE.txt).
+The published replay needs no installed, downloaded or embedded font. GitHub raw
+responses use `default-src 'none'` without a font exception, so embedding a data
+font alone does not work there. The optional `--font` export remains useful for
+permissive local viewers; ordinary text exports without either option require Agave.
+
+Use the gallery rebuild command below for the complete outlined export. Its CMake
+pipeline exports static drawings, converts them with `usvg --skip-system-fonts
+--use-font-file ... --id-prefix ...`, then assembles the converted frames with
+`--drawings`. It converts each static drawing separately: passing the complete
+animated SVG through a static converter would discard its timing. Drawing
+directories must exist; imports are trusted converter output, bounded by the
+exporter's frame/memory limits. Missing or still-text-based frames fail export.
 
 ## Recording a consumer
 
@@ -89,13 +102,14 @@ colors use the shared cell drawing implementation.
 
 The final screen sits behind the animated frames, so an SVG viewer without
 animation support still displays useful content. `prefers-reduced-motion` hides
-the animation and exposes that static frame. Hosts that sanitize animation or
-embedded fonts may show a static preview; open the SVG directly in a supporting
+the animation and exposes that static frame. Hosts that sanitize animation
+may show a static preview; open the SVG directly in a supporting
 browser. See the [SVG animation reference](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/animate).
 
 The [gallery](Gallery.md) rebuild generates the recording, animated SVG, static
 SVG and antialiased PNG from current source. Existing CI freshness checks cover
-all four artifacts and the embedded font's license:
+all four artifacts and the font's license. They reject font-dependent published
+animation and require a render with all fonts disabled to match its static poster:
 
 ```sh
 cmake -DMODE=UPDATE -DGENERATOR=Ninja -P tools/rebuild-previews.cmake
