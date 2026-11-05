@@ -8,6 +8,7 @@ void ps_replay_reset(void);
 void ps_replay_feed(const unsigned char *,unsigned);
 unsigned ps_replay_svg(char *);
 const char *ps_replay_cell(unsigned,unsigned);
+unsigned ps_replay_foreground(unsigned,unsigned);
 static env_document doc;
 static env_manager manager;
 static char svg[1000000];
@@ -26,6 +27,12 @@ static const char fixture[]=
 static void sink(void *ctx,const ps_byte *b,unsigned n){(void)ctx;ps_replay_feed(b,n);}
 static void key(unsigned k){ps_key(manager.session,k);env_manager_dispatch(&manager);now+=120;ps_tick(manager.session,now);}
 static int visible(const char *word){unsigned y,x;for(y=0;y<32;++y){char row[401];unsigned n=0;for(x=0;x<100;++x){const char *cell=ps_replay_cell(y,x);while(*cell&&n+1<sizeof row)row[n++]=*cell++;}row[n]=0;if(strstr(row,word))return 1;}return 0;}
+#if PS_PANEL_TEXT
+static unsigned foreground(const char *word){unsigned y,x,i;for(y=0;y<32;++y)for(x=0;x<100;++x){
+    for(i=0;word[i]&&x+i<100;++i)if(ps_replay_cell(y,x+i)[0]!=word[i])break;
+    if(!word[i])return ps_replay_foreground(y,x);
+}assert(0);return 0;}
+#endif
 static void type(const char *s){while(*s)key((unsigned char)*s++);}
 static void capture(const char *directory,const char *name){char path[1024];FILE *f;unsigned n;if(!directory)return;
     snprintf(path,sizeof path,"%s/%s.svg",directory,name);f=fopen(path,"wb");assert(f);n=ps_replay_svg(svg);assert(n);assert(fwrite(svg,1,n,f)==n);assert(!fclose(f));}
@@ -53,6 +60,16 @@ static void model_checks(void){
     assert(env_set_value(&doc,0,"filled"));assert(!strcmp(doc.text,"EMPTY= filled # note\n"));
     assert(!env_set_value(&doc,0,"\"bad quote"));assert(!strcmp(doc.text,"EMPTY= filled # note\n"));
     assert(env_undo(&doc));assert(!strcmp(doc.text,"EMPTY= # note\n"));
+    {const char *syntax="A=\"quoted # hash\\\" still quoted\" # tail\nB='literal # hash' # tail\nC=escaped\\#hash # tail\nD=hash#literal\nE= # empty\n# OFF=42 # disabled\n\n# Storage\nDB=1\n# explanation after value\nOTHER=2\n";
+        unsigned i;
+        assert(env_load(&doc,syntax,(unsigned)strlen(syntax)));assert(!strcmp(doc.text,syntax));
+        for(i=0;i<3;++i){assert(doc.records[i].flags&ENV_ASSIGNMENT);assert(!strncmp(doc.text+doc.records[i].comment,"# tail",6));}
+        assert(!doc.records[3].comment);assert(!doc.records[4].value_size&&doc.records[4].comment);
+        assert((doc.records[5].flags&(ENV_ASSIGNMENT|ENV_DISABLED))==(ENV_ASSIGNMENT|ENV_DISABLED));
+        assert(doc.records[7].flags&ENV_HEADING);assert(!(doc.records[9].flags&ENV_HEADING));
+        assert(env_set_value(&doc,0,"\"new # literal\""));assert(strstr(doc.text,"A=\"new # literal\" # tail\n"));
+        assert(env_undo(&doc)&&!strcmp(doc.text,syntax));
+    }
 }
 static void file_checks(void){
     const char *path="env-manager-test.tmp",*error=0;FILE *f;unsigned n;
@@ -73,12 +90,33 @@ int main(int argc,char **argv){
     assert(visible("Line")&&visible("Key")&&visible("Value / Source"));
     assert(!strcmp(manager.controls[0][0].group,"3"));
     assert(!strcmp(manager.controls[0][0].label,"APP_NAME"));
+#if PS_PANEL_TEXT
+    assert(visible("# Enable only while diagnosing"));
+    assert(foreground("false")!=foreground("# Enable"));
+#endif
     capture(directory,"env-values");
+    assert(ps_panel_select(s,find_key("DEBUG")));key(13);key(21);type("true");key(13);
+    assert(strstr(manager.document.text,"DEBUG=true # Enable only while diagnosing\n"));
+    key(26);assert(strstr(manager.document.text,"DEBUG=false # Enable only while diagnosing\n"));
     assert(ps_panel_select(s,find_key("PORT")));key(13);key(21);type("9090");key(13);
     assert(strstr(manager.document.text,"PORT=9090\n"));assert(env_dirty(&manager.document));
     key(26);assert(strstr(manager.document.text,"PORT=8080\n"));
     assert(ps_panel_select(s,find_key("APP_NAME")));key(PS_KEY_F2);ps_tick(s,now+=200);assert(ps_panel_active(s));assert(!ps_panel_selection(s,&i));assert(visible("Apply")&&visible("Cancel"));capture(directory,"env-modal");key(27);
-    key(9);ps_tick(s,now+=120);capture(directory,"env-source");
+    key(9);ps_tick(s,now+=120);
+    assert(!visible("Blank line")&&visible("Section"));
+    for(i=0;i<manager.pages[1].count;++i)assert(!(manager.document.records[manager.controls[1][i].id%PS_ENV_RECORDS].flags&ENV_BLANK));
+#if PS_PANEL_TEXT
+    assert(foreground("DEBUG=")!=foreground("false"));
+    assert(foreground("false")!=foreground("# Enable"));
+#endif
+    capture(directory,"env-source");
+    key(PS_KEY_F4);assert(manager.show_blanks&&visible("Blank line"));
+    assert(!env_dirty(&manager.document));
+    for(i=0;i<manager.document.count;++i)if(manager.document.records[i].flags&ENV_BLANK)break;
+    assert(i<manager.document.count&&ps_panel_select(s,i+PS_ENV_RECORDS));
+    key(PS_KEY_F4);assert(!manager.show_blanks&&!visible("Blank line"));
+    assert(!env_dirty(&manager.document));
+    assert(ps_panel_selection(s,&i)&&!(manager.document.records[i%PS_ENV_RECORDS].flags&ENV_BLANK));
     key(PS_KEY_F3);
 #if PS_FORM
     type("MAIL");key(13);assert(!strcmp(manager.filter,"MAIL"));capture(directory,"env-filter");

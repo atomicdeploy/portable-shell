@@ -1,10 +1,11 @@
 #include "env_manager.h"
 #include "portable_util.h"
+#include "portable_style.h"
 #if !PS_PANEL_KEYS
 #error The host env manager requires PS_PANEL_KEYS (or disable PORTABLE_SHELL_HOST_ENV)
 #endif
 enum { ENV_IDLE,ENV_REFRESH,ENV_SEARCH,ENV_TOGGLE,ENV_UP,ENV_DOWN,ENV_SAVE,
-       ENV_ADD,ENV_RECORD,ENV_UNDO,ENV_CLOSE,ENV_DELETE,ENV_PREVIOUS,ENV_NEXT,ENV_REVEAL,ENV_RELOAD,ENV_HELP };
+       ENV_ADD,ENV_RECORD,ENV_UNDO,ENV_CLOSE,ENV_DELETE,ENV_PREVIOUS,ENV_NEXT,ENV_REVEAL,ENV_RELOAD,ENV_HELP,ENV_BLANKS };
 static env_manager local_manager;
 static void append(char *out,unsigned cap,const char *text){unsigned n=env_length(out);if(n<cap)env_string(out+n,cap-n,text);}
 static void decimal(char *out,unsigned cap,unsigned value){char b[11];unsigned n=0;do{b[n++]=(char)('0'+value%10);value/=10;}while(value);if(n>=cap){if(cap)out[0]=0;return;}out[n]=0;while(n--)*out++=b[n];}
@@ -33,6 +34,44 @@ static int read_control(void *context,unsigned id,ps_control_value *v){
     else slice(v->text,sizeof v->text,d->text+r->value,r->value_size);
     return 1;
 }
+#if PS_PANEL_TEXT
+static unsigned value_role(const env_document *d,const env_record *r){
+    unsigned i=0,digits=0,dots=0;const char *v=d->text+r->value;
+    if(!r->value_size)return PS_INK_STRING;
+    if(v[0]=='\''||v[0]=='"')return PS_INK_STRING;
+    if((r->value_size==4&&v[0]=='t'&&v[1]=='r'&&v[2]=='u'&&v[3]=='e')||
+       (r->value_size==5&&v[0]=='f'&&v[1]=='a'&&v[2]=='l'&&v[3]=='s'&&v[4]=='e'))return PS_INK_COMMAND;
+    if(v[0]=='-'||v[0]=='+')++i;
+    for(;i<r->value_size;++i){if(v[i]>='0'&&v[i]<='9')++digits;else if(v[i]=='.')++dots;else return PS_INK_STRING;}
+    return digits&&dots<=1?PS_INK_NUMBER:PS_INK_STRING;
+}
+static unsigned format_control(void *context,unsigned id,char *text,ps_byte *roles,unsigned cap){
+    env_manager *m=context;const env_document *d=&m->document;
+    unsigned source=id>=PS_ENV_RECORDS,index=id%PS_ENV_RECORDS,begin,end,n,i,role;
+    const env_record *r;
+    if(index>=d->count)return 0;
+    r=&d->records[index];
+    if(!m->reveal&&secret(d,r))return 0;
+    begin=source?r->start:r->value;end=r->body_end;
+    n=end-begin;if(n>=cap)n=cap-1;
+    /* Clip at a character boundary; the shared renderer handles cell width. */
+    while(n&&begin+n<end&&((unsigned char)d->text[begin+n]&192)==128)--n;
+    role=value_role(d,r);
+    for(i=0;i<n;++i){unsigned at=begin+i,ink_role=PS_INK_TEXT;char c=d->text[at];
+        if(r->flags&ENV_HEADING)ink_role=PS_INK_HEADING;
+        else if(r->flags&(ENV_COMMENT|ENV_DISABLED))ink_role=PS_INK_MUTED;
+        else if(r->flags&ENV_ASSIGNMENT){
+            if(r->comment&&at>=r->comment)ink_role=PS_INK_MUTED;
+            else if(at>=r->key&&at<r->key+r->key_size)ink_role=PS_INK_HEADING;
+            else if(at>=r->value&&at<r->value+r->value_size)ink_role=role;
+            else if(at<r->key&&c!=' '&&c!='\t')ink_role=PS_INK_COMMAND;
+            else ink_role=PS_INK_MUTED;
+        }
+        text[i]=c=='\r'||c=='\n'||c=='\t'?' ':c;roles[i]=(ps_byte)ink_role;
+    }
+    text[n]=0;return n;
+}
+#endif
 static int write_control(void *context,unsigned id,const ps_control_value *v,ps_u32 revision){
     env_manager *m=context;env_document *d=&m->document;int ok;unsigned index=id%PS_ENV_RECORDS;
     if(revision!=d->revision||index>=d->count||id>=PS_ENV_RECORDS)return 0;
@@ -47,6 +86,7 @@ static int shortcut(ps_session *s,unsigned key,void *context){
     switch(key){
         case PS_KEY_F1:action=ENV_HELP;break;
         case PS_KEY_F3:case '/':action=ENV_SEARCH;break;
+        case PS_KEY_F4:action=ENV_BLANKS;break;
         case 20:action=ENV_TOGGLE;break; /* Ctrl+T */
         case 21:action=ENV_UP;break;case 4:action=ENV_DOWN;break;
         case 19:action=ENV_SAVE;break;case 14:action=ENV_ADD;break;
@@ -75,6 +115,7 @@ static int show(env_manager *m){
     ps_session *s=m->session;
     if(!ps_panel_attach(s,0))return 0;
     for(i=0;i<d->count;++i){const env_record *r=&d->records[i];
+        if((r->flags&ENV_BLANK)&&!m->show_blanks)continue;
         if(!env_find(d,i,m->filter))continue;
         ++matched;
         if(i<m->offset||i>=m->offset+PS_ENV_VIEW_ROWS)continue;
@@ -85,7 +126,7 @@ static int show(env_manager *m){
             if(r->flags&ENV_DISABLED)append(label,PS_ENV_LABEL_BYTES,"# ");
             if(r->flags&ENV_DUPLICATE)append(label,PS_ENV_LABEL_BYTES,"! ");
             if(r->flags&ENV_ASSIGNMENT){unsigned len=env_length(label);slice(label+len,PS_ENV_LABEL_BYTES-len,d->text+r->key,r->key_size);
-            }else append(label,PS_ENV_LABEL_BYTES,r->flags&ENV_COMMENT?"Comment":r->flags&ENV_BLANK?"Blank line":"Unparsed text");
+            }else append(label,PS_ENV_LABEL_BYTES,r->flags&ENV_HEADING?"Section":r->flags&ENV_COMMENT?"Comment":r->flags&ENV_BLANK?"Blank line":"Unparsed text");
             c->id=i+p*PS_ENV_RECORDS;c->label=label;c->group=m->line_numbers[p][row];
             c->kind=!p&&r->value_size<sizeof ((ps_control_value *)0)->text&&!(r->flags&ENV_MULTILINE)&&
                 (m->reveal||!secret(d,r))?PS_CONTROL_TEXT:PS_CONTROL_LABEL;
@@ -106,8 +147,11 @@ static int show(env_manager *m){
     ps_set_table_style(s,PS_TABLE_DEFAULT|PS_TABLE_RED_BORDER|PS_TABLE_CATEGORY_COLUMN);
     if(!ps_panel_attach(s,&m->panel))return 0;
     m->chrome.columns=columns;m->chrome.count=PS_COUNT_OF(columns);m->chrome.summary=m->status;m->chrome.notice=m->notice;
+#if PS_PANEL_TEXT
+    m->chrome.text=format_control;
+#endif
     actions(m);
-    m->chrome.navigation="Tab views  ^T toggle  ^U/^D move  F1 keys  Esc close";
+    m->chrome.navigation="Tab views  F4 blanks  ^T toggle  ^U/^D move  F1 keys  Esc close";
     ps_panel_set_chrome(s,&m->chrome);ps_panel_set_key_handler(s,shortcut,m);
     if(!ps_panel_open(s,m->source))return 0;
     ps_panel_select(s,m->selected+m->source*PS_ENV_RECORDS);
@@ -229,13 +273,14 @@ void env_manager_dispatch(env_manager *m){
             "Enter       Inline value edit (short, visible values)\nF2          Modal value edit\n"
             "Ctrl+E      Edit the complete record, including key and comments\n"
             "Tab         Values / Source order\nF3 or /     Find keys; empty query clears the filter\n"
+            "F4          Show / hide blank source records (hidden by default)\n"
             "Ctrl+T      Comment / uncomment the selected assignment\nCtrl+U/D    Move one source record up / down\n"
             "Ctrl+N      Add key and value\nDelete      Remove a record with confirmation\n"
             "Ctrl+Z      One-step undo / redo\nCtrl+S      Save the complete draft to disk\n"
             "Ctrl+L      Reload from disk with confirmation\nCtrl+R      Reveal / mask secret-like keys\n"
             "[ / ]       Previous / next 128-record window\nEsc         Close; Save / Discard / Keep if modified\n\n"
             "Editing uses literal dotenv syntax, including quotes. Nothing is evaluated.\n"
-            "Source order includes comments, blank lines and unsupported records.\n"
+            "Source order includes comments and unsupported records; F4 reveals blanks.\n"
             "Moves affect one record, including its inline comment and multiline value.\n"
             "Standalone comments remain independent records. Duplicate keys are retained.\n"
             "Masked names are a convenience, not a guarantee of detecting every secret.\n"
@@ -268,6 +313,7 @@ void env_manager_dispatch(env_manager *m){
         }
     }else if(action==ENV_UNDO){if(env_undo(d))message(m,"Undo / redo applied");else message(m,"No edit to undo");}
     else if(action==ENV_REVEAL){m->reveal=!m->reveal;message(m,m->reveal?"Values revealed; Ctrl+R masks secret-like keys":"Secret-like keys masked");}
+    else if(action==ENV_BLANKS){m->show_blanks=!m->show_blanks;message(m,m->show_blanks?"Blank source records shown":"Blank rows hidden; original whitespace retained");}
     else if(action==ENV_PREVIOUS){m->offset=m->offset>PS_ENV_VIEW_ROWS?m->offset-PS_ENV_VIEW_ROWS:0;m->selected=m->offset;}
     else if(action==ENV_NEXT){if(m->offset+PS_ENV_VIEW_ROWS<d->count){m->offset+=PS_ENV_VIEW_ROWS;m->selected=m->offset;}}
     else if(m->selected<d->count){int ok=0;

@@ -27,7 +27,7 @@ typedef struct {
     char path[PS_ENV_PATH],status[256],notice[128],filter[64];
     char drafts[2][PS_ENV_DRAFT_BYTES];
     ps_form_field fields[2];ps_form form;
-    unsigned open,pending,selected,offset,source,returning,form_action,reveal;
+    unsigned open,pending,selected,offset,source,returning,form_action,reveal,show_blanks;
     env_save_fn save;void *save_context;
 } env_manager;
 /* The host owns storage/lifetime. Every input/tick is followed by dispatch. */

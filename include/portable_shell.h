@@ -235,12 +235,28 @@ typedef struct {
     const char *title;
     unsigned minimum, maximum, weight; /* maximum=0 means flexible; weight 0..16 */
 } ps_column;
+#ifndef PS_PANEL_TEXT
+#define PS_PANEL_TEXT 1
+#endif
+#ifndef PS_PANEL_TEXT_BYTES
+#define PS_PANEL_TEXT_BYTES 256
+#endif
+#if PS_PANEL_TEXT_BYTES < 4
+#error PS_PANEL_TEXT_BYTES must hold a UTF-8 character
+#endif
+/* Optional display-only formatting for TEXT/LABEL cells. Return the byte count
+   (less than capacity), or zero for ordinary rendering. Fill roles for every
+   byte with PS_INK_* from portable_style.h; keep UTF-8 characters intact.
+   Never emit ANSI sequences. Editing always uses the original read value.
+   Called with panel.context, only during drawing; must not mutate the panel. */
+typedef unsigned (*ps_panel_text_fn)(void *,unsigned id,char *text,ps_byte *roles,unsigned capacity);
 /* Borrowed application text/layout; NULL restores standard panel chrome.
    Custom columns must match the active layout (2 key/value or 3 with category).
    PS_PANEL_KEYS=0 removes this optional application integration as well. */
 typedef struct {
     const ps_column *columns; unsigned count;
     const char *summary,*notice,*actions,*navigation;
+    ps_panel_text_fn text;
 } ps_panel_chrome;
 PS_API void ps_panel_set_chrome(ps_session *,const ps_panel_chrome *);
 enum { PS_TABLE_GRID = 1, PS_TABLE_RED_BORDER = 2, PS_TABLE_TITLE_BAR = 4,

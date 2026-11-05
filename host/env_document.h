@@ -9,7 +9,7 @@
 #define PS_ENV_RECORDS 1024u
 #endif
 enum { ENV_ASSIGNMENT=1, ENV_DISABLED=2, ENV_COMMENT=4, ENV_BLANK=8,
-       ENV_UNKNOWN=16, ENV_MULTILINE=32, ENV_DUPLICATE=64 };
+       ENV_UNKNOWN=16, ENV_MULTILINE=32, ENV_DUPLICATE=64, ENV_HEADING=128 };
 typedef struct {
     unsigned start,end,body_end,key,key_size,value,value_size,comment,flags,line;
 } env_record;

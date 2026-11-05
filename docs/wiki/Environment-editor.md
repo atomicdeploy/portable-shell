@@ -21,7 +21,8 @@ capacity or unsupported-syntax errors. Duplicate keys are warnings, not errors.
 | --- | --- |
 | Enter / F2 | Inline / modal edit of a short visible value |
 | Ctrl+E | Edit the complete record: key, value, spacing and inline comment |
-| Tab | Values / Source order, including comments and blank lines |
+| Tab | Values / Source order, including comments |
+| F4 | Show / hide blank source records (hidden by default) |
 | F3 or `/` | Find keys by case-sensitive substring; empty query clears filtering |
 | Ctrl+T | Comment / uncomment an assignment, including quoted multiline records |
 | Ctrl+U / Ctrl+D | Move one source record upward / downward |
@@ -46,7 +47,20 @@ the table and use Ctrl+E; they are never silently truncated by an inline edit.
 
 Commented entries are muted and prefixed with `#`. Duplicate occurrences have
 amber keys and `!`; edits address a specific record, never every matching name.
-Selecting an entry displays its inline comment. Standalone comments remain
+Values show trailing comments in muted text alongside the editable value. Source
+order highlights keys, `export`, literal strings, numbers, booleans and comments
+separately. Quoted or escaped `#` characters remain value text; an unquoted `#`
+starts a comment only at the beginning of a value or after whitespace. A `#`
+following a closed quoted value also starts a comment. Editing a value never
+includes its annotation in the edit buffer.
+
+Blank records are hidden by default, including separators before comment groups.
+F4 reveals them in Source order; visibility never changes document bytes, physical
+line numbers or undo history. A comment block at the start of the document or
+after a blank separator can introduce assignments: its last nonempty comment is
+highlighted as a **Section**. This is a presentation hint, not dotenv syntax.
+Commented-out assignments remain independently toggleable entries, and ordinary
+comments following an assignment remain comments. Standalone comments remain
 independent records and can be moved or edited in Source order. Moves carry the
 record's inline comment and multiline value. Moving a final record without a
 newline currently requires adding that newline explicitly in the record editor.
@@ -102,6 +116,11 @@ persist to a different host-owned store.
 
 The reusable core additions are optional panel shortcuts, selection access,
 borrowed panel column/footer text and inactive/attention presentation flags.
+`ps_panel_chrome.text` supplies display-only text and per-byte `PS_INK_*` roles
+for text/label cells, independently of the editable value. It uses the existing
+UTF-8 clipping, semantic colors and selection background. `PS_PANEL_TEXT=0`
+omits token rendering (the editor remains usable with plain cells);
+`PS_PANEL_TEXT_BYTES` bounds its temporary display buffer, default 256 bytes.
 `PS_PANEL_KEYS=0` omits the shortcut/chrome integration; the host manager requires it.
 The parser and application strings never enter the core.
 
