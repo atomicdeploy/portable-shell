@@ -6,6 +6,15 @@ fixture data and pinned Agave typography with antialiasing. They are not mockups
 or proof of connected hardware. CI rebuilds every image from current source and
 rejects stale or missing files.
 
+**Prompt completion — highlighted selection and rollover**
+
+![Tab completion selection](../../previews/completion-menu.png)
+
+First Tab lists matching candidates and extends their common prefix. Further Tab
+presses advance the highlighted candidate and update the prompt; Shift+Tab moves
+backwards. Both directions wrap. This replay selects `configure` from three
+consumer-registered commands. `PS_COMPLETION_MENU` defaults to `1`.
+
 **Action buttons — focused, available, read-only, pending and unknown**
 
 ![Action button states](../../previews/action-buttons.png)
@@ -21,6 +30,18 @@ The shared table and dashboard renderer use the same treatment.
 mode retains recognizable bracketed buttons without depending on color:
 
 ![Monochrome action buttons](../../previews/action-buttons-mono.png)
+
+**Dotted-key settings — shared typed registry and editable table**
+
+![Dotted-key settings editor](../../previews/settings-editor.png)
+
+Grouped keys, typed controls, inline/modal editing and read-only values use the
+same registry as command-line updates. [Run or embed the adapter](Settings-editor.md).
+This preview uses the example's in-memory settings, not connected service state.
+
+Inline editing keeps the value at the same cell origin, without adding a leading space:
+
+![Dotted-key settings inline editor](../../previews/settings-editor-inline.png)
 
 **Local .env manager — actual interactive document editing**
 

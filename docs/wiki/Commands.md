@@ -121,6 +121,10 @@ size guarantees. Query `ps_sizeof_session()` for your build.
 
 ## Uppercase input display
 
+The same typed registry can drive an editable grouped table through the optional
+[dotted-key settings editor](Settings-editor.md). Its inline/modal writes reuse
+the registry callbacks and validators; commands and persistence stay consumer-owned.
+
 The workbench and optional device profile expose `input.uppercase` through settings:
 
 ```text

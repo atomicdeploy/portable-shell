@@ -1,0 +1,11 @@
+add_executable(settings_editor_checks "${root}/tests/settings_editor_checks.c"
+  "${root}/tests/render.c" "${root}/src/portable_shell.c")
+target_include_directories(settings_editor_checks PRIVATE "${root}/include")
+target_compile_features(settings_editor_checks PRIVATE c_std_99)
+target_compile_definitions(settings_editor_checks PRIVATE PS_REPLAY_ONLY PS_REPLAY_ATTRIBUTES W=100 H=34 PS_REPLAY_SVG_CAPACITY=1000000)
+if(MSVC)
+  target_compile_options(settings_editor_checks PRIVATE /UNDEBUG /W4)
+else()
+  target_compile_options(settings_editor_checks PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+endif()
+set_target_properties(settings_editor_checks PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")

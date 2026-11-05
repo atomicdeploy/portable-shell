@@ -6,10 +6,26 @@ void ps_replay_reset(void);
 void ps_replay_feed(const unsigned char *,unsigned);
 unsigned ps_replay_svg(char *);
 const char *ps_replay_cell(unsigned,unsigned);
+unsigned ps_replay_background(unsigned,unsigned);
 static union { void *align; unsigned char bytes[65536]; } storage;
 static char output[262144],svg[1000000];static unsigned used;
 static void sink(void *ctx,const ps_byte *p,unsigned n){(void)ctx;assert(used+n<sizeof output);memcpy(output+used,p,n);used+=n;output[used]=0;ps_replay_feed(p,n);}
 static void feed(ps_session *s,const char *text){ps_feed(s,text,(unsigned)strlen(text));}
+static int completion_command(ps_session *s,int n,const char *const *a,void *c){(void)s;(void)n;(void)a;(void)c;return 0;}
+static void completion_check(ps_session *s,unsigned row){
+    ps_command commands[]={{"zzconnect","","",completion_command,0,0},{"zzconfigure","","",completion_command,0,0},{"zzconsole","","",completion_command,0,0}};
+    unsigned i;for(i=0;i<PS_COUNT_OF(commands);++i)assert(!ps_register(s,&commands[i]));
+    feed(s,"zzcon\t\t\t");
+#if PS_COMPLETION_MENU
+    /* Highlight is confined to the output area, above the prompt/frame. */
+    assert(!strcmp(ps_replay_cell(row,14),"z"));
+    assert(ps_replay_background(row,14)!=ps_replay_background(row,94));
+#else
+    (void)row;
+#endif
+    ps_key(s,3);
+    for(i=0;i<PS_COUNT_OF(commands);++i)assert(!ps_unregister(s,commands[i].name));
+}
 int main(int argc,char **argv){
 #ifdef PS_ASCII_ONLY
     const char *top_left="+",*bottom_right="+",*side="|";
@@ -32,13 +48,14 @@ int main(int argc,char **argv){
     ps_resize(s,80,24);ps_tick(s,200);assert(strstr(output,"\033[21;24r"));
     ps_resize(s,96,28);ps_tick(s,300);feed(s,"task ");
     if(argc>=2){FILE *f=fopen(argv[1],"wb");unsigned n=ps_replay_svg(svg);assert(f);assert(fwrite(svg,1,n,f)==n);assert(!fclose(f));}
-    ps_key(s,3);assert(!ps_execute(s,"board --framed-prompt"));ps_tick(s,400);
+    ps_key(s,3);completion_check(s,26);assert(!ps_execute(s,"board --framed-prompt"));ps_tick(s,400);
     feed(s,"echo framed\r");assert(strstr(output,"framed"));
     feed(s,"task ");
     assert(!strcmp(ps_replay_cell(25,0),top_left)&&!strcmp(ps_replay_cell(27,94),bottom_right));
     assert(!strcmp(ps_replay_cell(26,0),side)&&!strcmp(ps_replay_cell(26,94),side));
     ps_key(s,PS_KEY_F4);ps_key(s,PS_KEY_F4);ps_key(s,PS_KEY_LEFT);ps_key(s,PS_KEY_RIGHT);
     if(argc==3){FILE *f=fopen(argv[2],"wb");unsigned n=ps_replay_svg(svg);assert(f);assert(fwrite(svg,1,n,f)==n);assert(!fclose(f));}
+    ps_key(s,3);completion_check(s,24);
     ps_resize(s,40,20);ps_tick(s,500); /* Small terminals fall back to the unframed prompt. */
     ps_resize(s,96,28);ps_tick(s,600);
     ps_key(s,PS_KEY_F4);used=0;ps_key(s,27);assert(strstr(output,"\033[r"));

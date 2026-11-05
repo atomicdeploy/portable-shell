@@ -1380,12 +1380,53 @@ static const char *suggest(ps_session *s, char *buffer) {
 #if PS_FORM
 static void form_render(ps_session *s);
 #endif
+enum { COMPLETION_LIST = 1, COMPLETION_SELECTED = 2 };
+static int completion_menu_enabled(const ps_session *s) {
+    return PS_COMPLETION_MENU && (s->io.flags & PS_INTERACTIVE) &&
+           !(s->io.flags & PS_NO_COMPLETION_MENU);
+}
+#if PS_COMPLETION_MENU
+typedef struct { unsigned width, columns, rows, first; } CompletionLayout;
+static CompletionLayout completion_layout(ps_session *s, unsigned available) {
+    CompletionLayout g = {0,0,0,0}; unsigned i,total,capacity,width_;
+    if (!completion_menu_enabled(s) || !s->completion || !available) return g;
+    for (i=0;i<s->match_count;++i){
+        width_=cells(s->matches[i],length(s->matches[i]),s->io.flags);
+        if(width_>g.width)g.width=width_;
+    }
+    g.width=min(g.width+2,s->io.columns-1);
+    g.columns=(s->io.columns-1)/g.width;
+    total=(s->match_count+g.columns-1)/g.columns;
+    g.rows=min(total,available);capacity=g.rows*g.columns;
+    if(s->completion==COMPLETION_SELECTED)g.first=(s->match_index/capacity)*capacity;
+    g.rows=min(g.rows,(s->match_count-g.first+g.columns-1)/g.columns);
+    return g;
+}
+static void completion_menu_draw(ps_session *s,const CompletionLayout *g) {
+    unsigned row,column,index;
+    for(row=0;row<g->rows;++row){
+        if(row)out(s,"\r\n");
+        for(column=0;column<g->columns;++column){
+            index=g->first+row*g->columns+column;
+            if(index>=s->match_count)break;
+            if(s->completion==COMPLETION_SELECTED&&index==s->match_index){
+                if(s->io.flags&PS_COLOR)surface(s,1);else ansi(s,"\033[7m");
+            }else ink(s,PS_INK_COMMAND);
+            out(s," ");grid_text(s,s->matches[index],g->width-2);out(s," ");reset(s);
+        }
+        ansi(s,"\033[K");
+    }
+}
+#endif
 static void prompt(ps_session *s) {
 #if PS_FORM
     if(s->form){form_render(s);return;}
 #endif
     char display[PS_LINE>256?PS_LINE:256];
-    unsigned i,last=0,lines=0,shown,skip,old;
+    unsigned i,last=0,lines=0,shown,skip,old,menu_rows=0;
+#if PS_COMPLETION_MENU
+    CompletionLayout menu;
+#endif
     for(i=0;s->custom_prompt&&s->prompt_text[i];++i)
         if(s->prompt_text[i]=='\n'){last=i+1;++lines;}
     shown=min(lines,s->io.rows>2?s->io.rows-2:0);skip=lines-shown;
@@ -1401,11 +1442,22 @@ static void prompt(ps_session *s) {
     const char *hint;
     if (!(s->io.flags & PS_INTERACTIVE) || (s->board && !table_prompt(s)) || s->menu_depth || s->file_count || s->document_open || ps_hex_editor_active(s) || s->exit)
         return;
+    frame_begin(s);
     if(table_prompt(s)) {
-        shown=0;skip=lines;s->prompt_rows_drawn=0;
+        shown=0;skip=lines;
+#if PS_COMPLETION_MENU
+        unsigned menu_bottom=table_output_bottom(s)-(table_prompt_framed(s)?0:1);
+        menu=completion_layout(s,menu_bottom-table_height(s)-1);
+        old=menu.rows>s->prompt_rows_drawn?menu.rows:s->prompt_rows_drawn;
+        if(old){
+            at(s,menu_bottom-old+1,1);
+            for(i=0;i<old;++i){ansi(s,"\033[K");if(i+1<old)ansi(s,"\033[B");}
+        }
+        if(menu.rows){at(s,menu_bottom-menu.rows+1,1);completion_menu_draw(s,&menu);}
+        s->prompt_rows_drawn=menu.rows;
+#endif
         table_prompt_region(s);at(s,s->io.rows,1);
     }
-    frame_begin(s);
     ansi(s, "\r");
     if(table_prompt_framed(s)) {
         const char *border=ps_style_ink(s->theme,!!(s->io.flags&PS_TRUECOLOR),0,PS_INK_BORDER);
@@ -1414,13 +1466,21 @@ static void prompt(ps_session *s) {
         view_rule_color(s,s->io.rows,1,s->io.columns-1,1,border);
         at(s,s->io.rows-1,1);ink(s,PS_INK_BORDER);out(s,(s->io.flags&PS_UNICODE)?"│ ":"| ");reset(s);
     }
-    old=min(s->prompt_rows_drawn,s->io.rows-1);
+#if PS_COMPLETION_MENU
+    if(!table_prompt(s)){
+        menu=completion_layout(s,s->io.rows-shown-1);menu_rows=menu.rows;
+    }
+#endif
+    old=table_prompt(s)?0:min(s->prompt_rows_drawn,s->io.rows-1);
     if(old){ansi(s,"\033[");ps_number(s,old);out(s,"A");}
-    if(old>shown){
+    if(old>shown+menu_rows){
         for(i=0;i<=old;++i){ansi(s,"\033[K");if(i<old)ansi(s,"\033[B");}
         ansi(s,"\033[");ps_number(s,old);out(s,"A");
     }
-    s->prompt_rows_drawn=shown;
+    if(!table_prompt(s))s->prompt_rows_drawn=shown+menu_rows;
+#if PS_COMPLETION_MENU
+    if(menu_rows){completion_menu_draw(s,&menu);out(s,"\r\n");}
+#endif
     if (s->custom_prompt) {
         unsigned part,pos=0,line=0,column=0;
         for(part=0;part<s->prompt_part_count;++part){
@@ -1669,7 +1729,7 @@ static unsigned collect_completions(ps_session *s, unsigned *start, unsigned *en
     }
     return match_count;
 }
-static void completion(ps_session *s) {
+static void completion(ps_session *s, int reverse) {
     unsigned i, j, common;
     if (!s->completion) {
         s->match_count = collect_completions(s, &s->start, &s->end, s->matches);
@@ -1688,8 +1748,9 @@ static void completion(ps_session *s) {
         if (s->match_count == 1) {
             return;
         }
-        s->completion = 1;
+        s->completion = COMPLETION_LIST;
         s->match_index = 0;
+        if(completion_menu_enabled(s))return;
         ps_newline(s);
         for (i = 0; i < s->match_count; ++i) {
             ink(s, 1);
@@ -1699,9 +1760,11 @@ static void completion(ps_session *s) {
         }
         ps_newline(s);
     } else {
-        unsigned n = length(s->matches[s->match_index]);
-        complete_replace(s, s->matches[s->match_index], n, 0);
-        s->match_index = (s->match_index + 1) % s->match_count;
+        unsigned selected=s->completion==COMPLETION_LIST?(reverse?s->match_count-1:0):
+            (reverse?(s->match_index+s->match_count-1)%s->match_count:(s->match_index+1)%s->match_count);
+        if(complete_replace(s,s->matches[selected],length(s->matches[selected]),0)){
+            s->match_index=selected;s->completion=COMPLETION_SELECTED;
+        }
     }
 }
 static void history_search(ps_session *s) {
@@ -1803,7 +1866,7 @@ static void shell_key(ps_session *s, unsigned key) {
         history_dialog_draw(s);return;
     }
 #endif
-    if (key != 9)
+    if (key != 9 && key != PS_KEY_BACKTAB)
         s->completion = 0;
 #if PS_WORKBENCH
 #include "../host/workbench/shortcuts.inc"
@@ -1850,8 +1913,8 @@ if (key == 13) {
         ps_ring_bell(s);
     } else if (key == 12) {
         s->prompt_rows_drawn=0;ansi(s, "\033[2J\033[H");
-    } else if (key == 9) {
-        completion(s);
+    } else if (key == 9 || key == PS_KEY_BACKTAB) {
+        completion(s,key==PS_KEY_BACKTAB);
     } else if (key == PS_KEY_LEFT || key == 2) {
         if (!s->pos) ps_ring_bell(s);
         s->pos = prev(s->line, s->pos);
