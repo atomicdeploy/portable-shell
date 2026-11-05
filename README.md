@@ -58,10 +58,15 @@ its commands belong to the host application, not the framework's empty registry.
 | `edit --framed` | Open the framed session text editor. |
 | `hex --columns auto` | Inspect/edit binary session data with responsive columns. |
 | `hex --columns 8` | Keep eight bytes per row. |
+| `env examples/environment.env` | Edit a real dotenv file, preserving comments and source order. |
 
 Use **Tab** for prompt completion and **↑/↓** for history. Editors expose save,
 close and discard controls. Demo buffers are session-local; persistent storage
 requires application callbacks.
+
+The native [.env manager](docs/wiki/Environment-editor.md) includes persistent
+saves, search, comment/uncomment, reordering, undo and conflict checks. Launch it
+directly with `build/PortableShell --env FILE`.
 
 External process execution is **disabled by default**. It is a host-adapter option,
 not a core capability. See [host execution and PTYs](docs/wiki/Host-execution.md)

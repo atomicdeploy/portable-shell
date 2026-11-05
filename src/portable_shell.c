@@ -197,6 +197,11 @@ struct ps_session {
     char selection_marker[32];
     unsigned selection_marker_override;
     const ps_panel *panel;
+#if PS_PANEL_KEYS
+    ps_panel_key_fn panel_key;
+    void *panel_key_context;
+    const ps_panel_chrome *panel_chrome;
+#endif
 #if PS_WORKBENCH
     ps_panel local_panel;
 #endif
@@ -891,8 +896,14 @@ static Grid grid_for(ps_session *s) {
 #endif
     if (s->control_view) {
         unsigned category = (!PS_CONTROL_SECTION_ROWS || (s->table_style & PS_TABLE_CATEGORY_COLUMN)) && s->io.columns >= 64;
+#if PS_PANEL_KEYS
+        if((s->table_style&PS_TABLE_CATEGORY_COLUMN)&&s->panel_chrome&&s->panel_chrome->columns&&s->panel_chrome->count==3)category=1;
+#endif
         g.columns = category ? controls : compact;
         g.count = category ? 3 : 2;
+#if PS_PANEL_KEYS
+        if(s->panel_chrome&&s->panel_chrome->columns&&s->panel_chrome->count==g.count)g.columns=s->panel_chrome->columns;
+#endif
     }
     ps_layout_columns(s->io.columns - 2 - table_gutter(s), g.columns, g.count, g.widths);
     return g;
@@ -1236,6 +1247,10 @@ static void render(ps_session *s) {
     grid_vertical(s);
     at(s, h - 5, 4);
     ink(s, 0);
+#if PS_PANEL_KEYS
+    if(s->control_view&&s->panel_chrome&&s->panel_chrome->summary)grid_text(s,s->panel_chrome->summary,w-6);
+    else
+#endif
     if (s->control_view && s->control_header) {
         out(s,"Section: ");grid_text(s,s->panel->pages[s->tab].controls[s->selected].group,w-15);
     } else {
@@ -1258,7 +1273,11 @@ static void render(ps_session *s) {
 #endif
         ink(s, 5);
         if(s->theme==PS_THEME_DEFAULT)ink(s,PS_INK_TEXT);
-        field(s, s->notice, w - 4);
+        field(s,
+#if PS_PANEL_KEYS
+              s->control_view&&s->panel_chrome&&s->panel_chrome->notice&&!s->editing?s->panel_chrome->notice:
+#endif
+              s->notice, w - 4);
         reset(s);
     }
     at(s, h - 1, 1);
@@ -1280,6 +1299,9 @@ static void render(ps_session *s) {
     out(s, "  ");
     footer_field(
         s,
+#if PS_PANEL_KEYS
+        s->control_view&&s->panel_chrome&&s->panel_chrome->navigation&&!s->editing?s->panel_chrome->navigation:
+#endif
         s->control_view && s->editing ? "Draft   Esc cancel"
         : s->editing ? ((s->io.flags & PS_UNICODE) ? "←/→ cursor  Home/End  ^U clear"
                                                    : "Left/Right cursor  Home/End  ^U clear")
@@ -1291,7 +1313,11 @@ static void render(ps_session *s) {
             : (w < 60 ? "Up/Dn move  Tab tabs  Esc shell" : "Up/Down move   Tab tabs   Esc shell"),
         w - 3,1);
     reset(s);
-    if (w >= 76) {
+    if (w >= 76
+#if PS_PANEL_KEYS
+        &&!(s->control_view&&s->panel_chrome&&s->panel_chrome->navigation)
+#endif
+    ) {
         at(s, h, w - 23);
         surface(s, 0);
         ps_number(s, s->io.columns);
@@ -1722,6 +1748,10 @@ static void shell_key(ps_session *s, unsigned key) {
         s->table_prompt_focus=!s->table_prompt_focus;s->dirty=1;render(s);return;
     }
     if (s->board && (!table_prompt(s)||!s->table_prompt_focus)) {
+#if PS_PANEL_KEYS
+        if (s->control_view && !s->editing && s->panel_key &&
+            s->panel_key(s,key,s->panel_key_context)) return;
+#endif
         table_key(s, key);
         return;
     }

@@ -1,0 +1,15 @@
+add_executable(env_checks "${root}/tests/env_checks.c" "${root}/tests/render.c"
+  "${root}/src/portable_shell.c" "${root}/host/env_document.c"
+  "${root}/host/env_file.c" "${root}/host/env_manager.c")
+target_include_directories(env_checks PRIVATE "${root}/include")
+target_compile_features(env_checks PRIVATE c_std_99)
+target_compile_definitions(env_checks PRIVATE PS_REPLAY_ONLY PS_REPLAY_ATTRIBUTES W=100 H=32 PS_REPLAY_SVG_CAPACITY=1000000)
+if(WIN32)
+  target_link_libraries(env_checks PRIVATE advapi32)
+endif()
+if(MSVC)
+  target_compile_options(env_checks PRIVATE /UNDEBUG /W4)
+else()
+  target_compile_options(env_checks PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+endif()
+set_target_properties(env_checks PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")

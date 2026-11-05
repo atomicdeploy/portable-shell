@@ -53,6 +53,16 @@ static inline int ps_style_key_token(const char *text,unsigned length) {
         "Left","Right","Enter/Space","W/R/O","+/-","1-9","n","d","c","/","W","R","O","F","G",
         "^S","^Q/Esc","^Z","^A/^E","S","D","Backspace","0","Ctrl-C"};
     unsigned i,j;
+    if(length>=2&&length<=3&&text[0]=='F'){
+        for(i=1;i<length&&text[i]>='0'&&text[i]<='9';++i){}
+        if(i==length)return 1;
+    }
+    if(length>=2&&text[0]=='^'){
+        for(i=0;i<length;){
+            if(i+1>=length||text[i]!='^'||text[i+1]<'A'||text[i+1]>'Z')break;
+            i+=2;if(i==length)return 1;if(text[i++]!='/')break;
+        }
+    }
     for(i=0;i<PS_COUNT_OF(keys);++i){
         for(j=0;j<length&&keys[i][j]&&keys[i][j]==text[j];++j){}
         if(j==length&&!keys[i][j])return 1;

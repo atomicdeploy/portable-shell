@@ -9,6 +9,7 @@ PortableShell is a reusable byte-oriented shell and terminal UI toolkit. Choose 
 | ⌨️ Commands and keys | [Shell](Shell.md) |
 | 🔢 Numbered navigation | [Menus](Menus.md) |
 | 📝 Edit documents | [Text editor](Text-editor.md) |
+| 🗂️ Manage configuration files | [.env editor](Environment-editor.md) |
 | ⚙️ Select features | [Options](Options.md) |
 | 🔌 Connect streams | [Transports](Transports.md) |
 | 🖥️ Run programs and access remote files | [Host execution](Host-execution.md) |

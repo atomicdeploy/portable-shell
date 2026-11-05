@@ -180,7 +180,7 @@ enum {
 /* NUMBER_ONLY keeps numeric editing/range validation without presenting a
    quantity such as a port number as a percentage meter. */
 enum { PS_CONTROL_VALID = 1, PS_CONTROL_PENDING = 2, PS_CONTROL_LOCKED = 4,
-       PS_CONTROL_NUMBER_ONLY = 8 };
+       PS_CONTROL_NUMBER_ONLY = 8, PS_CONTROL_INACTIVE = 16, PS_CONTROL_ATTENTION = 32 };
 typedef struct {
     unsigned id;
     const char *group, *label;
@@ -213,6 +213,16 @@ PS_API int ps_panel_attach(ps_session *, const ps_panel *); /* NULL detaches */
 PS_API int ps_panel_open(ps_session *, unsigned page);
 /* Zero when closed; otherwise the active page index plus one. */
 PS_API unsigned ps_panel_active(const ps_session *);
+/* Optional application shortcuts, dispatched only outside cell editing. Return
+   1 to consume a key; queue UI changes for the owner loop, never reenter here. */
+#ifndef PS_PANEL_KEYS
+#define PS_PANEL_KEYS 1
+#endif
+typedef int (*ps_panel_key_fn)(ps_session *, unsigned key, void *context);
+PS_API void ps_panel_set_key_handler(ps_session *, ps_panel_key_fn, void *context);
+/* A category heading or active edit has no selected value. */
+PS_API int ps_panel_selection(const ps_session *, unsigned *id);
+PS_API int ps_panel_select(ps_session *, unsigned id);
 #ifndef PS_DASHBOARD
 #define PS_DASHBOARD 1
 #endif
@@ -225,6 +235,14 @@ typedef struct {
     const char *title;
     unsigned minimum, maximum, weight; /* maximum=0 means flexible; weight 0..16 */
 } ps_column;
+/* Borrowed application text/layout; NULL restores standard panel chrome.
+   Custom columns must match the active layout (2 key/value or 3 with category).
+   PS_PANEL_KEYS=0 removes this optional application integration as well. */
+typedef struct {
+    const ps_column *columns; unsigned count;
+    const char *summary,*notice,*actions,*navigation;
+} ps_panel_chrome;
+PS_API void ps_panel_set_chrome(ps_session *,const ps_panel_chrome *);
 enum { PS_TABLE_GRID = 1, PS_TABLE_RED_BORDER = 2, PS_TABLE_TITLE_BAR = 4,
        PS_TABLE_CATEGORY_COLUMN = 8, PS_TABLE_COMPACT_SECTIONS = 16,
        PS_TABLE_TABS_INSIDE = 32, PS_TABLE_PLAIN_KEYS = 64,

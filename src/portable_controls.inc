@@ -189,7 +189,7 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
                          ? c->group : "", g->widths[col++]);
         grid_divide(s);
     }
-    ink(s, 4);
+    ink(s, v.flags&PS_CONTROL_ATTENTION?PS_INK_WARNING:v.flags&PS_CONTROL_INACTIVE?PS_INK_INACTIVE:PS_INK_TEXT);
     {
         const ps_control_page *page=&s->panel->pages[s->tab];unsigned j,categories=0;
         if(control_sections(s))for(j=0;j<page->count;++j)if(*page->controls[j].group){categories=1;break;}
@@ -203,6 +203,7 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
     grid_divide(s);
     w = g->widths[col];
     ink(s, !(v.flags & PS_CONTROL_VALID)  ? 0
+           : v.flags & PS_CONTROL_INACTIVE ? PS_INK_INACTIVE
            : c->kind == PS_CONTROL_TOGGLE ? (v.number ? PS_INK_SUCCESS : s->theme==PS_THEME_DEFAULT?PS_INK_INACTIVE:3)
            : c->kind == PS_CONTROL_ACTION ? PS_INK_ACTION
            : c->kind == PS_CONTROL_LEVEL ? PS_INK_NUMBER
@@ -256,6 +257,9 @@ static const char *control_hint(ps_session *s) {
     if (s->editing)
         return s->dialog ? "Tab focus   Enter apply   Esc cancel"
                          : "Enter apply  Esc cancel  ^U clear";
+#if PS_PANEL_KEYS
+    if(s->panel_chrome&&s->panel_chrome->actions)return s->panel_chrome->actions;
+#endif
     if (!c)
         return "";
     control_read(s, c, &v);
@@ -530,11 +534,49 @@ PS_API int ps_panel_attach(ps_session *s, const ps_panel *panel) {
     if (s->control_view)
         table_close(s);
     s->panel = panel;
+#if PS_PANEL_KEYS
+    s->panel_chrome=0;s->panel_key=0;s->panel_key_context=0;
+#endif
     zero(s->control_closed,sizeof s->control_closed);
     s->control_header = 0;
     return 1;
 }
 PS_API unsigned ps_panel_active(const ps_session *s){return s&&s->board&&s->control_view?s->tab+1:0;}
+PS_API void ps_panel_set_chrome(ps_session *s,const ps_panel_chrome *chrome){
+#if PS_PANEL_KEYS
+    if(s){s->panel_chrome=chrome;s->dirty=1;}
+#else
+    (void)s;(void)chrome;
+#endif
+}
+PS_API void ps_panel_set_key_handler(ps_session *s,ps_panel_key_fn fn,void *context){
+#if PS_PANEL_KEYS
+    if(s){s->panel_key=fn;s->panel_key_context=context;}
+#else
+    (void)s;(void)fn;(void)context;
+#endif
+}
+PS_API int ps_panel_selection(const ps_session *s,unsigned *id){
+    const ps_control_page *p;
+    if(!ps_panel_active(s)||s->editing||s->control_header||!id)return 0;
+    p=&s->panel->pages[s->tab];
+    if(s->selected>=p->count)return 0;
+    *id=p->controls[s->selected].id;return 1;
+}
+PS_API int ps_panel_select(ps_session *s,unsigned id){
+    unsigned i;const ps_control_page *p;
+    if(!ps_panel_active(s)||s->editing)return 0;
+    p=&s->panel->pages[s->tab];
+    for(i=0;i<p->count;++i)if(p->controls[i].id==id){
+        s->selected=i;s->control_header=0;
+#if PS_CONTROL_SECTION_ROWS
+        {unsigned start=i;while(start&&equal(p->controls[start-1].group,p->controls[i].group))--start;
+        s->control_closed[s->tab][start/8]&=(ps_byte)~(1u<<(start%8));}
+#endif
+        s->dirty=1;return 1;
+    }
+    return 0;
+}
 PS_API int ps_panel_open(ps_session *s, unsigned page) {
     if (!s || ps_form_active(s) || !s->panel || page >= s->panel->count || !(s->io.flags & PS_INTERACTIVE))
         return 0;

@@ -6,6 +6,23 @@ fixture data and pinned Agave typography with antialiasing. They are not mockups
 or proof of connected hardware. CI rebuilds every image from current source and
 rejects stale or missing files.
 
+**Local .env manager — actual interactive document editing**
+
+| Values, masking and duplicate warnings | Complete source order |
+| --- | --- |
+| ![Environment values](../../previews/env-values.png) | ![Environment source](../../previews/env-source.png) |
+
+| Modal value editor | Key filtering |
+| --- | --- |
+| ![Environment modal](../../previews/env-modal.png) | ![Environment filter](../../previews/env-filter.png) |
+
+| Full record editor | Unsaved changes |
+| --- | --- |
+| ![Environment record](../../previews/env-record.png) | ![Environment unsaved](../../previews/env-unsaved.png) |
+
+[Usage, feature flags, file preservation and limits](Environment-editor.md).
+These are synthetic configuration fixtures rendered from real input-driven output.
+
 **Animated terminal session — typing, menus and form editing**
 
 ![Animated terminal replay](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/terminal-session.svg)
