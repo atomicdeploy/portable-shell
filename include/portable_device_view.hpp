@@ -269,6 +269,7 @@ class DeviceView {
         if (!active_)
             return false;
         syncSections(snapshot);
+        if(!validateChoice(snapshot))return false;
         if (crPending_ && (ch == '\n' || ch == 0)) {
             crPending_ = false;
             return false;
@@ -467,6 +468,7 @@ class DeviceView {
         if (!active_)
             return false;
         syncSections(snapshot);
+        validateChoice(snapshot);
         if (columns_ != snapshot.columns || lines_ != snapshot.lines) {
             columns_ = snapshot.columns;
             lines_ = snapshot.lines;

@@ -103,6 +103,38 @@ int main(){
     feed("\x1b[12~");assert(v.editing());output.clear();v.render(s,write);
     assert(output.find(" apply")!=std::string::npos);
 #if PS_DEVICE_VIEW_CHOICE_MENU
+    // A live provider may replace its choice schema without changing the value.
+    // Validate before both rendering and input; no stale dialog may write back.
+    for(unsigned mutation=0;mutation<8;++mutation)for(unsigned input=0;input<2;++input){
+        V live;V::Snapshot ls;V::Action la;
+        const char *many[]={"zero","one","two","BAD3","BAD4"};
+        const char *few[]={"zero","one"};
+        const char *changed[]={"zero","one","two","three","replacement"};
+        const char *labels[]={"Zero","One","Two","Three","Four"};
+        V::Row row={"Mode","mode","zero",true};row.kind=V::Choice;
+        row.choices=many;row.choiceCount=5;
+        ls.rows=&row;ls.rowCount=1;ls.columns=80;ls.lines=24;ls.unicode=true;
+        live.begin();live.feed('\r',ls,la);live.feed('5',ls,la);
+        assert(live.editing()&&std::string(live.draft())=="BAD4");
+        std::string frame;
+        auto capture=[&](const uint8_t *p,size_t n){frame.append((const char*)p,n);};
+        live.render(ls,capture);frame.clear();
+        switch(mutation){
+        case 0:row.choices=few;row.choiceCount=2;break;
+        case 1:row.key="replacement.key";break;
+        case 2:row.kind=V::Level;break;
+        case 3:row.choices=changed;break;
+        case 4:row.choiceLabels=labels;break;
+        case 5:row.choices=nullptr;row.choiceCount=0;break;
+        case 6:row.pending=true;break;
+        default:row.editable=false;break;
+        }
+        if(input)assert(!live.feed('\r',ls,la)&&la.type==V::Action::None);
+        live.render(ls,capture); // Must detect changes even with no forced repaint.
+        assert(!live.editing());
+        assert(frame.find("State changed; reopen editor")!=std::string::npos);
+        assert(frame.find("BAD3")==std::string::npos&&frame.find("BAD4")==std::string::npos);
+    }
     assert(output.find("1  ")!=std::string::npos);
     assert(!feed("\x1b[A")&&std::string(v.draft())=="static"); // wrap
     assert(!feed("\x1b[B")&&std::string(v.draft())=="effects");

@@ -46,9 +46,28 @@ static unsigned levelPercent(uint32_t offset,uint32_t span){
 }
 static uint32_t rowHash(const Row &r) {
     uint32_t h=2166136261U;
+    auto add=[&](const char *text){
+        for(const char *p=text;p&&*p;++p){h^=uint8_t(*p);h*=16777619U;}
+        h*=16777619U; // Hash a zero delimiter, separating fields including empty values.
+    };
     // Secret values are deliberately absent; providers must revalidate writes.
-    for(const char *p=r.secret?"":r.value;p&&*p;++p){h^=uint8_t(*p);h*=16777619U;}
+    add(r.secret?"":r.value);
+    h^=unsigned(r.kind);h*=16777619U;
+    if(r.kind==Choice){
+        h^=r.choiceCount;h*=16777619U;
+        for(unsigned i=0;r.choices&&i<r.choiceCount;++i){
+            add(r.choices[i]);
+            if(r.choiceLabels)add(r.choiceLabels[i]);
+        }
+    }
     return h;
+}
+bool validateChoice(const Snapshot &s) {
+    if(!choiceMenu_||!editing_)return true;
+    const Row *r=currentRow(s);
+    if(r&&r->kind==Choice&&ps_text_equal(r->key,editKey_)&&r->choices&&
+       choiceIndex_<r->choiceCount&&!r->secret&&!r->pending&&r->editable&&observed_==rowHash(*r))return true;
+    clearDraft();setNotice("State changed; reopen editor");dirty_=full_=true;return false;
 }
 static bool validValue(const Row &r,const char *value) {
     if(r.kind==Toggle)return toggle(value)>=0;
@@ -83,10 +102,8 @@ bool startDialog(const Snapshot &s,Action &a) {
     if(editing_){dialog_=true;full_=dirty_=true;}return false;
 }
 bool choiceKey(uint8_t key,const Snapshot &s,Action &) {
+    if(!validateChoice(s))return false;
     const Row *r=currentRow(s);
-    if(!r||!ps_text_equal(r->key,editKey_)||!r->choices||!r->choiceCount||r->secret||r->pending||!r->editable||observed_!=rowHash(*r)){
-        clearDraft();setNotice("State changed; reopen editor");dirty_=full_=true;return false;
-    }
     if(key=='A')choiceIndex_=uint8_t((choiceIndex_+r->choiceCount-1)%r->choiceCount);
     else if(key=='B'||key=='\t'||key==' ')choiceIndex_=uint8_t((choiceIndex_+1)%r->choiceCount);
     else if(key=='H')choiceIndex_=0;
@@ -107,7 +124,9 @@ ChoiceBounds choiceBounds(const Snapshot &s,const Row &r) const {
     }
     if(width>columns-4)width=columns-4;
     const unsigned visible=r.choiceCount<s.lines-10?r.choiceCount:s.lines-10;
-    return {(columns-width)/2+1,4,width,visible,choiceIndex_>=visible?choiceIndex_-visible+1:0};
+    const unsigned requested=choiceIndex_>=visible?choiceIndex_-visible+1:0;
+    const unsigned lastStart=r.choiceCount-visible;
+    return {(columns-width)/2+1,4,width,visible,requested<lastStart?requested:lastStart};
 }
 static const char *pageName(unsigned p) {
     static const char *const names[]={"Device","Network","Matrix","Pixels","Game","Terminal","Cloud","Notifications","Clock"};
@@ -137,6 +156,7 @@ bool mouse(const ps_mouse_event &e,const Snapshot &s,Action &a){
             const ChoiceBounds box=choiceBounds(s,*r);
             if(!drag&&x>box.left&&x<box.left+box.width-1&&y>box.top&&y<=box.top+box.visible){
                 const unsigned index=box.start+y-box.top-1;
+                if(index>=r->choiceCount)return false;
                 // Validate the snapshot through the same keyboard path before selecting.
                 choiceKey('H',s,a);if(!editing_)return false;
                 choiceIndex_=uint8_t(index);copy(draft_,sizeof draft_,r->choices[index]);
