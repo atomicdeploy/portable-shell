@@ -81,7 +81,8 @@ if(PORTABLE_SHELL_COMPILER_RT)
 endif()
 if(PORTABLE_SHELL_COMPACT)
   # Smaller line/history/table buffers do not remove native host commands.
-  set(compact_commands 30)
+  # Leave extension slots after the workbench commands, including hex and OSC.
+  set(compact_commands 32)
   if(PORTABLE_SHELL_BUILD_HOST AND PORTABLE_SHELL_HOST_EXEC)
     set(compact_commands 42)
   endif()

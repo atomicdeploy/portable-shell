@@ -634,8 +634,8 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         ps_command unnamed = {"long-custom-command", "ARG", 0, custom, 0, 0};
         cfg.flags = PS_INTERACTIVE | PS_COLOR | PS_UNICODE;
         s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
-        ps_register(s, &command);
-        ps_register(s, &unnamed);
+        CHECK(ps_register(s, &command) == 0, "completion command registration");
+        CHECK(ps_register(s, &unnamed) == 0, "uncategorized help command registration");
         clear();
         feed(s, "pre");
         CHECK(has(t.output, "view"), "fresh registry ghost without history");

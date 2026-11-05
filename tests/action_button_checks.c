@@ -54,7 +54,7 @@ int main(int argc,char **argv){
     ps_panel panel={"Action controls","Demo provider",pages,1,read_value,write_value,0};
     ps_config config={sink,0,COLUMNS,ROWS,PS_INTERACTIVE|PS_COLOR|PS_TRUECOLOR|PS_UNICODE};
     void *memory=calloc(1,ps_sizeof_session());ps_session *s;
-    unsigned x,y,idle,focused,disabled,pending,id;char click[80];
+    unsigned x,y,idle,focused,disabled,pending,id;
     assert(memory);s=ps_init(memory,ps_sizeof_session(),&config);assert(s);
     ps_replay_reset();assert(ps_panel_attach(s,&panel)&&ps_panel_open(s,0));
     assert(ps_panel_select(s,1));draw(s);
@@ -70,9 +70,15 @@ int main(int argc,char **argv){
     for(id=2;id<5;++id){assert(ps_panel_select(s,id));ps_key(s,13);assert(ps_panel_selection(s,&x)&&x==id);}
     assert(writes==0);
     assert(ps_panel_select(s,1));draw(s);y=find("Apply changes",&x);
-    snprintf(click,sizeof click,"\033[<0;%u;%uM\033[<0;%u;%um",x+1,y+1,x+1,y+1);
-    ps_feed(s,click,(unsigned)strlen(click));draw(s);
-    assert(!ps_panel_selection(s,&id)&&writes==0); /* click opens confirmation */
+#if PS_MOUSE
+    {char click[80];
+     snprintf(click,sizeof click,"\033[<0;%u;%uM\033[<0;%u;%um",x+1,y+1,x+1,y+1);
+     ps_feed(s,click,(unsigned)strlen(click));}
+#else
+    ps_key(s,13);
+#endif
+    draw(s);
+    assert(!ps_panel_selection(s,&id)&&writes==0); /* activation opens confirmation */
     ps_key(s,13);assert(writes==0); /* Cancel is the initial dialog focus */
     ps_key(s,13);ps_key(s,9);ps_key(s,13);assert(writes==1);
     ps_resize(s,42,16);draw(s);assert(writes==1);

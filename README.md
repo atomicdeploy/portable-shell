@@ -14,6 +14,9 @@ adapters provide native terminal, TCP/Telnet and serial access.
 
 ![Editable table with grouped settings and inline controls](previews/controls.png)
 
+[▶ Watch the 17-second terminal session](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/terminal-session.svg) ·
+[Build and recording guide](docs/wiki/Animated-previews.md)
+
 *Actual terminal-byte replay, rendered with pinned Agave fonts. Gallery fixtures
 use simulated application data; they are not connected-hardware captures.*
 

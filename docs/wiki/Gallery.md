@@ -43,6 +43,7 @@ These are synthetic configuration fixtures rendered from real input-driven outpu
 
 ![Animated terminal replay](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/terminal-session.svg)
 
+[▶ Open the 17-second animation](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/terminal-session.svg) ·
 [Playback options and recording format](Animated-previews.md) ·
 [Static fallback](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/terminal-session-poster.png)
 
