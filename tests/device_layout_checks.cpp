@@ -19,8 +19,13 @@ struct Screen {
                 unsigned a=0,b=1;std::sscanf(sequence.c_str(),"[%u;%u",&a,&b);
                 if(c=='H'){row=(a?a:1)-1;column=b-1;}
                 if(c=='G')column=(a?a:1)-1;
-                if(c=='J'||c=='K')for(unsigned r=0;r<height;++r)for(unsigned x=0;x<width;++x)
-                    if(c=='J'?(a==2||r>row||(r==row&&x>=column)):(r==row&&(a==2||x>=column)))cells[r][x]=" ";
+                if(c=='J')for(unsigned r=0;r<height;++r)for(unsigned x=0;x<width;++x)
+                    if(a==2||r>row||(r==row&&x>=column))cells[r][x]=" ";
+                // EL affects one row. Scanning the entire screen for every
+                // line erase made the unoptimized viewport matrix quadratic
+                // in terminal height, without checking any additional cells.
+                if(c=='K'&&row<height)for(unsigned x=a==2?0:column;x<width;++x)
+                    cells[row][x]=" ";
                 escape=false;continue;
             }
             if(c=='\r'){column=0;continue;}
