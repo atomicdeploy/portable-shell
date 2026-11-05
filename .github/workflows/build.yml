@@ -189,6 +189,7 @@ jobs:
         run: cmake -DREPORT_DIR=build -P tools/ci/summary.cmake
   profiles:
     strategy:
+      fail-fast: false
       matrix:
         flags:
           - '-DPORTABLE_SHELL_ASCII_ONLY=ON'
