@@ -2,7 +2,7 @@
 static void table_mouse(ps_session *s,const ps_mouse_event *e) {
     unsigned x=e->column,y=e->row,b=e->button,button=b&3,drag=b&32;
     unsigned inside=!!(s->table_style&PS_TABLE_TABS_INSIDE)&&table_height(s)>=15;
-    unsigned body=7+inside,slots=table_slots(s),i,index,total,focus;
+    unsigned body=table_body(s),slots=table_slots(s),i,index,total,focus;
     unsigned short items[512];
     Grid g;
     if(table_prompt(s)&&!s->editing&&!e->release&&!drag&&button==0&&!(b&~3U)&&x<=s->io.columns&&y<=s->io.rows){

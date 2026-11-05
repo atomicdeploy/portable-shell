@@ -16,8 +16,10 @@ static ps_cell cells[96*24],presented[96*24],pad_cells[40*40],pad_presented[40*4
 #if PS_UNDO_DEPTH
 static union {void *align;unsigned char bytes[48000];} memory;
 #endif
+#if PS_UNDO_DEPTH && PS_HEX_EDITOR
 static unsigned hex_saved,hex_fail;
 static int save_hex(void *ctx,const ps_byte *p,unsigned n){(void)ctx;if(hex_fail)return 0;assert(n==4&&p[0]==0xAF);++hex_saved;return 1;}
+#endif
 int main(int argc,char **argv){
     ps_screen screen,pad;ps_window whole,view,source;ps_rich rich={sink,0,PS_COLOR_RGB,0,0};
     ps_cell style=ps_cell_make(0xabb2bf,0x181a1f,0),heading=ps_cell_make(0x70d3eb,0x181a1f,PS_TEXT_BOLD);
@@ -57,10 +59,13 @@ int main(int argc,char **argv){
         ps_resize(s,40,10);ps_key(s,27);assert(!ps_terminal_state(s));
         ps_key(s,13);assert(!strcmp(ps_history_get(s,3),"draft"));
         ps_key(s,PS_KEY_F7);ps_key(s,PS_KEY_HOME);ps_key(s,9);
-        ps_feed(s," edited\r",8);assert(!strcmp(ps_history_get(s,4),"echo a edited"));
-        ps_key(s,PS_KEY_F7);ps_key(s,PS_KEY_HOME);ps_key(s,13);
-        assert(!strcmp(ps_history_get(s,5),"echo a"));
-        ps_feed(s,"!999\r",5);assert(ps_history_count(s)==6&&ps_status(s)==2);
+        ps_feed(s," edited\r",8);assert(!strcmp(ps_history_get(s,ps_history_count(s)-1),"echo a edited"));
+        {char oldest[PS_LINE];unsigned count;
+         strcpy(oldest,ps_history_get(s,0));
+         ps_key(s,PS_KEY_F7);ps_key(s,PS_KEY_HOME);ps_key(s,13);
+         assert(!strcmp(ps_history_get(s,ps_history_count(s)-1),oldest));
+         count=ps_history_count(s);assert(count==(PS_HISTORY<6?PS_HISTORY:6));
+         ps_feed(s,"!999\r",5);assert(ps_history_count(s)==count&&ps_status(s)==2);}
         ps_key(s,3);ps_key(s,PS_KEY_F7);ps_close(s);assert(!ps_terminal_state(s));
     }
 #endif

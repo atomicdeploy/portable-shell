@@ -17,7 +17,7 @@ static unsigned control_items(ps_session *s, unsigned short *items, unsigned *fo
             closed = !(s->table_style&PS_TABLE_STATIC_SECTIONS) && *group && (s->control_closed[s->tab][i/8] & (1U << (i%8)));
             if (*group) {
                 /* Reuse an adjacent rule (column header or closed section). */
-                if (frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS) && n && !(items[n-1]&0x2000)) items[n++] = (unsigned short)(i | 0x4000);
+                if (frame && !table_border_titles(s) && !(s->table_style & PS_TABLE_COMPACT_SECTIONS) && n && !(items[n-1]&0x2000)) items[n++] = (unsigned short)(i | 0x4000);
                 if (s->selected == i && s->control_header) *focus = n;
                 items[n++] = (unsigned short)(i | 0x8000);
                 if (frame && !(s->table_style & PS_TABLE_COMPACT_SECTIONS) && (s->table_style & PS_TABLE_SECTION_BOTTOM)) items[n++] = (unsigned short)(i | 0x2000);
@@ -61,10 +61,21 @@ static void control_section_row(ps_session *s, unsigned index, unsigned width) {
     for (i=0; name[i] && i+1<sizeof label; ++i)
         label[i] = name[i]>='a' && name[i]<='z' ? (char)(name[i]-'a'+'A') : name[i];
     label[i]=0;
-    surface(s, s->control_header && s->selected == index ? 1 : 0);
-    out(s,(s->table_style&(PS_TABLE_STATIC_SECTIONS|PS_TABLE_SECTION_NO_ICONS))?"  ":
-        (s->io.flags&PS_UNICODE)&&!(s->table_style&PS_TABLE_SECTION_PLUS_MINUS)?(closed?"▸ ":"▾ "):(closed?"+ ":"- "));
-    grid_text(s,label,width-2);
+    {
+        const char *marker=ps_table_section_marker(!!(s->io.flags&PS_UNICODE),
+            !(s->table_style&PS_TABLE_STATIC_SECTIONS),
+            s->table_style&PS_TABLE_SECTION_NO_ICONS?2:s->table_style&PS_TABLE_SECTION_PLUS_MINUS?1:0,closed,
+            s->control_header&&s->selected==index,!!(s->table_style&PS_TABLE_SECTION_INDICATORS_ALWAYS));
+        unsigned marker_width=cells(marker,length(marker),s->io.flags);
+        if(table_border_titles(s)) {
+            if(s->control_header && s->selected==index)surface(s,1);else ink(s,PS_INK_HEADING);
+            if(s->control_header && s->selected==index && !(s->io.flags&PS_COLOR))ansi(s,"\033[7m");
+            out(s,marker);grid_text(s,label,min(width-marker_width-1,cells(label,length(label),s->io.flags)));out(s," ");
+        } else {
+            surface(s,s->control_header && s->selected==index?1:0);
+            out(s,marker);grid_text(s,label,width-marker_width);
+        }
+    }
 }
 static const ps_control *control_selected(ps_session *s) {
     const ps_control_page *p = &s->panel->pages[s->tab];
@@ -161,10 +172,35 @@ static void control_value_text(ps_session *s, const ps_control *c, const ps_cont
     else if (c->kind == PS_CONTROL_LEVEL)
         dec(text, v->number);
     else if (c->kind == PS_CONTROL_ACTION)
-        str(text, "Run...", cap);
+        str(text, v->text[0] ? v->text : "Run", cap);
     else
         str(text, v->text, cap);
 }
+#if PS_ACTION_BUTTONS
+static void control_button(ps_session *s, const ps_control_value *v, const char *label,
+                           unsigned width, unsigned focused) {
+    enum { BUTTON_PADDING = 2, BUTTON_FRAME = 2 * BUTTON_PADDING };
+    unsigned state=focused?PS_BUTTON_FOCUSED:PS_BUTTON_IDLE;
+    unsigned span=min(width,cells(label,length(label),s->io.flags)+BUTTON_FRAME);
+    const char *status="";
+    if (!(v->flags&PS_CONTROL_VALID)) {state=PS_BUTTON_DISABLED;status="Unknown";}
+    else if (v->flags&PS_CONTROL_PENDING) {state=PS_BUTTON_PENDING;status="Pending";}
+    else if ((v->flags&PS_CONTROL_LOCKED)||!s->panel->write) {state=PS_BUTTON_DISABLED;status="Read only";}
+    if(span<BUTTON_FRAME){grid_text(s,label,width);return;}
+    ansi(s,"\033[0m");
+    if(s->io.flags&PS_COLOR)color(s,ps_style_button(s->theme,!!(s->io.flags&PS_TRUECOLOR),state));
+    else ansi(s,state==PS_BUTTON_FOCUSED?"\033[1;7m":state==PS_BUTTON_DISABLED?"\033[2m":"\033[1m");
+    out(s,s->io.flags&PS_COLOR?"  ":"[ ");
+    grid_text(s,label,span-BUTTON_FRAME);
+    out(s,s->io.flags&PS_COLOR?"  ":" ]");
+    /* Restore the row, so padding and the table border never inherit the button. */
+    reset(s);
+    if(focused){if(s->io.flags&PS_COLOR)surface(s,2);else ansi(s,"\033[7m");}
+    ink(s,state==PS_BUTTON_PENDING?PS_INK_WARNING:PS_INK_MUTED);
+    if(*status&&width-span>2){out(s,"  ");grid_text(s,status,width-span-2);}
+    else spaces(s,width-span);
+}
+#endif
 static void control_row(ps_session *s, unsigned index, const Grid *g) {
     const ps_control *c = &s->panel->pages[s->tab].controls[index];
     ps_control_value v;
@@ -178,7 +214,7 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
                          ? c->group : "", g->widths[col++]);
         grid_divide(s);
     }
-    ink(s, 4);
+    ink(s, v.flags&PS_CONTROL_ATTENTION?PS_INK_WARNING:v.flags&PS_CONTROL_INACTIVE?PS_INK_INACTIVE:PS_INK_TEXT);
     {
         const ps_control_page *page=&s->panel->pages[s->tab];unsigned j,categories=0;
         if(control_sections(s))for(j=0;j<page->count;++j)if(*page->controls[j].group){categories=1;break;}
@@ -192,6 +228,7 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
     grid_divide(s);
     w = g->widths[col];
     ink(s, !(v.flags & PS_CONTROL_VALID)  ? 0
+           : v.flags & PS_CONTROL_INACTIVE ? PS_INK_INACTIVE
            : c->kind == PS_CONTROL_TOGGLE ? (v.number ? PS_INK_SUCCESS : s->theme==PS_THEME_DEFAULT?PS_INK_INACTIVE:3)
            : c->kind == PS_CONTROL_ACTION ? PS_INK_ACTION
            : c->kind == PS_CONTROL_LEVEL ? PS_INK_NUMBER
@@ -207,7 +244,15 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
         out(s, " ");
         return;
     }
-    if ((v.flags & PS_CONTROL_VALID) && !(v.flags & (PS_CONTROL_PENDING | PS_CONTROL_LOCKED)) &&
+#if PS_ACTION_BUTTONS
+    if(c->kind==PS_CONTROL_ACTION){
+        /* Keep the action name visible even when its state is unknown. */
+        str(b,v.text[0]?v.text:"Run",sizeof b);
+        control_button(s,&v,b,w,!s->control_header&&s->selected==index);
+        return;
+    }
+#endif
+    if ((v.flags & PS_CONTROL_VALID) && !(v.flags & (PS_CONTROL_PENDING | PS_CONTROL_LOCKED | PS_CONTROL_NUMBER_ONLY)) &&
         c->kind == PS_CONTROL_LEVEL && w >= 18) {
         unsigned bar = w - 15;
         pct = (v.number - c->minimum) * 100 / (c->maximum - c->minimum);
@@ -245,6 +290,9 @@ static const char *control_hint(ps_session *s) {
     if (s->editing)
         return s->dialog ? "Tab focus   Enter apply   Esc cancel"
                          : "Enter apply  Esc cancel  ^U clear";
+#if PS_PANEL_KEYS
+    if(s->panel_chrome&&s->panel_chrome->actions)return s->panel_chrome->actions;
+#endif
     if (!c)
         return "";
     control_read(s, c, &v);
@@ -519,9 +567,48 @@ PS_API int ps_panel_attach(ps_session *s, const ps_panel *panel) {
     if (s->control_view)
         table_close(s);
     s->panel = panel;
+#if PS_PANEL_KEYS
+    s->panel_chrome=0;s->panel_key=0;s->panel_key_context=0;
+#endif
     zero(s->control_closed,sizeof s->control_closed);
     s->control_header = 0;
     return 1;
+}
+PS_API unsigned ps_panel_active(const ps_session *s){return s&&s->board&&s->control_view?s->tab+1:0;}
+PS_API void ps_panel_set_chrome(ps_session *s,const ps_panel_chrome *chrome){
+#if PS_PANEL_KEYS
+    if(s){s->panel_chrome=chrome;s->dirty=1;}
+#else
+    (void)s;(void)chrome;
+#endif
+}
+PS_API void ps_panel_set_key_handler(ps_session *s,ps_panel_key_fn fn,void *context){
+#if PS_PANEL_KEYS
+    if(s){s->panel_key=fn;s->panel_key_context=context;}
+#else
+    (void)s;(void)fn;(void)context;
+#endif
+}
+PS_API int ps_panel_selection(const ps_session *s,unsigned *id){
+    const ps_control_page *p;
+    if(!ps_panel_active(s)||s->editing||s->control_header||!id)return 0;
+    p=&s->panel->pages[s->tab];
+    if(s->selected>=p->count)return 0;
+    *id=p->controls[s->selected].id;return 1;
+}
+PS_API int ps_panel_select(ps_session *s,unsigned id){
+    unsigned i;const ps_control_page *p;
+    if(!ps_panel_active(s)||s->editing)return 0;
+    p=&s->panel->pages[s->tab];
+    for(i=0;i<p->count;++i)if(p->controls[i].id==id){
+        s->selected=i;s->control_header=0;
+#if PS_CONTROL_SECTION_ROWS
+        {unsigned start=i;while(start&&equal(p->controls[start-1].group,p->controls[i].group))--start;
+        s->control_closed[s->tab][start/8]&=(ps_byte)~(1u<<(start%8));}
+#endif
+        s->dirty=1;return 1;
+    }
+    return 0;
 }
 PS_API int ps_panel_open(ps_session *s, unsigned page) {
     if (!s || ps_form_active(s) || !s->panel || page >= s->panel->count || !(s->io.flags & PS_INTERACTIVE))

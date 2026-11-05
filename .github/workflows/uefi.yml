@@ -1,0 +1,40 @@
+name: 🧩 UEFI application
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  x64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install PE cross compiler
+        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64
+      - name: Build and audit EFI application
+        run: cmake -DUEFI_CC=x86_64-w64-mingw32-gcc -P tools/build-uefi.cmake
+      - name: Test firmware adapter with hosted protocol mocks
+        run: |
+          gcc -std=c99 -Os -Wall -Wextra -Werror -Iinclude tests/uefi_checks.c host/workbench.c compat/device_profile.c -o build/uefi/uefi-checks
+          build/uefi/uefi-checks
+      - name: Publish firmware image and link evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: portable-shell-uefi-x64
+          path: |
+            build/uefi/PortableShell.efi
+            build/uefi/PortableShell.map
+            build/uefi/image-headers.txt
+      - name: Build summary
+        run: |
+          echo '## 🧩 UEFI x64' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Built EFI application; no DLL imports; relocation audit and hosted protocol mocks passed. Firmware boot acceptance remains separate.' >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          wc -c build/uefi/PortableShell.efi >> "$GITHUB_STEP_SUMMARY"
+          x86_64-w64-mingw32-size build/uefi/PortableShell.efi >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

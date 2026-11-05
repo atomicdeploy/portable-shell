@@ -1,13 +1,17 @@
 ## 🐚 PortableShell
 
 - [Home](Home.md)
+- [🧭 Architecture and source maps](Architecture.md)
 - [🚀 Getting started](Getting-started.md)
 - [🛠️ Building](Building.md)
 - [🖼️ Gallery](Gallery.md)
+- [🎞️ Animated previews](Animated-previews.md)
 - [⌨️ Shell](Shell.md)
 - [📋 Workspace](Workspace.md)
 - [🔢 Menus](Menus.md)
+- [Service consoles](Service-consoles.md)
 - [📝 Text editor](Text-editor.md)
+- [🗂️ .env manager](Environment-editor.md)
 - [⚙️ Options](Options.md)
 - [🔌 Transports](Transports.md)
 - [🖥️ Host execution and remote providers](Host-execution.md)
@@ -29,3 +33,5 @@
 - [Local shell language](Local-shell.md)
 - [Terminal OSC integration](OSC.md)
 - [Consumer commands and typed settings](Commands.md)
+- [Consumer-owned feature selection](Feature-selection.md)
+- [UEFI application](UEFI.md)

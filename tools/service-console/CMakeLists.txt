@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.20)
+project(PortableShellServiceConsole LANGUAGES C)
+get_filename_component(root "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+include("${CMAKE_CURRENT_LIST_DIR}/target.cmake")
+enable_testing()
+add_test(NAME service_console_checks COMMAND service_console_checks)

@@ -1,0 +1,11 @@
+add_executable(action_button_checks "${root}/tests/action_button_checks.c"
+  "${root}/tests/render.c" "${root}/src/portable_shell.c")
+target_include_directories(action_button_checks PRIVATE "${root}/include")
+target_compile_features(action_button_checks PRIVATE c_std_99)
+target_compile_definitions(action_button_checks PRIVATE PS_REPLAY_ONLY PS_REPLAY_ATTRIBUTES W=88 H=22)
+if(MSVC)
+  target_compile_options(action_button_checks PRIVATE /UNDEBUG /W4)
+else()
+  target_compile_options(action_button_checks PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+endif()
+set_target_properties(action_button_checks PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")

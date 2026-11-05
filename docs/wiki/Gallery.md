@@ -6,6 +6,65 @@ fixture data and pinned Agave typography with antialiasing. They are not mockups
 or proof of connected hardware. CI rebuilds every image from current source and
 rejects stale or missing files.
 
+**Action buttons — focused, available, read-only, pending and unknown**
+
+![Action button states](../../previews/action-buttons.png)
+
+`PS_CONTROL_ACTION` uses a padded background button by default, with brighter
+keyboard/mouse focus. Pending actions are amber; unavailable actions are muted
+and cannot execute. Clicking or pressing Enter opens the existing confirmation
+dialog; Cancel remains its initial focus. Providers may supply an action-specific
+label through `ps_control_value.text`, such as `Apply changes`; empty uses `Run`.
+The shared table and dashboard renderer use the same treatment.
+
+`PS_ACTION_BUTTONS=0` selects plain action text at build time. Monochrome/ASCII
+mode retains recognizable bracketed buttons without depending on color:
+
+![Monochrome action buttons](../../previews/action-buttons-mono.png)
+
+**Local .env manager — actual interactive document editing**
+
+| Values, masking and duplicate warnings | Complete source order |
+| --- | --- |
+| ![Environment values](../../previews/env-values.png) | ![Environment source](../../previews/env-source.png) |
+
+| Modal value editor | Key filtering |
+| --- | --- |
+| ![Environment modal](../../previews/env-modal.png) | ![Environment filter](../../previews/env-filter.png) |
+
+| Full record editor | Unsaved changes |
+| --- | --- |
+| ![Environment record](../../previews/env-record.png) | ![Environment unsaved](../../previews/env-unsaved.png) |
+
+[Usage, feature flags, file preservation and limits](Environment-editor.md).
+These are synthetic configuration fixtures rendered from real input-driven output.
+
+**Animated terminal session — typing, menus and form editing**
+
+![Animated terminal replay](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/terminal-session.svg)
+
+[▶ Open the 17-second animation](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/terminal-session.svg) ·
+[Playback options and recording format](Animated-previews.md) ·
+[Static fallback](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/terminal-session-poster.png)
+
+The SVG replays actual emitted bytes with recorded timing and blinking cursors.
+It loops by default; reduced-motion viewers show the final frame. This is a
+simulated consumer interaction, not a live connection or an executable terminal.
+
+**Service-console composition — 95 presentation states**
+
+| Contextual menu | Typed configuration |
+| --- | --- |
+| ![Service menu](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/service-main.png) | ![Typed configuration](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/service-settings.png) |
+
+| Parameter form with overview | Read-only document |
+| --- | --- |
+| ![Form overview](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/service-form.png) | ![Scrollable document](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/service-document.png) |
+
+[Build all 95 states and inspect the consumer source](Service-console.md).
+These are working UI fixtures with synthetic data; remote service and device
+operations are not implemented by the example.
+
 **Task workspace — semantic colors**
 
 ![PortableShell task workspace with semantic colors](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/workspace.png)
@@ -14,16 +73,29 @@ rejects stale or missing files.
 
 ![PortableShell control panel with inline value editing](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/inline.png)
 
-| Optional category column (before) | Default collapsible sections (after) |
+| Filled group headings (optional) | Border-title groups (default) |
 | --- | --- |
-| ![Category-column layout](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-columns.png) | ![Uppercase full-width section rows](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls.png) |
+| ![Filled heading layout](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-filled.png) | ![Group title embedded in the border](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls.png) |
 
 Select a heading with **↑/↓**, then **Enter** or **Space** to toggle it.
+Expanded headings show their disclosure indicator only while selected; collapsed
+headings always show it. Hidden indicators occupy no cells.
 **←** collapses and **→** expands. Sections retain their state when switching
 pages; inline editing remains in the value cell. [Collapsed example](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-collapsed.png).
-Headings have continuous border rows above and below by default.
-[Compact sections](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-compact.png) omit those extra rows;
-see [presentation options](Options.md#presentation).
+The title and separator now occupy a single row. At the same viewport size this
+example fits all groups without a scrollbar. The filled style remains available
+with `PS_TABLE_SECTION_FILLED` or `view.setSectionBorderTitles(false)`.
+See [presentation options](Options.md#presentation) for build and runtime choices.
+
+| Optional group / setting / value columns | Optional bordered prompt |
+| --- | --- |
+| ![Group names appear once in three-column mode](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-columns.png) | ![Framed input below the table](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/table-prompt-framed.png) |
+
+Use `PS_TABLE_CATEGORY_COLUMN` for three columns; use
+`PS_TABLE_PROMPT | PS_TABLE_PROMPT_FRAME` for the framed prompt. The host demo
+command is `board --framed-prompt`. Tab placement and semantic value colors are
+unchanged: headings cyan, numbers orange, enabled values green, inactive values
+gray, choices violet, and neutral borders. Accent palettes remain optional.
 
 Tabs are outside by default. Optional first-row tabs:
 [control panel](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/controls-inside.png), [device table](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/device-inside.png).
@@ -60,11 +132,39 @@ Emitted-byte replay fixture with simulated observations; [configuration](Meters.
 
 ## Menus, editor and file tree
 
+The [contextual menu example](Menus.md#context-and-service-consoles) demonstrates
+consumer-supplied status, breadcrumbs and pointer selection. These are simulated
+service observations, rendered through the same byte API.
+
+| Contextual menu | Nested operations | Masked setup input |
+| --- | --- | --- |
+| ![Service menu](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-context.png) | ![Operations](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-service.png) | ![Password form](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/form-password.png) |
+
 [Centered and split menus](Menus.md), [framed editor](Text-editor.md), and [file tree](File-picker.md) include emitted-byte Agave previews.
 
 ## Custom prompts
 
+### Rounded two-line prompt with ❯
+
 ![Multiline prompt](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/prompt-multiline.png)
+
+Use this configuration to reproduce the pictured prompt, including its rounded
+line-drawing characters and custom `❯` symbol:
+
+```text
+prompt success "╭─ operator@workbench" muted "  /configuration\n" command "╰─❯ "
+```
+
+The simpler two-line variant keeps `❯` without the connecting lines:
+
+```text
+prompt success "operator@workbench " muted "/configuration\n" command "❯ "
+```
+
+To restore the default prompt afterwards, run `prompt reset` separately.
+These are runtime prompt settings; no special build profile is required. The
+rounded variant uses Unicode and color output. Its source fixture is rebuilt by
+the gallery pipeline, preserving `╭─`, `╰─` and `❯` in the rendered preview.
 
 [Colored single line](https://github.com/atomicdeploy/portable-shell/blob/main/previews/prompt-colored.png) ·
 [ASCII monochrome](https://github.com/atomicdeploy/portable-shell/blob/main/previews/prompt-ascii.png) ·
@@ -146,3 +246,16 @@ Actual terminal-byte replay, rendered in Agave on a dark background.
 `PS_HEX_EDITOR=1` enables the editor; run `hex` for the session-buffer demo.
 
 ![Hex editor](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/hex-editor.png)
+
+Unicode mode uses rounded borders with joined column separators. A dedicated
+scrollbar appears only when the buffer exceeds the visible rows. Arrow keys,
+Page Up/Down and Home/End keep the selected byte visible.
+
+`hex` or `hex --columns auto` chooses 1, 2, 4, 8, 16 or 32 bytes per row to fit
+the viewport. `hex --columns 8` fixes eight bytes per row; values 1–32 are accepted.
+Fixed mode preserves its count across resize and displays a resize notice if it
+cannot fit, without discarding edits. Embedders use
+`ps_hex_editor_set_columns(session, 0)` for responsive layout or a nonzero count
+for fixed layout. Monochrome/ASCII terminals retain an ASCII fallback.
+
+![Fixed eight-byte columns](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/hex-fixed.png)

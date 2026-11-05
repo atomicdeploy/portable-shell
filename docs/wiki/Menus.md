@@ -20,6 +20,33 @@ current item. Descriptions are clipped to the panel width. Numbering remains sta
 when hidden. The default callback-free description distinguishes submenus/actions.
 A leaf closes menu input before its action runs, allowing another view to open.
 
+## Context and service consoles
+
+`PS_MENU_BREADCRUMBS` shows the parent path above a framed menu or filterable list.
+Returning from a submenu restores the parent selection. Framed menus also accept
+`j`/`k` and Page Up/Page Down. `PS_MENU_MARKER` selects a compact pointer in place
+of the filled selection background; Unicode submenus use `›`, with ASCII fallback.
+
+`ps_menu_set_notice(session, callback, context)` supplies a status line. The callback
+receives the current menu and an output `PS_INK_*` role, and returns borrowed,
+printable text or NULL. Include `portable_style.h` for the roles. Call
+`ps_menu_refresh` after provider changes: the framework does not poll services or
+claim connectivity on its own. Notices also appear in transcript mode. In list
+mode a notice replaces the item-count line; pagination remains visible below.
+
+`PS_MENU_CONTEXT=0` removes the notice callback/storage, breadcrumbs and remembered
+parent selections. Marker selection and basic navigation remain available.
+
+The [service menu example](https://github.com/atomicdeploy/portable-shell/blob/main/examples/service_menu.h)
+owns the entire menu tree and delegates actions to a consumer callback. Its
+[executable test/preview](https://github.com/atomicdeploy/portable-shell/blob/main/tests/menu_context_checks.c)
+demonstrates navigation, provider status changes and a masked setup form. This
+example does not connect to or control any actual service.
+
+![Contextual service menu](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-context.png)
+
+![Nested service operations](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/menu-service.png)
+
 `menu 2 1` selects Tools → Terminal status in scripts. Bare `menu` in batch mode
 prints choices and returns, without trapping subsequent commands or emitting ANSI.
 

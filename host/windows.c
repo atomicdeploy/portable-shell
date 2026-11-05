@@ -11,6 +11,12 @@
 static unsigned use_device_commands;
 static ps_device_profile profiles[4];
 #include "filesystem.h"
+#if PS_HOST_ENV
+#include "env_manager.h"
+#define local_feed env_manager_feed
+#else
+#define local_feed ps_feed
+#endif
 #define CLIENTS 4
 #define QUEUE 131072
 typedef struct {
@@ -200,7 +206,7 @@ static void resize(ps_session *s) {
 static void keyboard_append(ps_session *s, ps_byte *batch, unsigned *used, const ps_byte *bytes,
                             unsigned count) {
     if (*used + count > 512) {
-        ps_feed(s, batch, *used);
+        local_feed(s, batch, *used);
         *used = 0;
     }
     while (count--)
@@ -221,7 +227,7 @@ static void keyboard(ps_session *s) {
         unsigned repeat;
         if (events[i].EventType == WINDOW_BUFFER_SIZE_EVENT) {
             if (used) {
-                ps_feed(s, batch, used);
+                local_feed(s, batch, used);
                 used = 0;
             }
             resize(s);
@@ -330,7 +336,7 @@ static void keyboard(ps_session *s) {
         }
     }
     if (used)
-        ps_feed(s, batch, used);
+        local_feed(s, batch, used);
 }
 static int ip4(const char *p, ULONG *address) {
     unsigned part = 0, count = 0, value = 0;
@@ -502,7 +508,7 @@ static void history_save(ps_session *s, const char *path) {
 int host_main(void) {
     unsigned flags = PS_COLOR | PS_UNICODE | PS_TRUECOLOR, port = 0, baud = 115200, i, board = 0,
              execution = 0, batch = 0, force = 0, command_at = 0;
-    const char *command = 0, *bind_addr = "127.0.0.1", *serial = 0, *history = 0;
+    const char *command = 0, *bind_addr = "127.0.0.1", *serial = 0, *history = 0, *env_path = 0;
     ps_config cfg;
     ps_session *s;
     ps_u32 start;
@@ -548,6 +554,13 @@ int host_main(void) {
             board = 4;
         else if (equal(argv[i], "--files"))
             board = 5;
+        else if (equal(argv[i], "--env") && i+1<argc) {
+#if PS_HOST_ENV
+            env_path=argv[++i];
+#else
+            say("The .env manager is not compiled in\r\n");return 2;
+#endif
+        }
         else if (equal(argv[i], "--menu"))
             board = 3;
         else if (equal(argv[i], "--controls"))
@@ -558,7 +571,7 @@ int host_main(void) {
                 " "
                 "[--command TEXT "
                 "| -- ARGV...] [--batch | --interactive] [--exec | --no-exec] [--shortcuts]\r\n      [--listen PORT [--bind IPv4]] "
-                "[--serial PORT [--baud N]]\r\n");
+                "[--serial PORT [--baud N]] [--env FILE]\r\n");
             return 0;
         } else if (equal(argv[i], "--")) {
             command_at = i + 1;
@@ -586,6 +599,9 @@ int host_main(void) {
             say("\r\n");
             return 2;
         }
+    }
+    if(env_path&&(port||serial||board||use_device_commands||batch||command||command_at)){
+        say("--env requires a local interactive session without another startup mode\r\n");return 2;
     }
     if (port)
         return server(port, bind_addr, flags);
@@ -639,6 +655,9 @@ int host_main(void) {
     if (use_device_commands)
         ps_device_attach(s, &profiles[0], 0, 0);
     if (!serial && !use_device_commands && fs_attach(s)) return 2;
+#if PS_HOST_ENV
+    if (!serial && !use_device_commands && env_manager_register(s)) return 2;
+#endif
 #if PS_HOST_EXEC
 #if PS_HOST_LANGUAGE
     host_program(argv[0]);
@@ -670,6 +689,7 @@ int host_main(void) {
     if (console_in && (flags & PS_INTERACTIVE))
         SetConsoleMode(input, ps_windows_input_mode(input_mode,0));
     ps_start(s);
+    if(env_path){const char *args[]={"env",env_path};ps_execute_argv(s,2,args);}
     if (board)
         ps_execute(s, board == 5 ? "files" : board == 4 ? "edit" : board == 3 ? "menu" : board == 2 ? "controls" : "board");
     start = GetTickCount();
@@ -691,6 +711,9 @@ int host_main(void) {
                     break;
                 if (!available) {
                     ps_tick(s, GetTickCount() - start);
+#if PS_HOST_ENV
+                    env_manager_poll(s);
+#endif
                     flush(&channels[0]);
                     Sleep(20);
                     continue;
@@ -704,9 +727,12 @@ int host_main(void) {
             if (execution && !serial && !(flags & PS_INTERACTIVE) && n == 1 && b[0] == '\r')
                 continue;
             if (n)
-                ps_feed(s, b, n);
+                local_feed(s, b, n);
         }
         ps_tick(s, GetTickCount() - start);
+#if PS_HOST_ENV
+        env_manager_poll(s);
+#endif
         flush(&channels[0]);
     }
     ps_finish(s);

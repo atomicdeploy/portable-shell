@@ -1,2 +1,7 @@
 # Terminal captures are binary protocol evidence, including exact CR/LF bytes.
 *.ansi binary
+*.psrec binary
+# Generated SVG/font-license hashes must match the cross-platform rebuild.
+previews/terminal-session*.svg -text
+# Preserve the upstream license verbatim, including its original whitespace.
+previews/Agave-LICENSE.txt -text -whitespace

@@ -20,6 +20,12 @@ static ps_device_profile profiles[4];
 #include <signal.h>
 #include <time.h>
 #include "filesystem.h"
+#if PS_HOST_ENV
+#include "env_manager.h"
+#define local_feed env_manager_feed
+#else
+#define local_feed ps_feed
+#endif
 #define CLIENTS 4
 #define QUEUE 131072
 typedef struct {
@@ -263,7 +269,7 @@ int main(int argc, char **argv) {
     unsigned flags = PS_COLOR | PS_UNICODE | PS_TRUECOLOR, port = 0, baud = 115200, board = 0,
              execution = 0, batch = 0, force = 0;
     int i, command_at = 0, fd = 0, outfd = 1, raw = 0, result;
-    const char *command = 0, *host = "127.0.0.1", *serial = 0, *history = 0;
+    const char *command = 0, *host = "127.0.0.1", *serial = 0, *history = 0, *env_path = 0;
     struct termios saved;
     ps_config cfg;
     ps_session *s;
@@ -307,6 +313,13 @@ int main(int argc, char **argv) {
             board = 4;
         else if (equal(argv[i], "--files"))
             board = 5;
+        else if (equal(argv[i], "--env") && i+1<argc) {
+#if PS_HOST_ENV
+            env_path=argv[++i];
+#else
+            say("The .env manager is not compiled in\n");return 2;
+#endif
+        }
         else if (equal(argv[i], "--menu"))
             board = 3;
         else if (equal(argv[i], "--controls"))
@@ -318,7 +331,7 @@ int main(int argc, char **argv) {
             say("PortableShell [--device-commands] [--board|--controls|--menu|--edit|--files] [--ascii] [--no-color] [--no-bell] [--no-osc] [--no-suggestions] [--history FILE]\n      "
                 "[--command TEXT | "
                 "-- ARGV...] [--batch | --interactive] [--exec | --no-exec] [--shortcuts]\n      [--listen PORT [--bind IPv4]] "
-                "[--serial PATH [--baud N]]\n");
+                "[--serial PATH [--baud N]] [--env FILE]\n");
             return 0;
         } else if (i + 1 < argc && (equal(argv[i], "--command") || equal(argv[i], "--listen") ||
                                     equal(argv[i], "--bind") || equal(argv[i], "--serial") ||
@@ -341,6 +354,9 @@ int main(int argc, char **argv) {
             say("Unknown or incomplete option\n");
             return 2;
         }
+    }
+    if(env_path&&(port||serial||board||use_device_commands||batch||command||command_at)){
+        say("--env requires a local interactive session without another startup mode\n");return 2;
     }
     if (port)
         return server(port, host, flags);
@@ -367,6 +383,9 @@ int main(int argc, char **argv) {
     if (use_device_commands)
         ps_device_attach(s, &profiles[0], 0, 0);
     if (!serial && !use_device_commands && fs_attach(s)) return 2;
+#if PS_HOST_ENV
+    if (!serial && !use_device_commands && env_manager_register(s)) return 2;
+#endif
 #if PS_HOST_EXEC
 #if PS_HOST_LANGUAGE
     host_program(argv[0]);
@@ -413,6 +432,7 @@ int main(int argc, char **argv) {
     if (flags & PS_INTERACTIVE)
         resize(s, outfd);
     ps_start(s);
+    if(env_path){const char *args[]={"env",env_path};ps_execute_argv(s,2,args);}
     if (board)
         ps_execute(s, board == 5 ? "files" : board == 4 ? "edit" : board == 3 ? "menu" : board == 2 ? "controls" : "board");
     start = clock_ms();
@@ -426,7 +446,7 @@ int main(int argc, char **argv) {
             if (execution && !serial && !(flags & PS_INTERACTIVE) && n == 1 && b[0] == '\r')
                 continue;
             if (n > 0)
-                ps_feed(s, b, (unsigned)n);
+                local_feed(s, b, (unsigned)n);
             else if (n == 0 && !serial)
                 break;
             else if (n < 0 && errno != EINTR && errno != EAGAIN)
@@ -442,6 +462,9 @@ int main(int argc, char **argv) {
             }
         }
         ps_tick(s, clock_ms() - start);
+#if PS_HOST_ENV
+        env_manager_poll(s);
+#endif
         flush(&channels[0]);
     }
     ps_finish(s);

@@ -16,6 +16,13 @@ int main(void) {
     assert(strstr(svg,"v 26"));
     ps_replay_reset();n=ps_replay_svg(svg);svg[n]=0;
     assert(!strstr(svg,">X</text>"));
+    /* A colored title cell must not recolor the entire canvas. SGR 39/49
+       restore terminal defaults without requiring a complete SGR reset. */
+    {const unsigned char styled[]="\033[41;32mA\033[39;49mB";
+     ps_replay_feed(styled,sizeof(styled)-1);n=ps_replay_svg(svg);svg[n]=0;
+     assert(strstr(svg,"rx=\"18\" fill=\"#282c34\""));
+     assert(strstr(svg,"fill=\"#abb2bf\">B</text>"));}
+    ps_replay_reset();
     /* Ghost suggestions save/restore the insertion cursor, then overwrite the
        suggestion as each key arrives. A missing restore renders HELPELPLPP. */
     {const unsigned char prompt[]="H\033[sELP\033[uE\033[sLP\033[uL\033[sP\033[uP\033[K";

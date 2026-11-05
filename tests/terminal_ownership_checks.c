@@ -22,8 +22,13 @@ int main(void){
     assert(!ps_execute(s,"board --prompt"));
     assert(ps_terminal_state(s)&PS_TERMINAL_ALT_SCREEN);
     ps_key(s,PS_KEY_F4);ps_key(s,27);assert(!ps_terminal_state(s));
+#if PS_EDITOR
     assert(!ps_execute(s,"edit"));
     assert(ps_terminal_state(s)==PS_TERMINAL_ALT_SCREEN);
+#else
+    assert(ps_execute(s,"edit")!=0);
+    assert(!ps_terminal_state(s));
+#endif
     ps_close(s);assert(!ps_terminal_state(s));
 #ifdef _WIN32
     { DWORD original=ENABLE_MOUSE_INPUT|ENABLE_QUICK_EDIT_MODE|ENABLE_ECHO_INPUT|ENABLE_LINE_INPUT;

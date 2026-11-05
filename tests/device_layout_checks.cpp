@@ -43,7 +43,14 @@ struct Screen {
             assert(cells[r][left]==(rule?(unicode?"\xe2\x94\x9c":"+"):vertical));
             if(cells[r][right]!=(rule?(unicode?"┤":"+"):vertical)&&cells[r][right]!=(unicode?(rule?"┫":"┃"):"#"))std::fprintf(stderr,"Bad edge %ux%u inside=%d left=%u row=%u: %s\n",width,height,int(inside),left,r,line(r).c_str());
             assert(cells[r][right]==(rule?(unicode?"\xe2\x94\xa4":"+"):vertical)||cells[r][right]==(unicode?(rule?"┫":"┃"):"#"));
-            if(rule)for(unsigned c=left+1;c<right;++c)
+            const bool titled=rule&&cells[r][left+2]==" ";
+            unsigned titleEnd=left+1;
+            if(titled){
+                // A title may interrupt the horizontal stroke, never the edges.
+                for(unsigned c=left+5;c<right;++c)if(cells[r][c]==(unicode?"─":"-")){titleEnd=c;break;}
+                assert(titleEnd>left+3);
+            }
+            if(rule)for(unsigned c=titleEnd;c<right;++c)
                 assert(cells[r][c]==(unicode?"─":"-")||cells[r][c]==(unicode?"┬":"+")||cells[r][c]==(unicode?"┴":"+")||cells[r][c]==(unicode?"┼":"+"));
         }
         assert(cells[height-4][left]==(unicode?"\xe2\x95\xb0":"+"));
@@ -57,7 +64,8 @@ struct Screen {
             assert(cells[header+1][col]==(unicode?"┼":"+")||cells[header+1][col]==(unicode?"┴":"+"));
             for(unsigned r=body;r<height-4;++r){
                 const auto &marker=cells[r][left+2];
-                const bool section=marker=="▾"||marker=="▸"||marker=="-"||marker=="+";
+                const bool section=marker=="▾"||marker=="▸"||marker=="-"||marker=="+"||
+                    line(r).find("LIGHTING")!=std::string::npos||line(r).find("CONNECTION")!=std::string::npos;
                 const bool rule=cells[r][left]==(unicode?"├":"+");
                 if(!section&&!rule)assert(cells[r][col]==vertical);
                 if(rule&&unicode){
@@ -91,13 +99,15 @@ static void adaptiveGutter(){
 int main(){
     adaptiveGutter();
     for(unsigned width:{40U,64U,80U,120U,240U})for(unsigned height:{16U,24U,40U,100U})
-    for(bool compact:{false,true})for(bool vertical:{false,true})for(bool unicode:{false,true})for(bool borders:{false,true})for(bool inside:{false,true}){
+    for(bool compact:{false,true})for(bool vertical:{false,true})for(bool unicode:{false,true})for(bool borders:{false,true})for(bool inside:{false,true})for(bool titled:{false,true}){
         V view;view.setReserveScrollbar(true);view.setCompactScrollbar(compact);V::Snapshot s;V::Action a;V::Row rows[32];
         for(unsigned i=0;i<32;++i){rows[i]={"Setting","setting","Observed",true};rows[i].category=i<1?"Lighting":"Connection";}
         s.rows=rows;s.rowCount=2;s.columns=uint16_t(width);s.lines=uint16_t(height);s.unicode=unicode;
         s.terminalSettings=s.cloudSettings=s.notificationSettings=s.clockSettings=true;
         view.begin();view.setTabLayout(vertical?V::VerticalTabs:V::HorizontalTabs);
         view.setSectionBorders(borders);view.setTabsInsideTable(inside);
+        view.setSectionBorderTitles(titled);
+        const unsigned titleShift=titled&&PS_DEVICE_VIEW_SECTIONS&&!PS_DEVICE_VIEW_CATEGORY_COLUMN?1:0;
         const unsigned top=inside?0:3;
         Screen screen(width,height);std::string output;
         auto render=[&](bool force){output.clear();view.render(s,[&](const uint8_t *p,size_t n){output.append((const char*)p,n);},force);assert(output.size()<PS_DEVICE_VIEW_FRAME_BYTES);screen.feed(output);};
@@ -138,14 +148,14 @@ int main(){
         // Shrinking populated content must erase old rows, including sidebar updates.
         s.rowCount=32;render(true);
         screen.tableBorders(left,unicode,inside,compact);
-        const unsigned presentation=32+(PS_DEVICE_VIEW_SECTIONS&&!PS_DEVICE_VIEW_CATEGORY_COLUMN?(borders?3:2):0);
-        if(presentation>height-9-(inside?0:1)){
+        const unsigned presentation=32+(PS_DEVICE_VIEW_SECTIONS&&!PS_DEVICE_VIEW_CATEGORY_COLUMN?(!titled&&borders?3:2):0);
+        if(presentation>height-9-(inside?0:1)+titleShift){
             feed("\x1b[F");render(false);
             if(!compact&&width-left>=64)for(unsigned r=inside?5:6;r<height-4;++r)assert(screen.cells[r][right+1]==" ");
             const auto &last=screen.cells[height-5][width-2];
             assert(last==(unicode?"┃":"#")||last==(unicode?"┫":"#"));
             feed("\x1b[H");render(false);
-            const auto &first=screen.cells[inside?5:6][width-2];
+            const auto &first=screen.cells[(inside?5:6)-titleShift][width-2];
             assert(first==(unicode?"┃":"#")||first==(unicode?"┫":"#"));
             if(view.sectionSelected())feed("\x1b[B");
         }

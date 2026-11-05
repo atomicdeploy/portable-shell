@@ -1,7 +1,13 @@
+unsigned titleBorderShift(const Snapshot &s) const {
+    if(sections()&&sectionBorderTitles_&&!PS_DEVICE_VIEW_PLAIN_ROWS)
+        for(unsigned i=0;i<rowCount(s);++i)if(sectionStart(s,i))return 1;
+    return 0;
+}
 unsigned tableCapacity(const Snapshot &s,unsigned w) const {
     const unsigned shift=tabsInsideTable_?0:1;
     const unsigned diagnostics=page_==Led&&!PS_DEVICE_VIEW_MATRIX?(s.lines<24?5:9):page_==Game?3:page_==Pixel?2:0;
     unsigned visible=s.lines>9+shift+diagnostics-(PS_DEVICE_VIEW_PLAIN_ROWS?2:0)?s.lines-9-shift-diagnostics+(PS_DEVICE_VIEW_PLAIN_ROWS?2:0):1;
+    visible+=titleBorderShift(s);
     if(visible>PS_DEVICE_VIEW_MAX_ROWS)visible=PS_DEVICE_VIEW_MAX_ROWS;
     const unsigned reserve=8192U+unsigned(s.lines)*110U;
     const unsigned budget=(PS_DEVICE_VIEW_FRAME_BYTES>reserve?PS_DEVICE_VIEW_FRAME_BYTES-reserve:1)/(w+450U);
@@ -96,7 +102,7 @@ bool mouse(const ps_mouse_event &e,const Snapshot &s,Action &a){
     if(!drag)mouseDrag_=true;
     const unsigned width=s.columns>240?240:s.columns;
     const unsigned offset=PS_DEVICE_VIEW_VERTICAL_TABS&&tabs_==VerticalTabs&&width>=64?22:0;
-    const unsigned w=width-1-offset-tableGutter(s,width,offset),shift=tabsInsideTable_?0:1,body=6+shift-(PS_DEVICE_VIEW_PLAIN_ROWS?2:0);
+    const unsigned w=width-1-offset-tableGutter(s,width,offset),shift=tabsInsideTable_?0:1,body=6+shift-(PS_DEVICE_VIEW_PLAIN_ROWS?2:0)-titleBorderShift(s);
     if(editing_){
         if(button==2&&!drag){clearDraft();dirty_=full_=true;return false;}
         if(y==editRow_&&x>=editColumn_&&x<editColumn_+editWidth_){
@@ -354,7 +360,7 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     const unsigned gutter=tableGutter(s,width,offset);
     if(gutter!=paintedGutter_){paintAll=true;paintedGutter_=gutter;if(ansi_)out.raw("\x1b[H\x1b[2J");}
     const unsigned w=width-1-offset-gutter;
-    const unsigned shift=tabsInsideTable_?0:1,body=6+shift-(PS_DEVICE_VIEW_PLAIN_ROWS?2:0);
+    const unsigned shift=tabsInsideTable_?0:1,body=6+shift-(PS_DEVICE_VIEW_PLAIN_ROWS?2:0)-titleBorderShift(s);
     if(offset){sidebar(out,s,s.lines-3);out.indent(offset);out.position(1);}
     base(out);ink(out,7);if(!shift)out.raw(s.unicode?"\xe2\x95\xad\xe2\x94\x80 ":"+- ");
     ink(out,4);char title[241];const unsigned titleSize=unsigned(terminalText(title,w-8,s.title));out.raw(title);
@@ -394,7 +400,7 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     if(paintedRows_!=visible){paintAll=true;paintedRows_=visible;}
     const unsigned start=selectedLine>=visible?selectedLine-visible+1:0;
     mouseStart_=start;mouseVisible_=visible;
-    if(!PS_DEVICE_VIEW_PLAIN_ROWS)gridRule(out,s,w,groupWidth,labelWidth,total&&(logical[start]&0xe000)?"\xe2\x94\xb4":"\xe2\x94\xbc","\xe2\x94\x9c","\xe2\x94\xa4");
+    if(!PS_DEVICE_VIEW_PLAIN_ROWS&&!titleBorderShift(s))gridRule(out,s,w,groupWidth,labelWidth,total&&(logical[start]&0xe000)?"\xe2\x94\xb4":"\xe2\x94\xbc","\xe2\x94\x9c","\xe2\x94\xa4");
     for(unsigned i=0;i<visible;++i){
         const unsigned line=start+i,at=line<total?(logical[line]&0x1fff):count;
         const bool group=line<total&&(logical[line]&0x8000);
@@ -414,10 +420,25 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
         if(group){
             char label[241];terminalText(label,sizeof label,r->category);
             for(unsigned j=0;label[j];++j)if(label[j]>='a'&&label[j]<='z')label[j]=char(label[j]-'a'+'A');
+            const char *marker=ps_table_section_marker(s.unicode,sectionsCollapsible_,sectionIndicators_,sectionClosed(at),selected,sectionIndicatorsAlways_);
+            if(sectionBorderTitles_){
+                char clipped[241];const unsigned n=unsigned(terminalText(clipped,PS_DEVICE_VIEW_PLAIN_ROWS?w-8:labelWidth-2,label));
+                const unsigned markerWidth=*marker?2:0;
+                edge(out,s,"├─ ","+- ");
+                if(selected&&ansi_)out.raw(ps_style_surface(theme_,trueColor_,1));else ink(out,PS_INK_HEADING);
+                out.raw(marker);out.raw(clipped);out.raw(" ");base(out);ink(out,7);
+                const bool above=!i||!(logical[line-1]&0xe000);
+                const bool below=line+1>=total||!(logical[line+1]&0xe000);
+                for(unsigned col=4+markerWidth+n;col<w-1;++col){
+                    const bool join=!PS_DEVICE_VIEW_PLAIN_ROWS&&col==labelWidth+3;
+                    out.raw(join?ps_table_junction(s.unicode,above,below):s.unicode?"─":"-");
+                }
+                edge(out,s,"┤","+");out.raw("\r\n");continue;
+            }
             edge(out,s,"\xe2\x94\x82","|");
             if(ansi_)out.raw(PS_STYLE_THEMES?ps_style_surface(theme_,trueColor_,selected?1:0):selected?"\x1b[7m":"\x1b[1m");
-            out.raw(" ");out.raw(!sectionsCollapsible_||sectionIndicators_==2?"  ":s.unicode&&sectionIndicators_==0?(sectionClosed(at)?"\xe2\x96\xb8 ":"\xe2\x96\xbe "):(sectionClosed(at)?"+ ":"- "));
-            out.field(label,w-6);out.raw(" ");edge(out,s,"\xe2\x94\x82","|");out.raw("\r\n");continue;
+            out.raw(" ");out.raw(marker);
+            out.field(label,w-4-unsigned(ps_text_length(marker)?2:0));out.raw(" ");edge(out,s,"\xe2\x94\x82","|");out.raw("\r\n");continue;
         }
         edge(out,s,"\xe2\x94\x82 ","| ");
         if(category)cell(r&&(i==0||!ps_text_equal(r->category,s.rows[at-1].category))?r->category:"",groupWidth);
@@ -438,15 +459,15 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
     paintedSelection_=selected_;paintedGrid_=grid_;
     if(ansi_){
         if(paintAll)blankRows(out,s,body+visible,s.lines-4-diagnostics,w,groupWidth,labelWidth);
-        if(gutter){base(out);for(unsigned i=0;i<s.lines-9-shift-diagnostics+(PS_DEVICE_VIEW_PLAIN_ROWS?2:0);++i){out.position(body+i,w+1);out.field("",gutter);}}
+        if(gutter){base(out);for(unsigned i=0;i<s.lines-9-shift-diagnostics+(PS_DEVICE_VIEW_PLAIN_ROWS?2:0)+titleBorderShift(s);++i){out.position(body+i,w+1);out.field("",gutter);}}
         if(total>visible){
-            const unsigned height=s.lines-9-shift-diagnostics+(PS_DEVICE_VIEW_PLAIN_ROWS?2:0);
+            const unsigned height=s.lines-9-shift-diagnostics+(PS_DEVICE_VIEW_PLAIN_ROWS?2:0)+titleBorderShift(s);
             const unsigned thumb=height*visible/total?height*visible/total:1;
             const unsigned top=start*(height-thumb)/(total-visible);
             base(out);int previous=-1;
             for(unsigned i=0;i<height;++i){
                 const bool active=i>=top&&i<top+thumb;
-                const bool border=i<visible&&(logical[start+i]&0x6000);
+                const bool border=i<visible&&((logical[start+i]&0x6000)||(sectionBorderTitles_&&(logical[start+i]&0x8000)));
                 out.position(body+i,w+gutter);
                 if(previous!=int(active)){ink(out,active?1:7);previous=int(active);}
                 out.raw(s.unicode?(!gutter&&border?(active?"┫":"┤"):(active?"┃":"│")):(active?"#":!gutter&&border?"+":"|"));

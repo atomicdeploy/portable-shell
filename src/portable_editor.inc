@@ -64,15 +64,24 @@ static void document_render(ps_session *s){
     }
     while(painted<height){at(s,top+painted,1+border);spaces(s,content_width);++painted;}
     at(s,s->io.rows-1,1);ink(s,PS_INK_INACTIVE);
-    str(status,s->document_dirty?"Modified  ":"Unmodified  ",sizeof status);sn=length(status);
-    sn+=dec(status+sn,s->document_length);status[sn++]='/';sn+=dec(status+sn,PS_EDITOR_CAPACITY-1);
-    str(status+sn," bytes  ",sizeof status-sn);sn=length(status);
+    if(s->document_style&PS_EDITOR_READ_ONLY){
+        unsigned pos=0,total=1,last;
+        while(pos<s->document_length){unsigned following=document_row(s,pos,&last);if(following<=pos||following>=s->document_length)break;pos=following;++total;}
+        str(status,"Read only  Rows ",sizeof status);sn=length(status);
+        sn+=dec(status+sn,s->document_top+1);status[sn++]='-';sn+=dec(status+sn,min(s->document_top+height,total));
+        status[sn++]='/';sn+=dec(status+sn,total);status[sn++]=' ';status[sn]=0;
+    }else{
+        str(status,s->document_dirty?"Modified  ":"Unmodified  ",sizeof status);sn=length(status);
+        sn+=dec(status+sn,s->document_length);status[sn++]='/';sn+=dec(status+sn,PS_EDITOR_CAPACITY-1);
+        str(status+sn," bytes  ",sizeof status-sn);sn=length(status);
+    }
     if(s->document_notice)str(status+sn,s->document_notice,sizeof status-sn);
     field(s,status,s->io.columns-1);reset(s);
     at(s,s->io.rows,1);ink(s,PS_INK_HEADING);
     if(s->document_dialog)footer_field(s,"S Save & close  D Discard  Esc Cancel",s->io.columns-1,0);
+    else if(s->document_style&PS_EDITOR_READ_ONLY)footer_field(s,"↑/↓ Scroll  PgUp/PgDn Page  Home/End Start/end  Esc Back",s->io.columns-1,0);
     else footer_field(s,"^S Save  ^Q/Esc Close  ^Z Undo/redo  ^A/^E Line start/end",s->io.columns-1,0);
-    reset(s);at(s,row-s->document_top+top,col+1+border);ansi(s,"\033[?25h");
+    reset(s);at(s,row-s->document_top+top,col+1+border);ansi(s,(s->document_style&PS_EDITOR_READ_ONLY)?"\033[?25l":"\033[?25h");
     frame_end(s);
 }
 static void document_close(ps_session *s){
@@ -96,12 +105,14 @@ static void document_snapshot(ps_session *s){
     s->document_undo_pos=s->document_pos;s->document_undo_dirty=s->document_dirty;s->document_undo_valid=1;
 }
 static void document_insert(ps_session *s,unsigned c){
+    if(s->document_style&PS_EDITOR_READ_ONLY)return;
     if(s->document_length+1>=PS_EDITOR_CAPACITY){s->document_notice="Buffer full";return;}
     if(!s->paste && (c&192)!=128)document_snapshot(s);
     move(s->document+s->document_pos+1,s->document+s->document_pos,s->document_length-s->document_pos+1);
     s->document[s->document_pos++]=(char)c;++s->document_length;s->document_dirty=1;
 }
 static int document_save(ps_session *s){
+    if(s->document_style&PS_EDITOR_READ_ONLY)return 0;
     if(!s->document_save||!s->document_save(s->document_context,s->document,s->document_length)){
         s->document_notice="Save failed; draft retained";return 0;
     }
@@ -122,6 +133,12 @@ static void document_vertical(ps_session *s,int delta){
 }
 static void document_key(ps_session *s,unsigned key){
     unsigned start,end,b;s->document_notice=0;
+    if(s->document_style&PS_EDITOR_READ_ONLY){
+        if(key==PS_KEY_HOME){s->document_pos=0;document_render(s);return;}
+        if(key==PS_KEY_END){s->document_pos=s->document_length;document_render(s);return;}
+        if(key!=27&&key!=17&&key!=3&&key!=PS_KEY_LEFT&&key!=PS_KEY_RIGHT&&
+           key!=PS_KEY_UP&&key!=PS_KEY_DOWN&&key!=PS_KEY_PAGEUP&&key!=PS_KEY_PAGEDOWN)return;
+    }
     if(s->document_dialog){
         if(key=='c'||key=='C'||key==27)s->document_dialog=0;
         else if(key=='d'||key=='D'){document_close(s);return;}
@@ -150,7 +167,7 @@ static void document_key(ps_session *s,unsigned key){
     document_render(s);
 }
 static void document_paste(ps_session *s,unsigned c){
-    if(s->document_dialog)return;
+    if(s->document_dialog||(s->document_style&PS_EDITOR_READ_ONLY))return;
     if(c=='\n'&&s->suppress_lf){s->suppress_lf=0;return;}
     s->suppress_lf=c=='\r';if(c=='\r')c='\n';
     if(c=='\n'||c=='\t'||(c>=32&&c!=127))document_insert(s,c);

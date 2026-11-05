@@ -473,6 +473,12 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
             }
             CHECK(groups == 1, "wide table does not repeat selected category above table");
         }
+#if PS_MOUSE && PS_CONTROL_SECTION_ROWS && PS_SECTION_BORDER_TITLES
+        feed(s,"\033[<0;8;6M\033[<0;8;6m");
+        CHECK(probe.writes==0,"border title click collapses without a provider write");
+        feed(s,"\033[<0;8;6M\033[<0;8;6m");
+        ps_key(s,PS_KEY_DOWN);
+#endif
         feed(s, " ");
         CHECK(probe.values[0].number == 1 && probe.writes == 1, "toggle dispatches provider write");
 #if PS_CONTROL_SECTION_ROWS
@@ -628,8 +634,8 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         ps_command unnamed = {"long-custom-command", "ARG", 0, custom, 0, 0};
         cfg.flags = PS_INTERACTIVE | PS_COLOR | PS_UNICODE;
         s = ps_init(memory.bytes, sizeof memory.bytes, &cfg);
-        ps_register(s, &command);
-        ps_register(s, &unnamed);
+        CHECK(ps_register(s, &command) == 0, "completion command registration");
+        CHECK(ps_register(s, &unnamed) == 0, "uncategorized help command registration");
         clear();
         feed(s, "pre");
         CHECK(has(t.output, "view"), "fresh registry ghost without history");

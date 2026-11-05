@@ -22,11 +22,26 @@ static void check(unsigned style,const char *group,const char *marker,unsigned u
     {unsigned i=0,n=0;while(i<used){if(output[i]==27)i+=(unsigned)ps_escape_span(output+i,used-i);else plain[n++]=output[i++];}plain[n]=0;}
     if((strstr(plain,unicode?"▸ First":"> First")!=0)!=expected)fprintf(stderr,"style=%u group=%s marker=%s unicode=%u output=%s\n",style,group,marker?marker:"auto",unicode,plain);
     assert((strstr(plain,unicode?"▸ First":"> First")!=0)==expected);
+#if PS_CONTROL_SECTION_ROWS
+    if(unicode&&!strcmp(group,"Group")&&!(style&(PS_TABLE_STATIC_SECTIONS|PS_TABLE_SECTION_NO_ICONS|PS_TABLE_SECTION_PLUS_MINUS|PS_TABLE_CATEGORY_COLUMN)))
+        assert((strstr(plain,"▾ GROUP")!=0)==!!(style&PS_TABLE_SECTION_INDICATORS_ALWAYS));
+#endif
 }
 int main(void){
+    /* Disclosure is contextual, independent of the selected value marker. */
+    assert(!strcmp(ps_table_section_marker(1,1,0,0,0,0),""));
+    assert(!strcmp(ps_table_section_marker(1,1,0,0,1,0),"▾ "));
+    assert(!strcmp(ps_table_section_marker(1,1,0,1,0,0),"▸ "));
+    assert(!strcmp(ps_table_section_marker(1,1,0,0,0,1),"▾ "));
+    assert(!strcmp(ps_table_section_marker(0,1,0,1,0,0),"+ "));
+    assert(!strcmp(ps_table_section_marker(1,1,1,0,1,0),"- "));
+    assert(!strcmp(ps_table_section_marker(1,0,0,1,1,1),""));
+    assert(!strcmp(ps_table_section_marker(1,1,2,1,1,1),""));
     check(0,"",0,1,1);
 #if PS_CONTROL_SECTION_ROWS
     check(0,"Group",0,1,0);
+    check(PS_TABLE_SECTION_INDICATORS_ALWAYS,"Group",0,1,0);
+    check(PS_TABLE_SECTION_FILLED,"Group",0,1,0);
 #endif
     check(PS_TABLE_STATIC_SECTIONS,"Group",0,1,1);
     check(PS_TABLE_SECTION_PLUS_MINUS,"Group",0,1,1);

@@ -61,23 +61,35 @@ usable body row; the requested placement returns when height permits. Both C++
 profiles use the same placement logic.
 
 Grouped control panels and rich device tables default to **collapsible section
-rows**: uppercase headings on solid surfaces spanning the two key/value columns.
+rows**: uppercase headings embedded in a continuous horizontal border. The
+selected heading highlights only its title and disclosure marker.
 ↑/↓ selects headings and values; Enter/Space toggles a heading, ← collapses it,
 and → expands it. These operations never dispatch a provider write. Fold state
 is per page and per view; a changed device row schema resets that page's folds.
 An empty category adds no heading. Repeated non-adjacent categories form separate
 sections. ASCII uses `+`/`-` disclosure markers.
 
-Category headings retain their upper border separator by default; there is no
-extra border row below them. To restore the lower separator, C callers add
-PS_TABLE_SECTION_BOTTOM and C++ callers use view.setSectionBottomBorder(true).
-For higher density, PS_TABLE_COMPACT_SECTIONS or view.setSectionBorders(false)
-suppresses both separators. These options preserve folding and inline editing.
+The title and separator occupy one row by default, including beneath column
+headings. No extra separator appears below a category. C callers can select
+the filled heading with `PS_TABLE_SECTION_FILLED`; C++ callers use
+`view.setSectionBorderTitles(false)`. `PS_SECTION_BORDER_TITLES=0` selects the
+filled default at build time. With filled headings, `PS_TABLE_COMPACT_SECTIONS`
+or `view.setSectionBorders(false)` removes the separate separator rows.
+`PS_TABLE_SECTION_BOTTOM` / `view.setSectionBottomBorder(true)` adds a lower
+separator. Folding, chevrons, inline editing, mouse targets and scrollbar
+geometry follow the chosen presentation.
 
-Overflowing tables display a proportional scrollbar in the right border, with
+`PS_TABLE_PROMPT | PS_TABLE_PROMPT_FRAME` adds a bordered command input below
+the table, with a separate scrolling output region. The host example exposes
+this as `board --framed-prompt`; F4 switches table/prompt focus. Below 42 columns
+or 21 lines it falls back to the unframed prompt. `board --prompt` retains the
+original unframed mode.
+
+Overflowing tables display a proportional scrollbar beside the table (inside
+the right border in compact layouts), with
 an accent-colored heavy-line thumb (`#` in ASCII). It tracks visible presentation
 rows, including section headings, and updates after folding, navigation or resizing.
-Tables that fit have no scrollbar; it consumes no key/value column width.
+Tables that fit have no scrollbar or reserved gutter unless explicitly requested.
 Rich frames permit up to 65,535 streamed terminal bytes (32 KiB for the retained
 view); this limit allocates no framebuffer or additional session RAM.
 
@@ -254,6 +266,13 @@ Public APIs, profiles and paths describe their function. Use canonical names in 
 
 
 ### Table scrollbar and selection marker
+
+Group disclosure indicators appear when the heading is selected or collapsed.
+Expanded, unselected headings omit the indicator and its padding entirely.
+This applies to border-title and filled headings, including ASCII and
+plus/minus indicators. Use `PS_TABLE_SECTION_INDICATORS_ALWAYS` or
+`DeviceView::setSectionIndicatorsAlways(true)` to keep them visible. Explicit
+no-icon and non-collapsible settings still take precedence.
 
 Wide editable tables use a separate scrollbar column by default, with one blank
 cell between it and the uninterrupted table border. Unicode mode draws a thin

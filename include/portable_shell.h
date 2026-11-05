@@ -13,6 +13,7 @@
 #ifndef PORTABLE_SHELL_H
 #define PORTABLE_SHELL_H
 #include "portable_util.h"
+#include "portable_table_policy.h"
 #ifndef PS_MOUSE
 #define PS_MOUSE 1
 #endif
@@ -78,6 +79,9 @@ typedef int (*ps_hex_save_fn)(void *, const ps_byte *, unsigned);
 PS_API int ps_hex_editor_open(ps_session *,const char *title,const ps_byte *data,
     unsigned length,ps_byte *draft,unsigned capacity,ps_hex_save_fn,void *context);
 PS_API unsigned ps_hex_editor_active(const ps_session *);
+/* Zero selects responsive columns (default); 1..32 fixes bytes per row.
+   A fixed layout that cannot fit displays a resize notice without changing data. */
+PS_API int ps_hex_editor_set_columns(ps_session *,unsigned bytes_per_row);
 #ifndef PS_EDITOR
 #define PS_EDITOR 1
 #endif
@@ -95,7 +99,9 @@ PS_API int ps_editor_open(ps_session *, const char *title, const char *text,
                           ps_editor_save_fn, void *context);
 PS_API unsigned ps_editor_active(const ps_session *);
 PS_API const char *ps_editor_text(const ps_session *);
-enum { PS_EDITOR_HEADER=1, PS_EDITOR_BORDER=2 };
+/* READ_ONLY reuses wrapping and navigation for reports and guides. It rejects
+   edits, paste, undo and save; Escape closes without a discard dialog. */
+enum { PS_EDITOR_HEADER=1, PS_EDITOR_BORDER=2, PS_EDITOR_READ_ONLY=4 };
 PS_API void ps_editor_set_style(ps_session *, unsigned flags);
 #ifndef PS_MENU_DEPTH
 #define PS_MENU_DEPTH 8
@@ -125,12 +131,20 @@ PS_API unsigned ps_menu_active(const ps_session *);
 #ifndef PS_MENU_LIST_VIEW
 #define PS_MENU_LIST_VIEW 1
 #endif
-enum { PS_MENU_TABLE=1, PS_MENU_NUMBERS=2, PS_MENU_DETAILS=4, PS_MENU_LIST=8 };
+#ifndef PS_MENU_CONTEXT
+#define PS_MENU_CONTEXT 1
+#endif
+enum { PS_MENU_TABLE=1, PS_MENU_NUMBERS=2, PS_MENU_DETAILS=4, PS_MENU_LIST=8,
+       PS_MENU_BREADCRUMBS=16, PS_MENU_MARKER=32 };
 typedef const char *(*ps_menu_description_fn)(void *, const ps_menu *, unsigned index);
+/* Called while drawing; return borrowed printable text and a PS_INK_* role.
+   Refresh after provider state changes. No background polling or I/O in core. */
+typedef const char *(*ps_menu_notice_fn)(void *, const ps_menu *, unsigned *role);
 /* Style 0 retains the original transcript menu. Interactive default: table + numbers.
    Description callback borrows text for the duration of each render. */
 PS_API void ps_menu_set_style(ps_session *, unsigned flags);
 PS_API void ps_menu_set_description(ps_session *, ps_menu_description_fn, void *);
+PS_API void ps_menu_set_notice(ps_session *, ps_menu_notice_fn, void *);
 enum { PS_FILE_DIRECTORY=1, PS_FILE_DISABLED=2, PS_FILE_LINK=4, PS_FILE_ROOT=65535 };
 typedef struct { const char *name; unsigned parent, flags; } ps_file_node;
 /* Flat caller-owned tree, parent before child, at most 128 nodes. No filesystem
@@ -163,7 +177,10 @@ enum {
     PS_CONTROL_ACTION,
     PS_CONTROL_LABEL
 };
-enum { PS_CONTROL_VALID = 1, PS_CONTROL_PENDING = 2, PS_CONTROL_LOCKED = 4 };
+/* NUMBER_ONLY keeps numeric editing/range validation without presenting a
+   quantity such as a port number as a percentage meter. */
+enum { PS_CONTROL_VALID = 1, PS_CONTROL_PENDING = 2, PS_CONTROL_LOCKED = 4,
+       PS_CONTROL_NUMBER_ONLY = 8, PS_CONTROL_INACTIVE = 16, PS_CONTROL_ATTENTION = 32 };
 typedef struct {
     unsigned id;
     const char *group, *label;
@@ -179,7 +196,7 @@ typedef struct {
 typedef struct {
     unsigned number, flags;
     ps_u32 revision;
-    char text[64];
+    char text[64]; /* ACTION: optional button label; empty uses "Run". */
 } ps_control_value;
 typedef int (*ps_control_read_fn)(void *, unsigned id, ps_control_value *observed);
 typedef int (*ps_control_write_fn)(void *, unsigned id, const ps_control_value *requested,
@@ -194,6 +211,18 @@ typedef struct {
 } ps_panel;
 PS_API int ps_panel_attach(ps_session *, const ps_panel *); /* NULL detaches */
 PS_API int ps_panel_open(ps_session *, unsigned page);
+/* Zero when closed; otherwise the active page index plus one. */
+PS_API unsigned ps_panel_active(const ps_session *);
+/* Optional application shortcuts, dispatched only outside cell editing. Return
+   1 to consume a key; queue UI changes for the owner loop, never reenter here. */
+#ifndef PS_PANEL_KEYS
+#define PS_PANEL_KEYS 1
+#endif
+typedef int (*ps_panel_key_fn)(ps_session *, unsigned key, void *context);
+PS_API void ps_panel_set_key_handler(ps_session *, ps_panel_key_fn, void *context);
+/* A category heading or active edit has no selected value. */
+PS_API int ps_panel_selection(const ps_session *, unsigned *id);
+PS_API int ps_panel_select(ps_session *, unsigned id);
 #ifndef PS_DASHBOARD
 #define PS_DASHBOARD 1
 #endif
@@ -206,12 +235,23 @@ typedef struct {
     const char *title;
     unsigned minimum, maximum, weight; /* maximum=0 means flexible; weight 0..16 */
 } ps_column;
+/* Borrowed application text/layout; NULL restores standard panel chrome.
+   Custom columns must match the active layout (2 key/value or 3 with category).
+   PS_PANEL_KEYS=0 removes this optional application integration as well. */
+typedef struct {
+    const ps_column *columns; unsigned count;
+    const char *summary,*notice,*actions,*navigation;
+} ps_panel_chrome;
+PS_API void ps_panel_set_chrome(ps_session *,const ps_panel_chrome *);
 enum { PS_TABLE_GRID = 1, PS_TABLE_RED_BORDER = 2, PS_TABLE_TITLE_BAR = 4,
        PS_TABLE_CATEGORY_COLUMN = 8, PS_TABLE_COMPACT_SECTIONS = 16,
        PS_TABLE_TABS_INSIDE = 32, PS_TABLE_PLAIN_KEYS = 64,
        PS_TABLE_TAB_BRACKETS = 128, PS_TABLE_PROMINENT_KEYS = 256,
        PS_TABLE_COMPACT_FOOTER = 512, PS_TABLE_COMPACT_SCROLLBAR = 1024, PS_TABLE_SECTION_BOTTOM = 2048, PS_TABLE_STATIC_SECTIONS = 4096,
-       PS_TABLE_SECTION_PLUS_MINUS = 8192, PS_TABLE_SECTION_NO_ICONS = 16384, PS_TABLE_RESERVE_SCROLLBAR = 32768, PS_TABLE_PROMPT = 65536, PS_TABLE_DEFAULT = 5 };
+       PS_TABLE_SECTION_PLUS_MINUS = 8192, PS_TABLE_SECTION_NO_ICONS = 16384, PS_TABLE_RESERVE_SCROLLBAR = 32768, PS_TABLE_PROMPT = 65536,
+       PS_TABLE_SECTION_FILLED = 131072, PS_TABLE_PROMPT_FRAME = 262144,
+       PS_TABLE_SECTION_INDICATORS_ALWAYS = 524288, PS_TABLE_BACK_TO_MENU = 1048576,
+       PS_TABLE_DEFAULT = 5 };
 /* Fits 1..8 columns into a framed width (max 240), including padding/separators.
    Returns occupied width, or 0 if minima do not fit / definitions are invalid. */
 PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsigned count,
@@ -366,7 +406,7 @@ PS_API unsigned ps_print_report(ps_session *,const ps_report_row *,unsigned coun
 #ifndef PS_FORM
 #define PS_FORM 1
 #endif
-enum { PS_FORM_TEXT, PS_FORM_CHOICE };
+enum { PS_FORM_TEXT, PS_FORM_CHOICE, PS_FORM_PASSWORD };
 typedef const char *(*ps_form_validate_fn)(void *,unsigned field,const char *value);
 typedef void (*ps_form_done_fn)(ps_session *,void *,int accepted);
 typedef struct {
@@ -386,6 +426,12 @@ typedef struct {
 PS_API int ps_form_open(ps_session *,const ps_form *);
 PS_API void ps_form_close(ps_session *); /* cancel, callback receives accepted=0 */
 PS_API unsigned ps_form_active(const ps_session *);
+enum { PS_FORM_OVERVIEW=1 };
+/* Optional summary of all fields; Tab/Shift-Tab revisit validated drafts.
+   The default remains the sequential question presentation. */
+PS_API void ps_form_set_style(ps_session *,unsigned flags);
+/* Optional borrowed caption, retained until replaced. NULL clears it. */
+PS_API void ps_form_set_title(ps_session *,const char *title);
 enum { PS_HELP_HEADINGS, PS_HELP_COMPACT };
 #ifndef PS_HELP_DETAILS
 #define PS_HELP_DETAILS 1

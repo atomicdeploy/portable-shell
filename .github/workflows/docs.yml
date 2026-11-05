@@ -2,9 +2,9 @@ name: 📚 Documentation
 on:
   push:
     branches: [main]
-    paths: ['docs/wiki/**', 'tools/*wiki.cmake', '.github/workflows/docs.yml']
+    paths: ['docs/wiki/**', 'tools/*wiki.cmake', 'tests/wiki_export.cmake', '.github/workflows/docs.yml']
   pull_request:
-    paths: ['docs/wiki/**', 'tools/*wiki.cmake', '.github/workflows/docs.yml', 'README.md']
+    paths: ['docs/wiki/**', 'tools/*wiki.cmake', 'tests/wiki_export.cmake', '.github/workflows/docs.yml', 'README.md']
   workflow_dispatch:
 permissions:
   contents: read
@@ -27,6 +27,9 @@ jobs:
       - name: 📚 Export wiki pages
         id: export
         run: cmake -P tools/export-wiki.cmake
+      - name: 🔗 Verify wiki asset and page links
+        id: wiki_links
+        run: cmake -P tests/wiki_export.cmake
       - name: 📦 Upload wiki bundle
         id: artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

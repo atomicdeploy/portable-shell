@@ -141,8 +141,8 @@ struct ps_session {
 #endif
 #if PS_FORM
     const ps_form *form;
-    unsigned form_index, form_choice, form_top;
-    const char *form_error;
+    unsigned form_index, form_choice, form_top, form_style;
+    const char *form_error,*form_title;
 #endif
     char document[PS_EDITOR ? PS_EDITOR_CAPACITY : 1], document_undo[PS_EDITOR ? PS_EDITOR_CAPACITY : 1];
 #if PS_WORKBENCH
@@ -153,7 +153,7 @@ struct ps_session {
     const char *hex_title,*hex_notice;
     ps_hex_save_fn hex_save;
     void *hex_context;
-    unsigned hex_open,hex_length,hex_pos,hex_top,hex_ascii,hex_nibble,hex_dirty,hex_dialog;
+    unsigned hex_open,hex_length,hex_pos,hex_top,hex_ascii,hex_nibble,hex_dirty,hex_dialog,hex_fixed_columns;
 #if PS_WORKBENCH
     ps_byte hex_sample[128],hex_draft[128];
 #endif
@@ -167,6 +167,11 @@ struct ps_session {
     unsigned document_style;
     const char *document_notice;
     const ps_menu *menu_stack[PS_MENU_DEPTH];
+#if PS_MENU_CONTEXT
+    unsigned short menu_selections[PS_MENU_DEPTH];
+    ps_menu_notice_fn menu_notice;
+    void *menu_notice_context;
+#endif
     unsigned menu_depth, menu_length, menu_bad;
     char menu_input[4];
 #if PS_MENU_LIST_VIEW
@@ -192,6 +197,11 @@ struct ps_session {
     char selection_marker[32];
     unsigned selection_marker_override;
     const ps_panel *panel;
+#if PS_PANEL_KEYS
+    ps_panel_key_fn panel_key;
+    void *panel_key_context;
+    const ps_panel_chrome *panel_chrome;
+#endif
 #if PS_WORKBENCH
     ps_panel local_panel;
 #endif
@@ -444,15 +454,22 @@ enum { TABLE_PROMPT_ROWS = 5 };
 static int table_prompt(const ps_session *s) {
     return s->board && (s->table_style & PS_TABLE_PROMPT);
 }
+static unsigned table_prompt_framed(const ps_session *s) {
+    return table_prompt(s)&&(s->table_style&PS_TABLE_PROMPT_FRAME)&&s->io.columns>=42&&s->io.rows>=21;
+}
+static unsigned table_output_bottom(const ps_session *s) {
+    return s->io.rows-(table_prompt_framed(s)?3:0);
+}
 static unsigned table_height(const ps_session *s) {
+    unsigned reserved=TABLE_PROMPT_ROWS+(table_prompt_framed(s)?2:0);
     return table_prompt(s)
-        ? (s->io.rows > TABLE_PROMPT_ROWS ? s->io.rows - TABLE_PROMPT_ROWS : 1)
+        ? (s->io.rows > reserved ? s->io.rows - reserved : 1)
         : s->io.rows;
 }
 static void table_prompt_region(ps_session *s) {
     if(table_prompt(s)) {
         ansi(s,"\033[");ps_number(s,table_height(s)+2);out(s,";");
-        ps_number(s,s->io.rows);out(s,"r");
+        ps_number(s,table_output_bottom(s));out(s,"r");
     }
 }
 #if PS_WORKBENCH
@@ -772,7 +789,7 @@ PS_API void ps_set_selection_marker(ps_session *s,const char *marker) {
     s->dirty=1;
 }
 PS_API void ps_set_table_style(ps_session *s, unsigned flags) {
-    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER|PS_TABLE_COMPACT_SCROLLBAR|PS_TABLE_SECTION_BOTTOM|PS_TABLE_STATIC_SECTIONS|PS_TABLE_SECTION_PLUS_MINUS|PS_TABLE_SECTION_NO_ICONS|PS_TABLE_RESERVE_SCROLLBAR|PS_TABLE_PROMPT;
+    unsigned layout = PS_TABLE_CATEGORY_COLUMN|PS_TABLE_COMPACT_SECTIONS|PS_TABLE_TABS_INSIDE|PS_TABLE_PLAIN_KEYS|PS_TABLE_TAB_BRACKETS|PS_TABLE_PROMINENT_KEYS|PS_TABLE_COMPACT_FOOTER|PS_TABLE_COMPACT_SCROLLBAR|PS_TABLE_SECTION_BOTTOM|PS_TABLE_STATIC_SECTIONS|PS_TABLE_SECTION_PLUS_MINUS|PS_TABLE_SECTION_NO_ICONS|PS_TABLE_RESERVE_SCROLLBAR|PS_TABLE_PROMPT|PS_TABLE_SECTION_FILLED|PS_TABLE_PROMPT_FRAME|PS_TABLE_SECTION_INDICATORS_ALWAYS;
     if (s->editing)
         flags = (flags & ~layout) | (s->table_style & layout);
     if ((s->table_style ^ flags) & layout)
@@ -879,8 +896,14 @@ static Grid grid_for(ps_session *s) {
 #endif
     if (s->control_view) {
         unsigned category = (!PS_CONTROL_SECTION_ROWS || (s->table_style & PS_TABLE_CATEGORY_COLUMN)) && s->io.columns >= 64;
+#if PS_PANEL_KEYS
+        if((s->table_style&PS_TABLE_CATEGORY_COLUMN)&&s->panel_chrome&&s->panel_chrome->columns&&s->panel_chrome->count==3)category=1;
+#endif
         g.columns = category ? controls : compact;
         g.count = category ? 3 : 2;
+#if PS_PANEL_KEYS
+        if(s->panel_chrome&&s->panel_chrome->columns&&s->panel_chrome->count==g.count)g.columns=s->panel_chrome->columns;
+#endif
     }
     ps_layout_columns(s->io.columns - 2 - table_gutter(s), g.columns, g.count, g.widths);
     return g;
@@ -889,9 +912,20 @@ static void grid_vertical(ps_session *s) {
     ink(s, 7);
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
 }
+static unsigned table_border_titles(const ps_session *s) {
+    if(PS_SECTION_BORDER_TITLES && PS_CONTROL_SECTION_ROWS && s->control_view &&
+        !(s->table_style&(PS_TABLE_CATEGORY_COLUMN|PS_TABLE_SECTION_FILLED))) {
+        const ps_control_page *p=&s->panel->pages[s->tab];unsigned i;
+        for(i=0;i<p->count;++i)if(*p->controls[i].group)return 1;
+    }
+    return 0;
+}
+static unsigned table_body(const ps_session *s) {
+    return 7+((s->table_style&PS_TABLE_TABS_INSIDE)&&table_height(s)>=15?1:0)-table_border_titles(s);
+}
 static unsigned table_slots(const ps_session *s) {
     unsigned height=table_height(s);
-    unsigned reserved=13+((s->table_style&PS_TABLE_TABS_INSIDE)&&height>=15?1:0);
+    unsigned reserved=table_body(s)+6;
     return height>reserved?height-reserved:1;
 }
 static void grid_divide(ps_session *s) {
@@ -987,7 +1021,7 @@ static void render(ps_session *s) {
     unsigned ids[PS_ROWS];
 #endif
     unsigned inside = !!(s->table_style & PS_TABLE_TABS_INSIDE) && h>=15;
-    unsigned body = 7+inside, tabUsed = 1;
+    unsigned body = table_body(s), tabUsed = 1;
     unsigned displayCount, focus;
     unsigned short controlItems[512];
     Grid grid;
@@ -1125,8 +1159,10 @@ static void render(ps_session *s) {
     out(s, " ");
     out(s, (s->io.flags & PS_UNICODE) ? "│" : "|");
     reset(s);
-    at(s, 6+inside, 2);
-    grid_border(s, &grid, s->control_view && s->scroll<displayCount && (controlItems[s->scroll]&0xe000) ? 3 : 1, 1);
+    if(!table_border_titles(s)) {
+        at(s, 6+inside, 2);
+        grid_border(s, &grid, s->control_view && s->scroll<displayCount && (controlItems[s->scroll]&0xe000) ? 3 : 1, 1);
+    }
 #if PS_WORKBENCH
 #include "../host/workbench/visible_rows.inc"
 #endif
@@ -1139,6 +1175,14 @@ static void render(ps_session *s) {
             idx = controlItems[idx] & 0x1fff;
         } else if (s->control_view) idx = count;
         at(s, body + i, 2);
+        if(heading && table_border_titles(s)) {
+            unsigned line=s->scroll+i;
+            int above=!i||!(controlItems[line-1]&0xe000);
+            int below=line+1>=displayCount||!(controlItems[line+1]&0xe000);
+            grid_border(s,&grid,above?(below?1:3):4,above||below);
+            at(s,body+i,4);out(s," ");
+            control_section_row(s,idx,(s->table_style&PS_TABLE_GRID)?grid.widths[0]-1:inner-2);reset(s);continue;
+        }
         if (rule) {
             unsigned line = s->scroll+i;
             unsigned joined = rule == 0x4000 ? (i && !(controlItems[line-1]&0xe000))
@@ -1189,7 +1233,7 @@ static void render(ps_session *s) {
         unsigned top = s->scroll * (slots-thumb) / (displayCount-slots);
         for(i=0;i<slots;++i){
             unsigned active = i>=top && i<top+thumb;
-            unsigned rule = s->control_view && s->scroll+i<displayCount && (controlItems[s->scroll+i]&0x6000);
+            unsigned rule = s->control_view && s->scroll+i<displayCount && (controlItems[s->scroll+i]&(table_border_titles(s)?0xe000:0x6000));
             at(s,body+i,w-1+gutter);ink(s,active?1:7);
             out(s,(s->io.flags&PS_UNICODE)?(!gutter&&rule?(active?"┫":"┤"):(active?"┃":"│")):(active?"#":!gutter&&rule?"+":"|"));
         }
@@ -1203,6 +1247,10 @@ static void render(ps_session *s) {
     grid_vertical(s);
     at(s, h - 5, 4);
     ink(s, 0);
+#if PS_PANEL_KEYS
+    if(s->control_view&&s->panel_chrome&&s->panel_chrome->summary)grid_text(s,s->panel_chrome->summary,w-6);
+    else
+#endif
     if (s->control_view && s->control_header) {
         out(s,"Section: ");grid_text(s,s->panel->pages[s->tab].controls[s->selected].group,w-15);
     } else {
@@ -1225,7 +1273,11 @@ static void render(ps_session *s) {
 #endif
         ink(s, 5);
         if(s->theme==PS_THEME_DEFAULT)ink(s,PS_INK_TEXT);
-        field(s, s->notice, w - 4);
+        field(s,
+#if PS_PANEL_KEYS
+              s->control_view&&s->panel_chrome&&s->panel_chrome->notice&&!s->editing?s->panel_chrome->notice:
+#endif
+              s->notice, w - 4);
         reset(s);
     }
     at(s, h - 1, 1);
@@ -1247,9 +1299,13 @@ static void render(ps_session *s) {
     out(s, "  ");
     footer_field(
         s,
+#if PS_PANEL_KEYS
+        s->control_view&&s->panel_chrome&&s->panel_chrome->navigation&&!s->editing?s->panel_chrome->navigation:
+#endif
         s->control_view && s->editing ? "Draft   Esc cancel"
         : s->editing ? ((s->io.flags & PS_UNICODE) ? "←/→ cursor  Home/End  ^U clear"
                                                    : "Left/Right cursor  Home/End  ^U clear")
+        : s->control_view && (s->table_style&PS_TABLE_BACK_TO_MENU) ? ((s->io.flags & PS_UNICODE) ? "↑/↓ rows  Tab pages  Esc back" : "Up/Dn rows  Tab pages  Esc back")
         : s->control_view ? ((s->io.flags & PS_UNICODE) ? "↑/↓ rows  Tab pages  Esc shell"
                                                         : "Up/Dn rows  Tab pages  Esc shell")
         : (s->io.flags & PS_UNICODE)
@@ -1257,7 +1313,11 @@ static void render(ps_session *s) {
             : (w < 60 ? "Up/Dn move  Tab tabs  Esc shell" : "Up/Down move   Tab tabs   Esc shell"),
         w - 3,1);
     reset(s);
-    if (w >= 76) {
+    if (w >= 76
+#if PS_PANEL_KEYS
+        &&!(s->control_view&&s->panel_chrome&&s->panel_chrome->navigation)
+#endif
+    ) {
         at(s, h, w - 23);
         surface(s, 0);
         ps_number(s, s->io.columns);
@@ -1347,6 +1407,13 @@ static void prompt(ps_session *s) {
     }
     frame_begin(s);
     ansi(s, "\r");
+    if(table_prompt_framed(s)) {
+        const char *border=ps_style_ink(s->theme,!!(s->io.flags&PS_TRUECOLOR),0,PS_INK_BORDER);
+        avail=avail>4?avail-4:1;
+        view_rule_color(s,s->io.rows-2,1,s->io.columns-1,0,border);
+        view_rule_color(s,s->io.rows,1,s->io.columns-1,1,border);
+        at(s,s->io.rows-1,1);ink(s,PS_INK_BORDER);out(s,(s->io.flags&PS_UNICODE)?"│ ":"| ");reset(s);
+    }
     old=min(s->prompt_rows_drawn,s->io.rows-1);
     if(old){ansi(s,"\033[");ps_number(s,old);out(s,"A");}
     if(old>shown){
@@ -1400,19 +1467,29 @@ static void prompt(ps_session *s) {
         reset(s);
     } else
         ps_secure_clear(s->suggestion, sizeof s->suggestion);
-    ansi(s, "\033[K\r\033[");
-    ps_number(s, prompt_width + cells(s->line + start, s->pos - start, s->io.flags) + 1);
+    ansi(s, "\033[K\r");
+    if(table_prompt_framed(s)) {
+        at(s,s->io.rows-1,s->io.columns-1);ink(s,PS_INK_BORDER);out(s,(s->io.flags&PS_UNICODE)?"│":"|");reset(s);
+    }
+    ansi(s,"\033[");
+    ps_number(s, prompt_width + cells(s->line + start, s->pos - start, s->io.flags) + 1+(table_prompt_framed(s)?2:0));
     out(s, "G");
     if (s->search) {
+        unsigned query_width=min(cells(s->query,length(s->query),s->io.flags),s->io.columns/3);
         ansi(s, "\r");
+        if(table_prompt_framed(s))at(s,s->io.rows-1,3);
         ink(s, 1);
         out(s, "search: ");
-        ps_write(s, s->query);
+        field(s,s->query,query_width);
         ink(s, 0);
         out(s, "  ");
-        ps_write(s, s->line);
+        field(s,s->line,min(cells(s->line,s->len,s->io.flags),s->io.columns>query_width+14?s->io.columns-query_width-14:0));
         reset(s);
         ansi(s,"\033[K");
+        if(table_prompt_framed(s)) {
+            ansi(s,"\0337");at(s,s->io.rows-1,s->io.columns-1);ink(s,PS_INK_BORDER);
+            out(s,(s->io.flags&PS_UNICODE)?"│":"|");reset(s);ansi(s,"\0338");
+        }
     }
     if(table_prompt(s))ansi(s,s->table_prompt_focus?"\033[?25h":"\033[?25l");
     frame_end(s);
@@ -1671,12 +1748,16 @@ static void shell_key(ps_session *s, unsigned key) {
         s->table_prompt_focus=!s->table_prompt_focus;s->dirty=1;render(s);return;
     }
     if (s->board && (!table_prompt(s)||!s->table_prompt_focus)) {
+#if PS_PANEL_KEYS
+        if (s->control_view && !s->editing && s->panel_key &&
+            s->panel_key(s,key,s->panel_key_context)) return;
+#endif
         table_key(s, key);
         return;
     }
     if(table_prompt(s)) {
         if(key==27){s->table_prompt_focus=0;s->dirty=1;render(s);return;}
-        table_prompt_region(s);at(s,s->io.rows,1);
+        table_prompt_region(s);at(s,table_output_bottom(s),1);
         if(key==13||key==3||key==12)s->dirty=1;
     }
     if (s->search) {
