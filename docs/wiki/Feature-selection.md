@@ -21,7 +21,7 @@ Application validation, read-only settings, storage and hardware remain callback
 
 ## Small event editor, independently chosen options
 
-See [a consumer-owned configuration](https://github.com/atomicdeploy/portable-shell/blob/audit/consumer-feature-selection/examples/editor_config.h). Include it
+See [a consumer-owned configuration](https://github.com/atomicdeploy/portable-shell/blob/main/examples/editor_config.h). Include it
 before the editor header in every relevant source. It explicitly chooses a 32-byte
 line, zero history and zero undo. No architecture test removes functionality.
 `PS_EDITOR_HISTORY=0` removes the history and saved-history-draft arrays; Up/Down
