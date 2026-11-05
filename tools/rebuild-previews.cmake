@@ -53,6 +53,30 @@ execute_process(COMMAND "${RESVG}" --version OUTPUT_VARIABLE version OUTPUT_STRI
 if(NOT version STREQUAL "${resvg_version}")
   message(FATAL_ERROR "Require resvg ${resvg_version}, got ${version}")
 endif()
+if(NOT DEFINED USVG)
+  cmake_host_system_information(RESULT arch QUERY OS_PLATFORM)
+  if(NOT arch MATCHES "^(AMD64|amd64|x86_64|x64)$")
+    message(FATAL_ERROR "Supply -DUSVG=/path/to/usvg ${resvg_version} on ${arch}")
+  endif()
+  if(CMAKE_HOST_WIN32)
+    set(platform windows)
+    set(suffix .exe)
+  elseif(CMAKE_HOST_APPLE)
+    set(platform macos)
+  elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    set(platform linux)
+  else()
+    message(FATAL_ERROR "Supply -DUSVG=/path/to/usvg ${resvg_version} on this host")
+  endif()
+  set(archive "${usvg_${platform}_archive}")
+  preview_download("${resvg_url}/${archive}" "${usvg_${platform}_sha}" "${cache}/${archive}")
+  file(ARCHIVE_EXTRACT INPUT "${cache}/${archive}" DESTINATION "${cache}/usvg-${platform}")
+  set(USVG "${cache}/usvg-${platform}/usvg${suffix}")
+endif()
+execute_process(COMMAND "${USVG}" --version OUTPUT_VARIABLE version OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
+if(NOT version STREQUAL "${resvg_version}")
+  message(FATAL_ERROR "Require usvg ${resvg_version}, got ${version}")
+endif()
 
 set(configure "${CMAKE_COMMAND}" -S "${CMAKE_CURRENT_LIST_DIR}/previews" -B "${BUILD_DIR}/native"
   -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release)
@@ -112,10 +136,28 @@ execute_process(COMMAND "${BUILD_DIR}/native/bin/hex_preview${exe}" "${generated
 execute_process(COMMAND "${BUILD_DIR}/native/bin/menu_context_preview${exe}" "${generated}/menu-context.svg" "${generated}/menu-service.svg" "${generated}/form-password.svg" COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${BUILD_DIR}/native/bin/animation_demo${exe}"
   "${generated}/terminal-session.psrec" COMMAND_ERROR_IS_FATAL ANY)
+set(raw_drawings "${BUILD_DIR}/animation-text")
+set(outlined_drawings "${BUILD_DIR}/animation-outlines")
+file(MAKE_DIRECTORY "${raw_drawings}" "${outlined_drawings}")
 execute_process(COMMAND "${BUILD_DIR}/native/bin/terminal_animation${exe}"
   "${generated}/terminal-session.psrec" "${generated}/terminal-session.svg"
-  --font "${cache}/Agave.ttf" --poster "${generated}/terminal-session-poster.svg"
+  --export-drawings "${raw_drawings}" COMMAND_ERROR_IS_FATAL ANY)
+file(STRINGS "${raw_drawings}/frames.txt" drawing_files)
+foreach(drawing IN LISTS drawing_files)
+  get_filename_component(drawing_id "${drawing}" NAME_WE)
+  execute_process(COMMAND "${USVG}" --skip-system-fonts --use-font-file "${cache}/Agave.ttf"
+    --use-font-file "${cache}/AgaveNerd.ttf" --use-font-file "${cache}/NotoEmoji.ttf"
+    --id-prefix "${drawing_id}-" "${raw_drawings}/${drawing}" "${outlined_drawings}/${drawing}"
+    COMMAND_ERROR_IS_FATAL ANY)
+endforeach()
+execute_process(COMMAND "${BUILD_DIR}/native/bin/terminal_animation${exe}"
+  "${generated}/terminal-session.psrec" "${generated}/terminal-session.svg"
+  --drawings "${outlined_drawings}" --poster "${generated}/terminal-session-poster.svg"
   COMMAND_ERROR_IS_FATAL ANY)
+file(READ "${generated}/terminal-session.svg" animation_xml)
+if(animation_xml MATCHES "<text|@font-face|data:font" OR NOT animation_xml MATCHES "<animate")
+  message(FATAL_ERROR "Published animation must retain animation and use font-independent outlines")
+endif()
 foreach(frame IN LISTS frames)
   # One explicitly supplied font; two-times resolution for smooth display scaling.
   set(extra_fonts)
@@ -125,6 +167,17 @@ foreach(frame IN LISTS frames)
   execute_process(COMMAND "${RESVG}" ${extra_fonts} --skip-system-fonts --use-font-file "${cache}/Agave.ttf"
     --use-font-file "${cache}/AgaveNerd.ttf" --use-font-file "${cache}/NotoEmoji.ttf" --zoom 2 "${generated}/${frame}.svg" "${generated}/${frame}.png" COMMAND_ERROR_IS_FATAL ANY)
 endforeach()
+
+# GitHub raw SVG responses block font loads, including data: fonts. The public
+# replay must render identically with no font database at all.
+execute_process(COMMAND "${RESVG}" --skip-system-fonts --zoom 2
+  "${generated}/terminal-session.svg" "${BUILD_DIR}/animation-without-fonts.png"
+  COMMAND_ERROR_IS_FATAL ANY)
+file(SHA256 "${BUILD_DIR}/animation-without-fonts.png" no_font_hash)
+file(SHA256 "${generated}/terminal-session-poster.png" poster_hash)
+if(NOT no_font_hash STREQUAL poster_hash)
+  message(FATAL_ERROR "Font-free animation fallback differs from its poster")
+endif()
 
 # All local README preview references must be managed by this rebuild.
 file(READ "${root}/README.md" readme)
