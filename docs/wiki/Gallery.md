@@ -30,6 +30,10 @@ Grouped keys, typed controls, inline/modal editing and read-only values use the
 same registry as command-line updates. [Run or embed the adapter](Settings-editor.md).
 This preview uses the example's in-memory settings, not connected service state.
 
+Inline editing keeps the value at the same cell origin, without adding a leading space:
+
+![Dotted-key settings inline editor](../../previews/settings-editor-inline.png)
+
 **Local .env manager — actual interactive document editing**
 
 | Values, inline comments and duplicate warnings | Tokenized source order and comment sections |

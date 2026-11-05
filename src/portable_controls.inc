@@ -259,12 +259,11 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
            : c->kind == PS_CONTROL_LABEL ? PS_INK_TEXT : PS_INK_STRING);
     if (s->editing == 5 && !s->dialog && index == s->selected) {
         unsigned start = 0;
-        while (cells(s->edit + start, s->editpos - start, s->io.flags) >= w - 2)
+        while (start < s->editpos && cells(s->edit + start, s->editpos - start, s->io.flags) >= w)
             start = next(s->edit, start);
         surface(s, 1);
-        out(s, " ");
-        field(s, s->edit + start, w - 2);
-        out(s, " ");
+        /* The table divider already supplies the cell's padding. */
+        field(s, s->edit + start, w);
         return;
     }
 #if PS_ACTION_BUTTONS
@@ -356,12 +355,12 @@ static void control_overlay(ps_session *s, const Grid *table) {
         x = 4;
         for (i = 0; i + 1 < table->count; ++i)
             x += table->widths[i] + 3;
-        while (cells(s->edit + start, s->editpos - start, s->io.flags) >= w - 2)
+        while (start < s->editpos && cells(s->edit + start, s->editpos - start, s->io.flags) >= w)
             start = next(s->edit, start);
-        s->mouse_edit_x=x+1;s->mouse_edit_y=s->control_edit_row;
-        s->mouse_edit_start=start;s->mouse_edit_width=w-2;
+        s->mouse_edit_x=x;s->mouse_edit_y=s->control_edit_row;
+        s->mouse_edit_start=start;s->mouse_edit_width=w;
         at(s, s->control_edit_row,
-           x + 1 + cells(s->edit + start, s->editpos - start, s->io.flags));
+           x + cells(s->edit + start, s->editpos - start, s->io.flags));
         ansi(s, "\033[?25h");
         return;
     }

@@ -7,6 +7,8 @@ void ps_replay_reset(void);
 void ps_replay_feed(const unsigned char *,unsigned);
 unsigned ps_replay_svg(char *);
 const char *ps_replay_cell(unsigned,unsigned);
+unsigned ps_replay_row(void);
+unsigned ps_replay_column(void);
 enum { TEST_COLUMNS=100,TEST_ROWS=34,SVG_BYTES=1000000 };
 static settings_demo model;
 static char svg[SVG_BYTES];
@@ -19,6 +21,16 @@ static void type(const char *text){while(*text)key((unsigned char)*text++);}
 static void edit(unsigned id,const char *text){assert(ps_panel_select(session,id));key(13);key(21);type(text);key(13);}
 static void capture(const char *path){FILE *f;unsigned n;if(!path)return;n=ps_replay_svg(svg);assert(n&&n<sizeof svg);f=fopen(path,"wb");assert(f);assert(fwrite(svg,1,n,f)==n);assert(!fclose(f));}
 static int visible(const char *text){unsigned x,y;for(y=0;y<TEST_ROWS;++y){char row[TEST_COLUMNS*4+1];unsigned n=0;for(x=0;x<TEST_COLUMNS;++x){const char *p=ps_replay_cell(y,x);while(*p&&n+1<sizeof row)row[n++]=*p++;}row[n]=0;if(strstr(row,text))return 1;}return 0;}
+static int text_at(unsigned y,unsigned x,const char *text){
+    while(*text&&x<TEST_COLUMNS){const char *cell=ps_replay_cell(y,x++);size_t n=strlen(cell);
+        if(!n||strncmp(text,cell,n))return 0;
+        text+=n;
+    }return !*text;
+}
+static void locate(const char *text,unsigned *y,unsigned *x){
+    for(*y=0;*y<TEST_ROWS;++*y)for(*x=0;*x<TEST_COLUMNS;++*x)if(text_at(*y,*x,text))return;
+    assert(!"Expected text missing from terminal replay");
+}
 int main(int argc,char **argv){
     ps_config config={output,0,TEST_COLUMNS,TEST_ROWS,PS_INTERACTIVE|PS_COLOR|PS_UNICODE|PS_TRUECOLOR};
     ps_setting_value value;ps_control_value observed,request;void *memory=calloc(1,ps_sizeof_session());
@@ -40,6 +52,30 @@ int main(int argc,char **argv){
     assert(visible("API")&&visible("APPLICATION"));
 #endif
     capture(argc>1?argv[1]:0);
+    /* Enter must not shift the value or its cursor into extra cell padding. */
+    {unsigned y,x;locate(model.items[0].text,&y,&x);key(13);
+        assert(text_at(y,x,model.items[0].text));
+        assert(ps_replay_row()==y&&ps_replay_column()==x+strlen(model.items[0].text));
+        capture(argc>2?argv[2]:0);
+        key(PS_KEY_HOME);assert(ps_replay_column()==x);
+#if PS_MOUSE
+        {char sequence[80];int n=snprintf(sequence,sizeof sequence,"\033[<0;%u;%uM\033[<0;%u;%um",x+2,y+1,x+2,y+1);
+            assert(n>0&&(unsigned)n<sizeof sequence);ps_feed(session,sequence,(unsigned)n);ps_tick(session,time_now+=100);
+            assert(ps_replay_column()==x+1);
+        }
+#endif
+        key(27);assert(text_at(y,x,model.items[0].text));
+    }
+#if PS_DASHBOARD
+    /* The dashboard reuses control_row, so its cursor must share the new origin. */
+    assert(ps_panel_set_layout(session,PS_PANEL_GRID));ps_tick(session,time_now+=100);
+    {unsigned y,x;locate(model.items[0].text,&y,&x);key(13);
+        assert(text_at(y,x,model.items[0].text));
+        assert(ps_replay_row()==y&&ps_replay_column()==x+strlen(model.items[0].text));
+        key(PS_KEY_HOME);assert(ps_replay_column()==x);key(27);
+    }
+    assert(ps_panel_set_layout(session,PS_PANEL_TABS));ps_tick(session,time_now+=100);
+#endif
     edit(0,"http://localhost:9000");assert(!strcmp(model.items[0].text,"http://localhost:9000"));
     edit(0,"invalid");assert(!strcmp(model.items[0].text,"http://localhost:9000"));key(27);
     edit(1,"65536");assert(model.items[1].value.natural==8000);key(27);
