@@ -24,9 +24,13 @@ mode retains recognizable bracketed buttons without depending on color:
 
 **Local .env manager — actual interactive document editing**
 
-| Values, masking and duplicate warnings | Complete source order |
+| Values, inline comments and duplicate warnings | Tokenized source order and comment sections |
 | --- | --- |
 | ![Environment values](../../previews/env-values.png) | ![Environment source](../../previews/env-source.png) |
+
+Trailing comments are muted independently of values; quoted `#` stays literal.
+Blank source rows are hidden by default and can be revealed with F4 without
+changing the file. Comment blocks introducing assignments receive section styling.
 
 | Modal value editor | Key filtering |
 | --- | --- |

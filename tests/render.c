@@ -459,6 +459,7 @@ unsigned ps_replay_row(void){return row;}
 unsigned ps_replay_column(void){return col;}
 const char *ps_replay_cell(unsigned r,unsigned c){return r<H&&c<W?screen[r][c].text:"";}
 unsigned ps_replay_background(unsigned r,unsigned c){return r<H&&c<W?screen[r][c].bg:0;}
+unsigned ps_replay_foreground(unsigned r,unsigned c){return r<H&&c<W?screen[r][c].fg:0;}
 #ifndef PS_REPLAY_ONLY
 __attribute__((noinline, noipa)) int render_complete(void) {
     return 0;

@@ -90,6 +90,25 @@ complete:
         for(k=r->start;k<r->end;++k)if(d->text[k]=='\n')++line;
         at=r->end;
     }
+    /* Presentation hint only: a comment block separated from preceding values
+       by whitespace can introduce the next assignments. Use its last nonempty
+       comment as the heading; do not mistake disabled assignments for comments. */
+    for(i=0;i<d->count;++i)if((d->records[i].flags&ENV_COMMENT)&&
+        (!i||(d->records[i-1].flags&ENV_BLANK))){
+        unsigned last=i,next_record=i,p;
+        while(next_record<d->count&&(d->records[next_record].flags&ENV_COMMENT)){
+            p=d->records[next_record].start;
+            while(p<d->records[next_record].body_end&&(space(d->text[p])||d->text[p]=='#'))++p;
+            if(p<d->records[next_record].body_end)last=next_record;
+            ++next_record;
+        }
+        while(next_record<d->count&&(d->records[next_record].flags&ENV_BLANK))++next_record;
+        if(next_record<d->count&&(d->records[next_record].flags&ENV_ASSIGNMENT)){
+            p=d->records[last].start;
+            while(p<d->records[last].body_end&&(space(d->text[p])||d->text[p]=='#'))++p;
+            if(p<d->records[last].body_end)d->records[last].flags|=ENV_HEADING;
+        }
+    }
     for(i=0;i<d->count;++i)if(d->records[i].flags&ENV_ASSIGNMENT)
         for(j=0;j<i;++j)if((d->records[j].flags&ENV_ASSIGNMENT)&&d->records[i].key_size==d->records[j].key_size&&
             same(d->text+d->records[i].key,d->text+d->records[j].key,d->records[i].key_size)){

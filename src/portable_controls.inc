@@ -201,6 +201,29 @@ static void control_button(ps_session *s, const ps_control_value *v, const char 
     else spaces(s,width-span);
 }
 #endif
+#if PS_PANEL_KEYS && PS_PANEL_TEXT
+static int control_styled_text(ps_session *s,unsigned id,unsigned columns) {
+    char text[PS_PANEL_TEXT_BYTES];ps_byte roles[PS_PANEL_TEXT_BYTES];
+    unsigned n,at=0,end,used=0,limit=columns,suffix=(s->io.flags&PS_UNICODE)?1:3,clipped;
+    if(!s->panel_chrome||!s->panel_chrome->text)return 0;
+    zero(roles,sizeof roles);
+    n=s->panel_chrome->text(s->panel->context,id,text,roles,sizeof text);
+    if(!n||n>=sizeof text)return 0;
+    text[n]=0;clipped=cells(text,n,s->io.flags)>columns&&columns>=suffix;
+    if(clipped)limit-=suffix;
+    while(at<n&&used<limit){unsigned span;char saved;
+        end=next(text,at);
+        while(end<n&&roles[end]==roles[at])end=next(text,end);
+        saved=text[end];text[end]=0;
+        span=min(cells(text+at,end-at,s->io.flags),limit-used);
+        ink(s,roles[at]<=PS_INK_ACTION?roles[at]:PS_INK_TEXT);
+        field(s,text+at,span);used+=span;text[end]=saved;at=end;
+    }
+    ink(s,PS_INK_MUTED);spaces(s,limit-used);
+    if(clipped)out(s,(s->io.flags&PS_UNICODE)?"…":"...");
+    return 1;
+}
+#endif
 static void control_row(ps_session *s, unsigned index, const Grid *g) {
     const ps_control *c = &s->panel->pages[s->tab].controls[index];
     ps_control_value v;
@@ -251,6 +274,10 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
         control_button(s,&v,b,w,!s->control_header&&s->selected==index);
         return;
     }
+#endif
+#if PS_PANEL_KEYS && PS_PANEL_TEXT
+    if((v.flags&PS_CONTROL_VALID)&&!(v.flags&(PS_CONTROL_PENDING|PS_CONTROL_LOCKED))&&
+       (c->kind==PS_CONTROL_TEXT||c->kind==PS_CONTROL_LABEL)&&control_styled_text(s,c->id,w))return;
 #endif
     if ((v.flags & PS_CONTROL_VALID) && !(v.flags & (PS_CONTROL_PENDING | PS_CONTROL_LOCKED | PS_CONTROL_NUMBER_ONLY)) &&
         c->kind == PS_CONTROL_LEVEL && w >= 18) {
