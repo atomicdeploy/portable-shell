@@ -141,8 +141,8 @@ struct ps_session {
 #endif
 #if PS_FORM
     const ps_form *form;
-    unsigned form_index, form_choice, form_top;
-    const char *form_error;
+    unsigned form_index, form_choice, form_top, form_style;
+    const char *form_error,*form_title;
 #endif
     char document[PS_EDITOR ? PS_EDITOR_CAPACITY : 1], document_undo[PS_EDITOR ? PS_EDITOR_CAPACITY : 1];
 #if PS_WORKBENCH
@@ -1283,6 +1283,7 @@ static void render(ps_session *s) {
         s->control_view && s->editing ? "Draft   Esc cancel"
         : s->editing ? ((s->io.flags & PS_UNICODE) ? "←/→ cursor  Home/End  ^U clear"
                                                    : "Left/Right cursor  Home/End  ^U clear")
+        : s->control_view && (s->table_style&PS_TABLE_BACK_TO_MENU) ? ((s->io.flags & PS_UNICODE) ? "↑/↓ rows  Tab pages  Esc back" : "Up/Dn rows  Tab pages  Esc back")
         : s->control_view ? ((s->io.flags & PS_UNICODE) ? "↑/↓ rows  Tab pages  Esc shell"
                                                         : "Up/Dn rows  Tab pages  Esc shell")
         : (s->io.flags & PS_UNICODE)

@@ -218,7 +218,7 @@ static void control_row(ps_session *s, unsigned index, const Grid *g) {
         out(s, " ");
         return;
     }
-    if ((v.flags & PS_CONTROL_VALID) && !(v.flags & (PS_CONTROL_PENDING | PS_CONTROL_LOCKED)) &&
+    if ((v.flags & PS_CONTROL_VALID) && !(v.flags & (PS_CONTROL_PENDING | PS_CONTROL_LOCKED | PS_CONTROL_NUMBER_ONLY)) &&
         c->kind == PS_CONTROL_LEVEL && w >= 18) {
         unsigned bar = w - 15;
         pct = (v.number - c->minimum) * 100 / (c->maximum - c->minimum);
@@ -534,6 +534,7 @@ PS_API int ps_panel_attach(ps_session *s, const ps_panel *panel) {
     s->control_header = 0;
     return 1;
 }
+PS_API unsigned ps_panel_active(const ps_session *s){return s&&s->board&&s->control_view?s->tab+1:0;}
 PS_API int ps_panel_open(ps_session *s, unsigned page) {
     if (!s || ps_form_active(s) || !s->panel || page >= s->panel->count || !(s->io.flags & PS_INTERACTIVE))
         return 0;

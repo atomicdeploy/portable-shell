@@ -99,7 +99,9 @@ PS_API int ps_editor_open(ps_session *, const char *title, const char *text,
                           ps_editor_save_fn, void *context);
 PS_API unsigned ps_editor_active(const ps_session *);
 PS_API const char *ps_editor_text(const ps_session *);
-enum { PS_EDITOR_HEADER=1, PS_EDITOR_BORDER=2 };
+/* READ_ONLY reuses wrapping and navigation for reports and guides. It rejects
+   edits, paste, undo and save; Escape closes without a discard dialog. */
+enum { PS_EDITOR_HEADER=1, PS_EDITOR_BORDER=2, PS_EDITOR_READ_ONLY=4 };
 PS_API void ps_editor_set_style(ps_session *, unsigned flags);
 #ifndef PS_MENU_DEPTH
 #define PS_MENU_DEPTH 8
@@ -175,7 +177,10 @@ enum {
     PS_CONTROL_ACTION,
     PS_CONTROL_LABEL
 };
-enum { PS_CONTROL_VALID = 1, PS_CONTROL_PENDING = 2, PS_CONTROL_LOCKED = 4 };
+/* NUMBER_ONLY keeps numeric editing/range validation without presenting a
+   quantity such as a port number as a percentage meter. */
+enum { PS_CONTROL_VALID = 1, PS_CONTROL_PENDING = 2, PS_CONTROL_LOCKED = 4,
+       PS_CONTROL_NUMBER_ONLY = 8 };
 typedef struct {
     unsigned id;
     const char *group, *label;
@@ -206,6 +211,8 @@ typedef struct {
 } ps_panel;
 PS_API int ps_panel_attach(ps_session *, const ps_panel *); /* NULL detaches */
 PS_API int ps_panel_open(ps_session *, unsigned page);
+/* Zero when closed; otherwise the active page index plus one. */
+PS_API unsigned ps_panel_active(const ps_session *);
 #ifndef PS_DASHBOARD
 #define PS_DASHBOARD 1
 #endif
@@ -225,7 +232,8 @@ enum { PS_TABLE_GRID = 1, PS_TABLE_RED_BORDER = 2, PS_TABLE_TITLE_BAR = 4,
        PS_TABLE_COMPACT_FOOTER = 512, PS_TABLE_COMPACT_SCROLLBAR = 1024, PS_TABLE_SECTION_BOTTOM = 2048, PS_TABLE_STATIC_SECTIONS = 4096,
        PS_TABLE_SECTION_PLUS_MINUS = 8192, PS_TABLE_SECTION_NO_ICONS = 16384, PS_TABLE_RESERVE_SCROLLBAR = 32768, PS_TABLE_PROMPT = 65536,
        PS_TABLE_SECTION_FILLED = 131072, PS_TABLE_PROMPT_FRAME = 262144,
-       PS_TABLE_SECTION_INDICATORS_ALWAYS = 524288, PS_TABLE_DEFAULT = 5 };
+       PS_TABLE_SECTION_INDICATORS_ALWAYS = 524288, PS_TABLE_BACK_TO_MENU = 1048576,
+       PS_TABLE_DEFAULT = 5 };
 /* Fits 1..8 columns into a framed width (max 240), including padding/separators.
    Returns occupied width, or 0 if minima do not fit / definitions are invalid. */
 PS_API unsigned ps_layout_columns(unsigned width, const ps_column *columns, unsigned count,
@@ -400,6 +408,12 @@ typedef struct {
 PS_API int ps_form_open(ps_session *,const ps_form *);
 PS_API void ps_form_close(ps_session *); /* cancel, callback receives accepted=0 */
 PS_API unsigned ps_form_active(const ps_session *);
+enum { PS_FORM_OVERVIEW=1 };
+/* Optional summary of all fields; Tab/Shift-Tab revisit validated drafts.
+   The default remains the sequential question presentation. */
+PS_API void ps_form_set_style(ps_session *,unsigned flags);
+/* Optional borrowed caption, retained until replaced. NULL clears it. */
+PS_API void ps_form_set_title(ps_session *,const char *title);
 enum { PS_HELP_HEADINGS, PS_HELP_COMPACT };
 #ifndef PS_HELP_DETAILS
 #define PS_HELP_DETAILS 1

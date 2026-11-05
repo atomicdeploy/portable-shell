@@ -135,7 +135,7 @@ optional libc primitives and compiler-required runtime helpers.
 | --- | --- |
 | Understand boundaries and follow source code | [Clickable architecture diagrams](docs/wiki/Architecture.md) |
 | Configure prompts, input and terminal behavior | [Shell reference](docs/wiki/Shell.md) · [Terminal interaction](docs/wiki/Terminal-interaction.md) |
-| Build tables, controls and alternate-screen views | [Workspace](docs/wiki/Workspace.md) · [Components](docs/wiki/Components.md) |
+| Build tables, controls and alternate-screen views | [Workspace](docs/wiki/Workspace.md) · [Components](docs/wiki/Components.md) · [Service-console example](docs/wiki/Service-console.md) |
 | Integrate callbacks, jobs and transports | [Async](docs/wiki/Async.md) · [Telnet/serial](docs/wiki/Transports.md) |
 | Build for a target or inspect verification limits | [Building](docs/wiki/Building.md) · [Verification](docs/wiki/Verification.md) |
 

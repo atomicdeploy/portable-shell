@@ -33,7 +33,8 @@ static void form_render(ps_session *s){
     if(s->io.rows<8||s->io.columns<20)return;
     canvas_begin(s,9,0);
     for(i=1;i<=s->io.rows;++i){at(s,i,1);ansi(s,"\033[2K");}
-    if(s->form_index&&s->io.rows>=15){
+    if(s->form_title){at(s,1,3);ink(s,PS_INK_HEADING);field(s,s->form_title,w-2);reset(s);}
+    if(s->form_index&&s->io.rows>=15&&!(s->form_style&PS_FORM_OVERVIEW)){
         const ps_form_field *previous=s->form->fields+s->form_index-1;
         form_title(s,y,w,previous->label,PS_INK_MUTED);
         form_value(s,y+1,w,previous->value,PS_INK_TEXT,PS_INK_BORDER,previous->kind==PS_FORM_PASSWORD);
@@ -60,6 +61,21 @@ static void form_render(ps_session *s){
     at(s,y+slots+2,3);ink(s,s->form_error?PS_INK_WARNING:PS_INK_MUTED);
     if(s->form_error)field(s,s->form_error,w-2);
     else if(f->kind==PS_FORM_CHOICE){ps_number(s,s->form_choice+1);out(s," / ");ps_number(s,f->choice_count);}
+    if(s->form_style&PS_FORM_OVERVIEW){
+        unsigned first=0,line=y+slots+4,available=s->io.rows>line+2?s->io.rows-line-2:0;
+        if(available&&s->form_index>=available)first=s->form_index-available+1;
+        at(s,line-1,3);ink(s,PS_INK_HEADING);out(s,"Fields  ");ps_number(s,s->form_index+1);out(s," / ");ps_number(s,s->form->count);
+        for(i=0;i<available&&first+i<s->form->count;++i){
+            unsigned index=first+i,label_width=min(w/2,32);const ps_form_field *entry=&s->form->fields[index];
+            const char *value=index==s->form_index?(entry->kind==PS_FORM_CHOICE?entry->choices[s->form_choice]:s->edit):entry->value;
+            at(s,line+i,3);ink(s,index==s->form_index?PS_INK_ACTION:PS_INK_MUTED);
+            out(s,index==s->form_index?((s->io.flags&PS_UNICODE)?"▸ ":"> "):"  ");
+            field(s,entry->label,label_width);out(s,"  ");ink(s,PS_INK_TEXT);
+            if(entry->kind==PS_FORM_PASSWORD){unsigned n=min(form_cells(s,value,length(value),1),w-label_width-6);while(n--)out(s,(s->io.flags&PS_UNICODE)?"•":"*");}
+            else field(s,*value?value:"—",w-label_width-6);
+        }
+        at(s,s->io.rows-1,2);ink(s,PS_INK_MUTED);footer_field(s,"Tab Next field  Shift-Tab Previous field",s->io.columns-2,0);
+    }
     reset(s);at(s,s->io.rows,2);
     footer_field(s,f->kind==PS_FORM_CHOICE?((s->io.flags&PS_UNICODE)?"↑/↓ Choose  Enter Continue  Esc Cancel":"Up/Down Choose  Enter Continue  Esc Cancel"):
         ((s->io.flags&PS_UNICODE)?"←/→ Edit  Enter Continue  Esc Cancel":"Left/Right Edit  Enter Continue  Esc Cancel"),s->io.columns-2,0);
@@ -70,7 +86,7 @@ static void form_render(ps_session *s){
 #if PS_MOUSE
 static void form_mouse(ps_session *s,unsigned x,unsigned y){
     const ps_form_field *f=s->form->fields+s->form_index;
-    unsigned top=(s->form_index&&s->io.rows>=15)?8:3,w=s->io.columns-3;
+    unsigned top=(s->form_index&&s->io.rows>=15&&!(s->form_style&PS_FORM_OVERVIEW))?8:3,w=s->io.columns-3;
     if(x<4||x>=s->io.columns-2||s->io.rows<8||s->io.columns<20)return;
     if(f->kind==PS_FORM_CHOICE){
         unsigned slots=min(f->choice_count,s->io.rows-(top-1)-5);
@@ -98,7 +114,7 @@ static void form_finish(ps_session *s,int accepted){
 static void form_key(ps_session *s,unsigned key){
     const ps_form_field *f=s->form->fields+s->form_index;
     if(key==27||key==3){form_finish(s,0);prompt(s);return;}
-    if(key==13){
+    if(key==13||((s->form_style&PS_FORM_OVERVIEW)&&(key==9||key==PS_KEY_BACKTAB))){
         const char *value=f->kind==PS_FORM_CHOICE?f->choices[s->form_choice]:s->edit;
         unsigned count=0,i=0,n;
         while(value[i]){rune(value+i,&n);i+=n;++count;}
@@ -109,7 +125,9 @@ static void form_key(ps_session *s,unsigned key){
         else if(s->form->validate)s->form_error=s->form->validate(s->form->context,s->form_index,value);
         if(!s->form_error){
             str(f->value,value,f->capacity);
-            if(++s->form_index==s->form->count){form_finish(s,1);prompt(s);return;}
+            if(key==PS_KEY_BACKTAB){if(s->form_index)--s->form_index;}
+            else if(s->form_index+1<s->form->count)++s->form_index;
+            else if(key==13){form_finish(s,1);prompt(s);return;}
             form_load(s);
         }
         form_render(s);return;
@@ -136,6 +154,20 @@ static void form_key(ps_session *s,unsigned key){
     form_render(s);
 }
 #endif
+PS_API void ps_form_set_style(ps_session *s,unsigned flags){
+#if PS_FORM
+    if(s)s->form_style=flags;
+#else
+    (void)s;(void)flags;
+#endif
+}
+PS_API void ps_form_set_title(ps_session *s,const char *title){
+#if PS_FORM
+    if(s)s->form_title=title;
+#else
+    (void)s;(void)title;
+#endif
+}
 PS_API unsigned ps_form_active(const ps_session *s){
 #if PS_FORM
     return s&&s->form?s->form_index+1:0;

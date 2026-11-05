@@ -17,6 +17,20 @@ The SVG replays actual emitted bytes with recorded timing and blinking cursors.
 It loops by default; reduced-motion viewers show the final frame. This is a
 simulated consumer interaction, not a live connection or an executable terminal.
 
+**Service-console composition — 95 presentation states**
+
+| Contextual menu | Typed configuration |
+| --- | --- |
+| ![Service menu](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/service-main.png) | ![Typed configuration](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/service-settings.png) |
+
+| Parameter form with overview | Read-only document |
+| --- | --- |
+| ![Form overview](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/service-form.png) | ![Scrollable document](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/service-document.png) |
+
+[Build all 95 states and inspect the consumer source](Service-console.md).
+These are working UI fixtures with synthetic data; remote service and device
+operations are not implemented by the example.
+
 **Task workspace — semantic colors**
 
 ![PortableShell task workspace with semantic colors](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/workspace.png)
