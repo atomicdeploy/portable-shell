@@ -6,6 +6,17 @@ fixture data and pinned Agave typography with antialiasing. They are not mockups
 or proof of connected hardware. CI rebuilds every image from current source and
 rejects stale or missing files.
 
+**Animated terminal session — typing, menus and form editing**
+
+![Animated terminal replay](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/terminal-session.svg)
+
+[Playback options and recording format](Animated-previews.md) ·
+[Static fallback](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/terminal-session-poster.png)
+
+The SVG replays actual emitted bytes with recorded timing and blinking cursors.
+It loops by default; reduced-motion viewers show the final frame. This is a
+simulated consumer interaction, not a live connection or an executable terminal.
+
 **Task workspace — semantic colors**
 
 ![PortableShell task workspace with semantic colors](https://raw.githubusercontent.com/atomicdeploy/portable-shell/main/previews/workspace.png)

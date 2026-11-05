@@ -1,5 +1,7 @@
 #ifdef PS_RICH_REPLAY
 #include "portable_rich.h"
+#endif
+#if defined(PS_RICH_REPLAY) || defined(PS_REPLAY_ATTRIBUTES)
 static unsigned attributes;
 #endif
 /* Small, purpose-built ANSI replay renderer for verification. No dependencies.
@@ -17,12 +19,20 @@ static unsigned attributes;
 typedef struct {
     char text[5];
     unsigned fg, bg, span;
-#ifdef PS_RICH_REPLAY
+#if defined(PS_RICH_REPLAY) || defined(PS_REPLAY_ATTRIBUTES)
     unsigned attributes;
 #endif
 } Cell;
-static Cell screen[H][W];
+#ifndef PS_REPLAY_MAX_ROWS
+#define PS_REPLAY_MAX_ROWS H
+#endif
+#ifndef PS_REPLAY_MAX_COLUMNS
+#define PS_REPLAY_MAX_COLUMNS W
+#endif
+static Cell screen[PS_REPLAY_MAX_ROWS][PS_REPLAY_MAX_COLUMNS];
 static unsigned row, col, fg = 0xf1e7ff, bg = 0x17131f, escape, used;
+/* DECTCEM and DECSCUSR are needed by timed previews, even between redraws. */
+static unsigned cursor_visible = 1, cursor_shape = 1;
 static unsigned saved_row, saved_col;
 static unsigned default_fg = 0xf1e7ff, default_bg = 0x17131f;
 static char sequence[64], utf[5];
@@ -95,7 +105,12 @@ static void csi(char end) {
         else if (v == ';' && n < 15)
             ++n;
     }
-    if (end == 'H') {
+    if ((end == 'h' || end == 'l') && used && sequence[0] == '?') {
+        for (i = 0; i <= n; ++i)
+            if (a[i] == 25) cursor_visible = end == 'h';
+    } else if (end == 'q' && used && sequence[used - 1] == ' ') {
+        cursor_shape = a[0] <= 6 ? a[0] : 1;
+    } else if (end == 'H' || end == 'f') {
         row = a[0] ? a[0] - 1 : 0;
         col = a[1] ? a[1] - 1 : 0;
     } else if (end == 'G')
@@ -125,7 +140,7 @@ static void csi(char end) {
     } else if (end == 'm') {
         for (i = 0; i <= n; ++i) {
             if (a[i] == 0) {
-#ifdef PS_RICH_REPLAY
+#if defined(PS_RICH_REPLAY) || defined(PS_REPLAY_ATTRIBUTES)
                 attributes=0;
 #endif
                 fg = default_fg;
@@ -140,7 +155,7 @@ static void csi(char end) {
                 bg = t;
             } else if (a[i] >= 100 && a[i] <= 107) {
                 bg=palette(a[i]-100+8);
-#ifdef PS_RICH_REPLAY
+#if defined(PS_RICH_REPLAY) || defined(PS_REPLAY_ATTRIBUTES)
             } else if(a[i]==1||a[i]==2||a[i]==3||a[i]==4||a[i]==9){
                 attributes|=1u<<a[i];
             } else if(a[i]==22){attributes&=~((1u<<1)|(1u<<2));
@@ -177,7 +192,7 @@ static void put(const char *p) {
     uint32_t cp;ps_rich_decode(p,ps_text_length(p),&cp);span=ps_rich_cell_width(cp);if(!span)return;
 #endif
     if (row < H && col < W) {
-#ifdef PS_RICH_REPLAY
+#if defined(PS_RICH_REPLAY) || defined(PS_REPLAY_ATTRIBUTES)
         screen[row][col].attributes=attributes;
 #endif
         for (i = 0; p[i] && i < 4; ++i)
@@ -194,8 +209,11 @@ static void sink(void *ctx, const unsigned char *p, unsigned count) {
     (void)ctx;
     while (count--) {
         unsigned c = *p++;
+        /* Ignore OSC payloads (title/path/progress) rather than paint them as text. */
+        if (escape == 3) { if(c == 7)escape=0;else if(c == 27)escape=4;continue; }
+        if (escape == 4) { escape=c == '\\'?0:3;continue; }
         if (escape == 1) {
-            escape = c == '[' ? 2 : 0;
+            escape = c == '[' ? 2 : c == ']' ? 3 : 0;
             used = 0;
             continue;
         }
@@ -244,12 +262,14 @@ static void sink(void *ctx, const unsigned char *p, unsigned count) {
 }
 static char *dst;
 static unsigned size;
+static unsigned svg_overflow;
 #ifndef PS_REPLAY_SVG_CAPACITY
 #define PS_REPLAY_SVG_CAPACITY 400000
 #endif
 static void add(const char *p) {
     while (*p && size < PS_REPLAY_SVG_CAPACITY-10)
         dst[size++] = *p++;
+    if (*p) svg_overflow = 1;
 }
 static void number(unsigned n) {
     char b[12];
@@ -273,8 +293,15 @@ static void hex(unsigned n) {
 }
 /* Terminal emulators commonly draw box cells themselves to keep strokes joined
    at arbitrary line heights. Mirror that cell behavior in the replay utility. */
-static int box(Cell *v, unsigned x, unsigned y) {
+static int cell_path(Cell *v, unsigned x, unsigned y) {
     unsigned c;
+    /* U+276F prompt chevron is absent from regular Agave. Draw its cell-sized
+       outline directly, like box drawing, without embedding a multi-MB font. */
+    if ((unsigned char)v->text[0] == 0xe2 && (unsigned char)v->text[1] == 0x9d &&
+        (unsigned char)v->text[2] == 0xaf) {
+        add("<path fill=\"#");hex(v->fg);add("\" d=\"M ");number(x+2);add(" ");number(y+5);
+        add(" h 4 l 6 8 -6 8 h -4 l 6 -8 Z\"/>");return 1;
+    }
     if ((unsigned char)v->text[0] != 0xe2 ||
         ((unsigned char)v->text[1] != 0x94 && (unsigned char)v->text[1] != 0x95))
         return 0;
@@ -336,6 +363,7 @@ static unsigned svg(char *p) {
     unsigned r, c;
     dst = p;
     size = 0;
+    svg_overflow = 0;
     add("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"");
     number(W * 12 + 64);
     add("\" height=\"");
@@ -364,16 +392,18 @@ static unsigned svg(char *p) {
                 hex(v->bg);
                 add("\"/>");
             }
-            if (box(v, 32 + c * 12, 32 + r * 26))
+            if (cell_path(v, 32 + c * 12, 32 + r * 26))
                 continue;
             if (v->text[0] && v->text[0] != ' ') {
                 add("<text ");
-#ifdef PS_RICH_REPLAY
+#if defined(PS_RICH_REPLAY) || defined(PS_REPLAY_ATTRIBUTES)
                 if(v->attributes&(1u<<1))add("font-weight=\"bold\" ");
                 if(v->attributes&(1u<<2))add("opacity=\"0.6\" ");
                 if(v->attributes&(1u<<3))add("font-style=\"italic\" ");
                 if(v->attributes&(1u<<4))add("text-decoration=\"underline\" ");
                 else if(v->attributes&(1u<<9))add("text-decoration=\"line-through\" ");
+#endif
+#ifdef PS_RICH_REPLAY
                 { uint32_t cp; ps_rich_decode(v->text,ps_text_length(v->text),&cp);
                 if((cp>=0x2e80&&cp<=0x9fff)||(cp>=0xac00&&cp<=0xd7af)||(cp>=0xf900&&cp<=0xfaff))add("font-family=\"Noto Sans CJK JP\" "); }
 #endif
@@ -405,6 +435,7 @@ static unsigned svg(char *p) {
     add("\" width=\"2\" height=\"26\" fill=\"#abb2bf\"/>");
 #endif
     add("</svg>");
+    dst[size] = 0;
     return size;
 }
 #ifndef PS_REPLAY_ONLY
@@ -414,11 +445,12 @@ static void feed(ps_session *s, const char *p) {
 #endif
 /* Shared ANSI replay surface for the optional device-view regression pictures. */
 void ps_replay_reset(void) {
-#ifdef PS_RICH_REPLAY
+#if defined(PS_RICH_REPLAY) || defined(PS_REPLAY_ATTRIBUTES)
     attributes=0;
 #endif
     unsigned r,c;
     row=col=saved_row=saved_col=escape=used=utf_n=utf_left=0;fg=default_fg=0xabb2bf;bg=default_bg=0x282c34;
+    cursor_visible=cursor_shape=1;
     for(r=0;r<H;++r)for(c=0;c<W;++c)blank(r,c);
 }
 void ps_replay_feed(const unsigned char *bytes,unsigned count) { sink(0,bytes,count); }

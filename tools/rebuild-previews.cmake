@@ -62,11 +62,14 @@ endif()
 execute_process(COMMAND ${configure} COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${CMAKE_COMMAND}" --build "${BUILD_DIR}/native" --config Release COMMAND_ERROR_IS_FATAL ANY)
 set(frames menu-context menu-service form-password table-prompt-framed controls-filled hex-editor hex-fixed table-prompt device-plain snake retained-screen rich-text monitor-live monitor-error menu-list menu-filtered table-scrolled meters-segmented dashboard dashboard-edit form-validation form-choice form-steps report-leaders report-status help-registry help-command help-plain native-tree native-list native-split native-nerd native-emoji menu-centered menu-details editor-framed files meters workspace controls inline dialog red cyan onedark ascii controls-columns controls-collapsed controls-compact controls-inside menu document device-full device-vertical device-matrix device-inline device-reduced device-inside device-scrollbar device-scrollbar-compact prompt-colored prompt-multiline prompt-ascii seven-segment)
+list(APPEND frames terminal-session-poster)
 set(arguments)
 set(managed)
 foreach(frame IN LISTS frames)
   list(APPEND managed "${frame}.svg" "${frame}.png")
 endforeach()
+list(APPEND managed terminal-session.svg terminal-session.psrec Agave-LICENSE.txt)
+configure_file("${cache}/Agave-LICENSE" "${generated}/Agave-LICENSE.txt" COPYONLY)
 foreach(frame workspace controls inline dialog red cyan onedark ascii controls-columns controls-collapsed controls-compact controls-inside menu document controls-filled)
   list(APPEND arguments "${generated}/${frame}.svg")
 endforeach()
@@ -95,6 +98,12 @@ execute_process(COMMAND "${BUILD_DIR}/native/bin/help_preview${exe}" "${generate
 execute_process(COMMAND "${BUILD_DIR}/native/bin/snake_preview${exe}" "${generated}/snake.svg" COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${BUILD_DIR}/native/bin/hex_preview${exe}" "${generated}/hex-editor.svg" "${generated}/hex-fixed.svg" COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${BUILD_DIR}/native/bin/menu_context_preview${exe}" "${generated}/menu-context.svg" "${generated}/menu-service.svg" "${generated}/form-password.svg" COMMAND_ERROR_IS_FATAL ANY)
+execute_process(COMMAND "${BUILD_DIR}/native/bin/animation_demo${exe}"
+  "${generated}/terminal-session.psrec" COMMAND_ERROR_IS_FATAL ANY)
+execute_process(COMMAND "${BUILD_DIR}/native/bin/terminal_animation${exe}"
+  "${generated}/terminal-session.psrec" "${generated}/terminal-session.svg"
+  --font "${cache}/Agave.ttf" --poster "${generated}/terminal-session-poster.svg"
+  COMMAND_ERROR_IS_FATAL ANY)
 foreach(frame IN LISTS frames)
   # One explicitly supplied font; two-times resolution for smooth display scaling.
   set(extra_fonts)
@@ -140,4 +149,4 @@ if(stale)
   message(FATAL_ERROR "Stale previews: ${stale}\nRun cmake -DMODE=UPDATE -P tools/rebuild-previews.cmake and commit the results. Fresh images: ${generated}")
 endif()
 list(LENGTH frames frame_count)
-message(STATUS "Preview ${MODE} passed: all ${frame_count} SVG/PNG pairs; pinned Agave and resvg ${resvg_version}")
+message(STATUS "Preview ${MODE} passed: ${frame_count} SVG/PNG pairs and timed SVG recording; pinned Agave and resvg ${resvg_version}")

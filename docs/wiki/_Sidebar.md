@@ -5,6 +5,7 @@
 - [🚀 Getting started](Getting-started.md)
 - [🛠️ Building](Building.md)
 - [🖼️ Gallery](Gallery.md)
+- [🎞️ Animated previews](Animated-previews.md)
 - [⌨️ Shell](Shell.md)
 - [📋 Workspace](Workspace.md)
 - [🔢 Menus](Menus.md)
