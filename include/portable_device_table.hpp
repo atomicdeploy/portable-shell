@@ -572,9 +572,11 @@ template<class Write> bool renderTable(const Snapshot &s,Write write) {
         char limits[96]={0};if(r&&r->kind==Level)ps_terminal_format(limits,sizeof limits,"%u..%u  step %u",r->minimum,r->maximum,r->step);
         position(top+4);edge(out,s,"│ ","| ");ink(out,PS_INK_MUTED);out.field(*notice_?notice_:limits,dw-4);edge(out,s," │"," |");
         position(top+5);edge(out,s,"│ ","| ");
-        if(dialogFocus_==ApplyFocus)out.raw(ps_style_surface(theme_,trueColor_,1));else ink(out,PS_INK_SUCCESS);
+        if(PS_ACTION_BUTTONS)out.raw(ps_style_button(theme_,trueColor_,dialogFocus_==ApplyFocus?PS_BUTTON_FOCUSED:PS_BUTTON_IDLE));
+        else if(dialogFocus_==ApplyFocus)out.raw(ps_style_surface(theme_,trueColor_,1));else ink(out,PS_INK_SUCCESS);
         out.raw(" Apply ");base(out);out.raw("  ");
-        if(dialogFocus_==CancelFocus)out.raw(ps_style_surface(theme_,trueColor_,1));
+        if(PS_ACTION_BUTTONS)out.raw(ps_style_button(theme_,trueColor_,dialogFocus_==CancelFocus?PS_BUTTON_FOCUSED:PS_BUTTON_IDLE));
+        else if(dialogFocus_==CancelFocus)out.raw(ps_style_surface(theme_,trueColor_,1));
         out.raw(" Cancel ");base(out);out.field("",dw-21);edge(out,s," │"," |");
         position(top+6);rule(out,s,dw,"╰","╯",false);
         out.indent(0);out.position(s.lines-1,2);hint(out,"Tab focus  Enter apply  Esc cancel");
