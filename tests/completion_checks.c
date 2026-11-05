@@ -29,7 +29,8 @@ static int locate(const char *text,unsigned *y,unsigned *x){
             p+=n;
         }
         if(!*p)return 1;
-    }return 0;
+    }
+    return 0;
 }
 static void selected(const char *name){
     unsigned y,x;assert(locate(name,&y,&x));
