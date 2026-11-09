@@ -1,0 +1,11 @@
+{
+  // A real settings shape; this file is data and is never launched.
+  "defaultProfile": "{test-shell}",
+  "profiles": {
+    "defaults": {"environment": {"FIXTURE_ONLY": "literal"}},
+    "list": [
+      {"name": "Test shell", "guid": "{test-shell}", "commandline": "never-launch.exe --fixture"},
+      {"name": "Hidden", "hidden": true, "source": "Unresolved.Test.Source"},
+    ]
+  }
+}

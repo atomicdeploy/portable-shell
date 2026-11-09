@@ -3,6 +3,12 @@
 PortableShell is distributed under the [MIT license](../LICENSE); its copyright
 notices remain applicable.
 
+The generic terminal-profile importer is an original C implementation of the
+published Windows Terminal and VS Code settings formats. Format documentation
+and ownership boundaries are listed in [Terminal profiles](Terminal-profiles.md).
+No donor parser, JSON library, application code or shell executable is bundled
+by that importer.
+
 The image rebuild workflow and shared device preview fixture were adapted from
 DRSDavidSoft/Ardush MIT-licensed preview tooling. The C terminal replay renderer
 is implemented in this repository.
