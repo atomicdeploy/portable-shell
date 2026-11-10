@@ -61,18 +61,19 @@ jobs:
         run: |
           cmake -S . -B build-codeql-libc -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPORTABLE_SHELL_OPTIMIZATION=toolchain -DPORTABLE_SHELL_USE_LIBC=ON -DPORTABLE_SHELL_BUILD_HOST=OFF -DPORTABLE_SHELL_BUILD_TESTS=OFF
           cmake --build build-codeql-libc --parallel 3
-      - name: 🧪 Check analyzed native build
-        id: test
-        if: matrix.mode == 'manual'
-        run: ctest --test-dir build-codeql --output-on-failure --parallel 3 --timeout 120
       - name: 🛡️ Upload analysis
         id: analyze
-        # A runtime-test failure still leaves a valid compiled database to scan.
         if: ${{ !cancelled() && steps.init.outcome == 'success' && (matrix.mode != 'manual' || (steps.build.outcome == 'success' && steps.libc.outcome == 'success')) }}
         uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           category: /language:${{ matrix.language }}/os:${{ matrix.os }}
           wait-for-processing: true
+      - name: 🧪 Check analyzed native build
+        id: test
+        if: matrix.mode == 'manual'
+        # Analyze finalizes compiler tracing before these runtime tests launch
+        # child processes. The Windows tracer otherwise changes launch errors.
+        run: ctest --test-dir build-codeql --output-on-failure --parallel 3 --timeout 120
       - name: 📊 Analysis summary
         if: always()
         env:
