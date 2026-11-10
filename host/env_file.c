@@ -82,40 +82,93 @@ done:if(!CloseHandle(file))ok=0;
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
-#include <stdio.h> /* rename */
+#include <stdio.h> /* renameat */
 int env_file_create(const char *path,const char **error){
     int fd;*error="Cannot create file (existing paths are never overwritten)";
     fd=open(path,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW,0600);if(fd<0)return 0;
     if(close(fd))return 0;
     *error=0;return 1;
 }
+static int env_read_open(int fd,char *bytes,unsigned *size,struct stat *info){
+    unsigned total=0;ssize_t n;
+    if(fstat(fd,info)||!S_ISREG(info->st_mode)||info->st_size<0||info->st_size>=PS_ENV_BYTES)return 0;
+    while(total<PS_ENV_BYTES){
+        n=read(fd,bytes+total,PS_ENV_BYTES-total);
+        if(n<0){if(errno==EINTR)continue;return 0;}
+        if(!n)break;
+        total+=(unsigned)n;
+    }
+    if(total==PS_ENV_BYTES)return 0;
+    bytes[total]=0;*size=total;return 1;
+}
 int env_file_read(const char *path,char *bytes,unsigned *size,const char **error){
-    int fd;struct stat st;unsigned total=0;ssize_t n;
+    int fd,ok;struct stat st;
     *error="Cannot read regular file (links and oversized files are refused)";
-    fd=open(path,O_RDONLY|O_NOFOLLOW|O_NONBLOCK);if(fd<0)return 0;
-    if(fstat(fd,&st)||!S_ISREG(st.st_mode)||st.st_size>=PS_ENV_BYTES){close(fd);return 0;}
-    while(total<PS_ENV_BYTES){n=read(fd,bytes+total,PS_ENV_BYTES-total);if(n<0){if(errno==EINTR)continue;close(fd);return 0;}if(!n)break;total+=(unsigned)n;}
-    close(fd);if(total==PS_ENV_BYTES)return 0;bytes[total]=0;*size=total;*error=0;return 1;
+    fd=open(path,O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC);if(fd<0)return 0;
+    ok=env_read_open(fd,bytes,size,&st);if(close(fd))ok=0;
+    if(ok)*error=0;
+    return ok;
+}
+static int env_saved_bytes(const env_document *d,unsigned n){
+    unsigned i;if(n!=d->saved_size)return 0;
+    for(i=0;i<n;++i)if(d->scratch[i]!=d->saved[i])return 0;
+    return 1;
+}
+/* Hold the containing directory open, then use only descriptor-relative names.
+   POSIX has no portable compare-and-rename operation. Requiring an owned parent
+   without group/other write access prevents another user replacing entries
+   between validation and atomic rename; a path-only stat check cannot do this. */
+static int env_save_parent(const char *path,const char **leaf,const char **error){
+    char parent[PS_ENV_PATH];struct stat st;unsigned i,split=0,n=env_length(path);int directory;
+    *error="Invalid save path";
+    if(!n||n>=sizeof parent||path[n-1]=='/')return -1;
+    for(i=0;i<n;++i)if(path[i]=='/')split=i+1;
+    *leaf=path+split;
+    if((**leaf=='.'&&!(*leaf)[1])||((*leaf)[0]=='.'&&(*leaf)[1]=='.'&&!(*leaf)[2]))return -1;
+    if(split){n=split==1?1:split-1;env_copy(parent,path,n);parent[n]=0;}
+    else {parent[0]='.';parent[1]=0;}
+    directory=open(parent,O_RDONLY|O_DIRECTORY|O_CLOEXEC);if(directory<0)return -1;
+    if(fstat(directory,&st)||st.st_uid!=geteuid()||(st.st_mode&(S_IWGRP|S_IWOTH))){
+        close(directory);*error="Safe save needs a directory owned by the current user without group/other write access";return -1;
+    }
+    return directory;
 }
 int env_file_save(const char *path,env_document *d,const char **error){
-    char temp[PS_ENV_PATH];struct stat st;unsigned i,n,total=0;int fd,ok=1;ssize_t wrote;
-    if(!env_file_read(path,d->scratch,&n,error))return 0;
+    char temp[PS_ENV_PATH];const char *leaf=0;struct stat original,current;
+    unsigned n,total=0;int directory,source=-1,fd=-1,check=-1,staged=0,ok=0;ssize_t wrote;
+    directory=env_save_parent(path,&leaf,error);if(directory<0)return 0;
+    *error="Cannot read original file for saving";
+    source=openat(directory,leaf,O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC);
+    if(source<0||!env_read_open(source,d->scratch,&n,&original))goto done;
     *error="File changed on disk; reload before saving";
-    if(n!=d->saved_size)return 0;
-    for(i=0;i<n;++i)if(d->scratch[i]!=d->saved[i])return 0;
-    if(lstat(path,&st)||!S_ISREG(st.st_mode))return 0;
-    n=env_length(path);if(n+sizeof ".portable-shell.tmp">sizeof temp)return 0;
-    env_copy(temp,path,n);env_copy(temp+n,".portable-shell.tmp",sizeof ".portable-shell.tmp");
-    fd=open(temp,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW,0600);
-    if(fd<0){*error="Cannot create private staging file (it may already exist)";return 0;}
-    while(total<d->size){wrote=write(fd,d->text+total,d->size-total);if(wrote<0&&errno==EINTR)continue;if(wrote<=0){ok=0;break;}total+=(unsigned)wrote;}
-    /* Refuse to silently change the owner/group of a file being replaced. */
-    if(ok&&(fchown(fd,st.st_uid,st.st_gid)||fchmod(fd,st.st_mode&0777)||fsync(fd)))ok=0;
-    if(close(fd))ok=0;
-    if(ok){ok=env_file_read(path,d->scratch,&n,error)&&n==d->saved_size;
-        for(i=0;ok&&i<n;++i)if(d->scratch[i]!=d->saved[i])ok=0;
-        if(ok)ok=rename(temp,path)==0;}
-    if(!ok){unlink(temp);*error="Save failed or file changed; original retained, draft remains open";return 0;}
-    env_mark_saved(d);*error=0;return 1;
+    if(!env_saved_bytes(d,n))goto done;
+    n=env_length(leaf);if(n+sizeof ".portable-shell.tmp">sizeof temp)goto done;
+    env_copy(temp,leaf,n);env_copy(temp+n,".portable-shell.tmp",sizeof ".portable-shell.tmp");
+    fd=openat(directory,temp,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC,S_IRUSR|S_IWUSR);
+    *error="Cannot create private staging file (it may already exist)";
+    if(fd<0)goto done;
+    staged=1;*error="Save failed; original retained, draft remains open";
+    while(total<d->size){
+        wrote=write(fd,d->text+total,d->size-total);
+        if(wrote<0&&errno==EINTR)continue;
+        if(wrote<=0)goto done;
+        total+=(unsigned)wrote;
+    }
+    /* Metadata comes from the open original, never from a separate path lookup. */
+    if(fchown(fd,original.st_uid,original.st_gid)||fchmod(fd,original.st_mode&(S_IRWXU|S_IRWXG|S_IRWXO))||fsync(fd))goto done;
+    {int result=close(fd);fd=-1;if(result)goto done;}
+    *error="File changed on disk; original retained, draft remains open";
+    check=openat(directory,leaf,O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC);
+    if(check<0||!env_read_open(check,d->scratch,&n,&current)||!env_saved_bytes(d,n)||
+       current.st_dev!=original.st_dev||current.st_ino!=original.st_ino||
+       current.st_uid!=original.st_uid||current.st_gid!=original.st_gid||current.st_mode!=original.st_mode)goto done;
+    if(renameat(directory,temp,directory,leaf))goto done;
+    ok=1;env_mark_saved(d);*error=0;
+done:
+    if(fd>=0)close(fd);
+    if(check>=0)close(check);
+    if(source>=0)close(source);
+    if(staged&&!ok)unlinkat(directory,temp,0);
+    close(directory);return ok;
 }
 #endif

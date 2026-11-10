@@ -4,11 +4,15 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  merge_group:
   schedule:
     - cron: '23 5 * * 1'
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: codeql-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   analyze:
     name: 🔎 ${{ matrix.language }} / ${{ matrix.os }}
@@ -26,6 +30,9 @@ jobs:
           - language: c-cpp
             mode: manual
             os: windows-latest
+          - language: c-cpp
+            mode: manual
+            os: macos-latest
           - language: actions
             mode: none
             os: ubuntu-latest
@@ -41,21 +48,35 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.mode }}
+          config-file: ./.github/codeql-config.yml
       - name: 🔨 Build C and C++ targets
         id: build
         if: matrix.mode == 'manual'
         run: |
-          cmake -S . -B build-codeql -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPORTABLE_SHELL_BUILD_LEGACY=ON
-          cmake --build build-codeql
+          cmake -S . -B build-codeql -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPORTABLE_SHELL_OPTIMIZATION=toolchain -DPORTABLE_SHELL_BUILD_LEGACY=ON -DPORTABLE_SHELL_HOST_EXEC=ON -DPORTABLE_SHELL_SETTINGS_EXAMPLE=ON -DPORTABLE_SHELL_REMOTE_EXAMPLE=ON -DPORTABLE_SHELL_DEVICE_PROFILE=ON
+          cmake --build build-codeql --parallel 3
+      - name: 🔨 Build optional libc backend
+        id: libc
+        if: matrix.mode == 'manual'
+        run: |
+          cmake -S . -B build-codeql-libc -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPORTABLE_SHELL_OPTIMIZATION=toolchain -DPORTABLE_SHELL_USE_LIBC=ON -DPORTABLE_SHELL_BUILD_HOST=OFF -DPORTABLE_SHELL_BUILD_TESTS=OFF
+          cmake --build build-codeql-libc --parallel 3
+      - name: 🧪 Check analyzed native build
+        id: test
+        if: matrix.mode == 'manual'
+        run: ctest --test-dir build-codeql --output-on-failure --parallel 3 --timeout 120
       - name: 🛡️ Upload analysis
         id: analyze
+        # A runtime-test failure still leaves a valid compiled database to scan.
+        if: ${{ !cancelled() && steps.init.outcome == 'success' && (matrix.mode != 'manual' || (steps.build.outcome == 'success' && steps.libc.outcome == 'success')) }}
         uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           category: /language:${{ matrix.language }}/os:${{ matrix.os }}
+          wait-for-processing: true
       - name: 📊 Analysis summary
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
           STEPS_JSON: ${{ toJSON(steps) }}
-          BUILD_CONFIGURATION: CodeQL ${{ matrix.language }} / ${{ matrix.mode }}
+          BUILD_CONFIGURATION: CodeQL security-extended / ${{ matrix.language }} / ${{ matrix.mode }} / ${{ matrix.os }}
         run: cmake -DREPORT_DIR=build-codeql -P tools/ci/summary.cmake

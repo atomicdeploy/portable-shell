@@ -6,7 +6,8 @@ Include the commit, build flags, transport, input bytes, and a minimal reproduct
 Do not publish credentials or sensitive device data.
 
 Security fixes target the current `main` branch. There is no promised response-time
-SLA or maintained historic release series. CodeQL scans C/C++ and GitHub Actions;
+SLA or maintained historic release series. CodeQL advanced setup scans C/C++ on
+Linux, Windows and macOS and scans GitHub Actions, with the extended security suite;
 Dependabot proposes action updates. Neither replaces protocol validation or review.
 The default TCP listener is loopback-only. Telnet is plaintext and has no built-in
 authentication; applications own authorization and deployment boundaries.

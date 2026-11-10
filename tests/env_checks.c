@@ -1,9 +1,15 @@
+#ifndef _WIN32
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include "../host/env_manager.h"
 #include "portable_util.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 void ps_replay_reset(void);
 void ps_replay_feed(const unsigned char *,unsigned);
 unsigned ps_replay_svg(char *);
@@ -73,6 +79,10 @@ static void model_checks(void){
 }
 static void file_checks(void){
     const char *path="env-manager-test.tmp",*error=0;FILE *f;unsigned n;
+#ifndef _WIN32
+    char directory[]="/tmp/portable-shell-env-basic-XXXXXX",previous[PS_ENV_PATH];
+    assert(getcwd(previous,sizeof previous)&&mkdtemp(directory)&&!chdir(directory));
+#endif
     assert(env_file_create(path,&error));assert(!env_file_create(path,&error));
     f=fopen(path,"wb");assert(f);fputs("KEY=one\r\n# retained\r\n",f);assert(!fclose(f));
     assert(env_file_read(path,doc.scratch,&n,&error));assert(env_load(&doc,doc.scratch,n));
@@ -81,6 +91,9 @@ static void file_checks(void){
     assert(env_set_value(&doc,0,"three"));f=fopen(path,"wb");assert(f);fputs("KEY=external\n",f);fclose(f);
     assert(!env_file_save(path,&doc,&error));assert(env_dirty(&doc));
     assert(env_file_read(path,doc.scratch,&n,&error));assert(!strcmp(doc.scratch,"KEY=external\n"));assert(!remove(path));
+#ifndef _WIN32
+    assert(!chdir(previous)&&!rmdir(directory));
+#endif
 }
 int main(int argc,char **argv){
     ps_config config={sink,0,100,32,PS_INTERACTIVE|PS_COLOR|PS_TRUECOLOR|PS_UNICODE};

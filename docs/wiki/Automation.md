@@ -18,11 +18,32 @@ stack memory. Cross-compilation is not board execution.
 
 ## CodeQL and dependencies
 
-CodeQL manually builds the C/C++ targets on Linux and Windows, including tests
-that instantiate shared C++ headers. A separate Actions scan checks workflows.
-It runs on pull requests, main pushes, manual dispatch and a weekly schedule.
+CodeQL advanced setup manually builds C/C++ on Linux, Windows and macOS, including
+tests that instantiate the shared full/reduced C++ headers. The scan build enables
+the optional execution, settings, remote-provider and original-API adapters so
+their guarded code is analyzed too. A second traced build covers the optional
+libc backend; ordinary consumer build defaults stay unchanged. The native tests
+run before analysis. A separate Actions scan checks workflow security.
+
+`.github/codeql-config.yml` adds `security-extended` to the default queries,
+without source-path or query exclusions. The workflow has stable per-language/OS
+analysis categories and waits for GitHub's SARIF processing. Its token has read
+access plus the job-scoped `security-events: write` needed for upload; checkout
+does not persist credentials. Advanced setup owns these analyses, so a duplicate
+default-setup configuration is unnecessary.
+
+Scans run on pull requests, main pushes, merge groups, manual dispatch and Mondays
+at 05:23 UTC. Superseded runs of the same PR are canceled; main-branch runs are
+retained. Each job writes its outcome to the shared step-summary generator.
 [GitHub's compiled-language guidance](https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/codeql-for-compiled-languages)
 explains why manual builds determine which compiled code is analyzed.
+
+Inspect both [workflow results](https://github.com/atomicdeploy/portable-shell/actions/workflows/codeql.yml)
+and [code-scanning alerts](https://github.com/atomicdeploy/portable-shell/security/code-scanning):
+a successful upload does not mean there are no findings. Fix verified findings
+and retain regression coverage; do not disable a query to make a scan look clean.
+Native scans do not prove that every possible consumer flag combination or MCU
+toolchain has been analyzed. The separate cross-build jobs cover those build gates.
 
 Dependabot checks GitHub Actions weekly; minor/patch updates are grouped and major
 updates remain separate. Actions are pinned to commit IDs with version comments.
