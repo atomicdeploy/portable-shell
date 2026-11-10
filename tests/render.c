@@ -1,3 +1,4 @@
+#include "../include/portable_semantic.h"
 #ifdef PS_RICH_REPLAY
 #include "portable_rich.h"
 #endif
@@ -19,6 +20,7 @@ static unsigned attributes;
 typedef struct {
     char text[5];
     unsigned fg, bg, span;
+    unsigned fg_role,bg_role;
 #if defined(PS_RICH_REPLAY) || defined(PS_REPLAY_ATTRIBUTES)
     unsigned attributes;
 #endif
@@ -31,6 +33,7 @@ typedef struct {
 #endif
 static Cell screen[PS_REPLAY_MAX_ROWS][PS_REPLAY_MAX_COLUMNS];
 static unsigned row, col, fg = 0xf1e7ff, bg = 0x17131f, escape, used;
+static unsigned fg_role,bg_role,osc_overflow,accent_color=0xd8a0ff;
 /* DECTCEM and DECSCUSR are needed by timed previews, even between redraws. */
 static unsigned cursor_visible = 1, cursor_shape = 1;
 static unsigned saved_row, saved_col;
@@ -76,6 +79,7 @@ static void blank(unsigned r, unsigned c) {
     screen[r][c].span = 1;
     screen[r][c].fg = fg;
     screen[r][c].bg = bg;
+    screen[r][c].fg_role=fg_role;screen[r][c].bg_role=bg_role;
 }
 static unsigned palette(unsigned n) {
     static const unsigned colors[16] = {0x000000, 0xcc4444, 0x55aa55, 0xccaa55, 0x6688cc, 0xaa66cc,
@@ -145,16 +149,20 @@ static void csi(char end) {
 #endif
                 fg = default_fg;
                 bg = default_bg;
+                fg_role=bg_role=0;
             } else if (a[i] == 39) {
                 fg = default_fg;
+                fg_role=0;
             } else if (a[i] == 49) {
                 bg = default_bg;
+                bg_role=0;
             } else if (a[i] == 7) {
                 unsigned t = fg;
                 fg = bg;
                 bg = t;
+                t=fg_role;fg_role=bg_role;bg_role=t;
             } else if (a[i] >= 100 && a[i] <= 107) {
-                bg=palette(a[i]-100+8);
+                bg=palette(a[i]-100+8);bg_role=0;
 #if defined(PS_RICH_REPLAY) || defined(PS_REPLAY_ATTRIBUTES)
             } else if(a[i]==1||a[i]==2||a[i]==3||a[i]==4||a[i]==9){
                 attributes|=1u<<a[i];
@@ -164,23 +172,19 @@ static void csi(char end) {
             } else if(a[i]==29){attributes&=~(1u<<9);
 #endif
             } else if (a[i] >= 90 && a[i] <= 97) {
-                fg = palette(a[i] - 90 + 8);
+                fg = palette(a[i] - 90 + 8);fg_role=0;
             } else if (a[i] >= 30 && a[i] <= 37) {
-                fg = palette(a[i] - 30);
+                fg = palette(a[i] - 30);fg_role=0;
             } else if (a[i] >= 40 && a[i] <= 47) {
-                bg = palette(a[i] - 40);
+                bg = palette(a[i] - 40);bg_role=0;
             } else if ((a[i] == 38 || a[i] == 48) && i + 2 <= n && a[i + 1] == 5) {
-                if (a[i] == 38)
-                    fg = palette(a[i + 2]);
-                else
-                    bg = palette(a[i + 2]);
+                if (a[i] == 38){fg = palette(a[i + 2]);fg_role=0;}
+                else {bg = palette(a[i + 2]);bg_role=0;}
                 i += 2;
             } else if ((a[i] == 38 || a[i] == 48) && i + 4 <= n && a[i + 1] == 2) {
                 unsigned rgb = (a[i + 2] << 16) | (a[i + 3] << 8) | a[i + 4];
-                if (a[i] == 38)
-                    fg = rgb;
-                else
-                    bg = rgb;
+                if (a[i] == 38){fg = rgb;fg_role=0;}
+                else {bg = rgb;bg_role=0;}
                 i += 4;
             }
         }
@@ -202,6 +206,7 @@ static void put(const char *p) {
         if(span==2 && col+1<W){blank(row,col+1);screen[row][col+1].span=0;}
         screen[row][col].fg = fg;
         screen[row][col].bg = bg;
+        screen[row][col].fg_role=fg_role;screen[row][col].bg_role=bg_role;
     }
     col+=span;
 }
@@ -209,12 +214,21 @@ static void sink(void *ctx, const unsigned char *p, unsigned count) {
     (void)ctx;
     while (count--) {
         unsigned c = *p++;
-        /* Ignore OSC payloads (title/path/progress) rather than paint them as text. */
-        if (escape == 3) { if(c == 7)escape=0;else if(c == 27)escape=4;continue; }
-        if (escape == 4) { escape=c == '\\'?0:3;continue; }
+        /* Bounded OSC buffering survives arbitrary transport chunks. */
+        if (escape == 3) {
+            if(c==7){unsigned role=osc_overflow?0:ps_semantic_osc_role(sequence,used);if(role)fg_role=role;escape=0;}
+            else if(c==27)escape=4;
+            else if(used<sizeof sequence)sequence[used++]=(char)c;else osc_overflow=1;
+            continue;
+        }
+        if (escape == 4) {
+            if(c=='\\'){unsigned role=osc_overflow?0:ps_semantic_osc_role(sequence,used);if(role)fg_role=role;escape=0;}
+            else {escape=3;osc_overflow=1;}continue;
+        }
         if (escape == 1) {
             escape = c == '[' ? 2 : c == ']' ? 3 : 0;
             used = 0;
+            osc_overflow=0;
             continue;
         }
         if (escape == 2) {
@@ -381,7 +395,9 @@ static unsigned svg(char *p) {
     add("\"/><g font-family=\"Agave\" font-size=\"24\">");
     for (r = 0; r < H; ++r)
         for (c = 0; c < W; ++c) {
-            Cell *v = &screen[r][c];
+            Cell resolved=screen[r][c];Cell *v=&resolved;
+            if(v->fg_role)v->fg=accent_color;
+            if(v->bg_role)v->bg=accent_color;
             if(!v->span)continue;
             if (v->bg != default_bg) {
                 add("<rect x=\"");
@@ -450,7 +466,7 @@ void ps_replay_reset(void) {
 #endif
     unsigned r,c;
     row=col=saved_row=saved_col=escape=used=utf_n=utf_left=0;fg=default_fg=0xabb2bf;bg=default_bg=0x282c34;
-    cursor_visible=cursor_shape=1;
+    cursor_visible=cursor_shape=1;fg_role=bg_role=0;osc_overflow=0;accent_color=0xd8a0ff;
     for(r=0;r<H;++r)for(c=0;c<W;++c)blank(r,c);
 }
 void ps_replay_feed(const unsigned char *bytes,unsigned count) { sink(0,bytes,count); }
@@ -458,8 +474,10 @@ unsigned ps_replay_svg(char *buffer) { return svg(buffer); }
 unsigned ps_replay_row(void){return row;}
 unsigned ps_replay_column(void){return col;}
 const char *ps_replay_cell(unsigned r,unsigned c){return r<H&&c<W?screen[r][c].text:"";}
-unsigned ps_replay_background(unsigned r,unsigned c){return r<H&&c<W?screen[r][c].bg:0;}
-unsigned ps_replay_foreground(unsigned r,unsigned c){return r<H&&c<W?screen[r][c].fg:0;}
+unsigned ps_replay_background(unsigned r,unsigned c){return r<H&&c<W?(screen[r][c].bg_role?accent_color:screen[r][c].bg):0;}
+unsigned ps_replay_foreground(unsigned r,unsigned c){return r<H&&c<W?(screen[r][c].fg_role?accent_color:screen[r][c].fg):0;}
+unsigned ps_replay_foreground_role(unsigned r,unsigned c){return r<H&&c<W?screen[r][c].fg_role:0;}
+void ps_replay_set_accent(unsigned rgb){accent_color=rgb&0xffffffu;}
 #ifndef PS_REPLAY_ONLY
 __attribute__((noinline, noipa)) int render_complete(void) {
     return 0;

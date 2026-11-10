@@ -31,17 +31,35 @@ mode retains recognizable bracketed buttons without depending on color:
 
 ![Monochrome action buttons](../../previews/action-buttons-mono.png)
 
-**Dotted-key settings — shared typed registry and editable table**
+**Settings — readable labels, stable keys and choice popups**
 
-![Dotted-key settings editor](../../previews/settings-editor.png)
+![Human-readable settings editor](../../previews/settings-editor.png)
 
-Grouped keys, typed controls, inline/modal editing and read-only values use the
+Grouped labels, typed controls, inline/modal editing and read-only values use the
 same registry as command-line updates. [Run or embed the adapter](Settings-editor.md).
 This preview uses the example's in-memory settings, not connected service state.
 
 Inline editing keeps the value at the same cell origin, without adding a leading space:
 
 ![Dotted-key settings inline editor](../../previews/settings-editor-inline.png)
+
+F6 in the example switches to violet dotted keys without changing stored names or
+values. Enter, Space or F2 opens choices; ↑/↓ and Tab wrap, Enter commits, Esc
+discards, and clicking a choice commits it. The circle identifies the saved value.
+Enter/Space opens the list at the value cell (above it when space below is limited);
+F2 opens a centered modal list.
+
+| Dotted keys | Choice popup |
+| --- | --- |
+| ![Dotted keys](../../previews/settings-editor-keys.png) | ![Choice popup](../../previews/settings-editor-choice.png) |
+
+An opt-in [semantic application accent](Semantic-accent.md) lets supporting hosts
+recolor retained cells without treating ordinary cyan as an application accent.
+These two captures resolve the same emitted semantic heading role differently:
+
+| Green accent | Magenta accent |
+| --- | --- |
+| ![Green accent](../../previews/settings-accent-green.png) | ![Magenta accent](../../previews/settings-accent-magenta.png) |
 
 **Local .env manager — actual interactive document editing**
 
