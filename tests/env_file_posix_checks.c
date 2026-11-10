@@ -16,6 +16,7 @@ static int save_checkpoint(int fd);
 #undef fsync
 
 static env_document document;
+enum { VALUE_MODE=S_IRUSR|S_IWUSR|S_IRGRP };
 static unsigned mutation;
 static const char *error;
 static void put(const char *path,const char *text){
@@ -33,7 +34,10 @@ static void draft(const char *path){
 static int save_checkpoint(int fd){
     int result=fsync(fd);
     if(!result&&mutation==1){
+        int replacement;
         mutation=0;assert(!rename("values.env","original.env"));put("values.env","KEY=one\n");
+        replacement=open("values.env",O_RDONLY);
+        assert(replacement>=0&&!fchmod(replacement,VALUE_MODE)&&!close(replacement));
     }else if(!result&&mutation==2){
         mutation=0;assert(!rename("parent","moved"));assert(!mkdir("parent",0700));
         put("parent/values.env","KEY=imposter\n");
@@ -41,13 +45,13 @@ static int save_checkpoint(int fd){
     return result;
 }
 int main(void){
-    char sandbox[]="/tmp/portable-shell-env-XXXXXX",previous[4096];int fd;struct stat before,after;
+    char sandbox[]="/tmp/portable-shell-env-XXXXXX",previous[PS_ENV_PATH];int fd;struct stat before,after;
     assert(getcwd(previous,sizeof previous));assert(mkdtemp(sandbox));assert(!chdir(sandbox));
     put("values.env","KEY=one\n");fd=open("values.env",O_RDONLY);assert(fd>=0);
-    assert(!fchmod(fd,0640)&&!fstat(fd,&before)&&!close(fd));draft("values.env");
+    assert(!fchmod(fd,VALUE_MODE)&&!fstat(fd,&before)&&!close(fd));draft("values.env");
     assert(env_file_save("values.env",&document,&error)&&!env_dirty(&document));expect("values.env","KEY=two\n");
     fd=open("values.env",O_RDONLY);assert(fd>=0&&!fstat(fd,&after)&&!close(fd));
-    assert(before.st_uid==after.st_uid&&before.st_gid==after.st_gid&&(after.st_mode&0777)==0640);
+    assert(before.st_uid==after.st_uid&&before.st_gid==after.st_gid&&(after.st_mode&(S_IRWXU|S_IRWXG|S_IRWXO))==VALUE_MODE);
     put("values.env","KEY=one\n");draft("values.env");put("values.env.portable-shell.tmp","occupied\n");
     assert(!env_file_save("values.env",&document,&error)&&env_dirty(&document));
     expect("values.env.portable-shell.tmp","occupied\n");expect("values.env","KEY=one\n");
