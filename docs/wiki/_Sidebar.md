@@ -8,6 +8,7 @@
 - [🎞️ Animated previews](Animated-previews.md)
 - [⌨️ Shell](Shell.md)
 - [📋 Workspace](Workspace.md)
+- [Frame styles](Frame-styles.md)
 - [🔢 Menus](Menus.md)
 - [Service consoles](Service-consoles.md)
 - [📝 Text editor](Text-editor.md)
