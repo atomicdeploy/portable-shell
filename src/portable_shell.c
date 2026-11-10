@@ -197,6 +197,17 @@ struct ps_session {
     char selection_marker[32];
     unsigned selection_marker_override;
     const ps_panel *panel;
+#if PS_PANEL_PRESENTATION
+    const ps_panel_presentation *panel_presentation;
+    unsigned panel_key_names;
+#endif
+#if PS_CONTROL_CHOICE_POPUP
+    unsigned choice_popup,choice_index,choice_initial,choice_id;
+    ps_u32 choice_schema;
+#endif
+#if PS_SEMANTIC_ACCENT
+    unsigned semantic_accent,accent_roles;
+#endif
 #if PS_PANEL_KEYS
     ps_panel_key_fn panel_key;
     void *panel_key_context;
@@ -352,6 +363,17 @@ static void reset(ps_session *s) {
 static void ink(ps_session *s, unsigned kind) {
     color(s, ps_style_ink(s->theme, (s->io.flags & PS_TRUECOLOR) != 0,
                          (s->table_style & PS_TABLE_RED_BORDER) != 0, kind));
+#if PS_SEMANTIC_ACCENT
+    if(PS_OSC&&!(s->io.flags&PS_NO_OSC)&&s->semantic_accent&&(kind==PS_INK_ACCENT||(kind<=PS_INK_ACCENT&&(s->accent_roles&(1u<<kind)))))
+        color(s,PS_SEMANTIC_ACCENT_SEQUENCE);
+#endif
+}
+PS_API void ps_set_semantic_accent(ps_session *s,int enabled,unsigned role_mask){
+#if PS_SEMANTIC_ACCENT
+    if(s){s->semantic_accent=!!enabled;s->accent_roles=role_mask;s->dirty=1;}
+#else
+    (void)s;(void)enabled;(void)role_mask;
+#endif
 }
 static void surface(ps_session *s, unsigned active) {
     color(s, ps_style_surface(s->theme, (s->io.flags & PS_TRUECOLOR) != 0, active));
@@ -491,6 +513,7 @@ static int name_match(ps_session *s, const char *a, const char *b, int partial) 
     return partial || !*a;
 }
 static void style(ps_session *s, unsigned value) {
+    if(value==PS_STYLE_ACCENT){ink(s,PS_INK_ACCENT);return;}
     if(value==PS_STYLE_BLUE){color(s,"\033[94m");return;}
     if(s->theme==PS_THEME_DEFAULT && value){
         static const unsigned roles[]={PS_INK_TEXT,PS_INK_HEADING,PS_INK_SUCCESS,PS_INK_WARNING,PS_INK_ERROR,PS_INK_SUCCESS,PS_INK_MUTED,PS_INK_COMMAND,PS_INK_HEADING};
@@ -504,7 +527,7 @@ PS_API int ps_set_prompt_parts(ps_session *s,const ps_prompt_part *parts,unsigne
     unsigned i,j,n=0,lines=1;
     if(!s || count>PS_COUNT_OF(s->prompt_parts) || (count&&!parts))return -1;
     for(i=0;i<count;++i){
-        if(!parts[i].text || parts[i].style>PS_STYLE_BLUE)return -1;
+        if(!parts[i].text || parts[i].style>PS_STYLE_ACCENT)return -1;
         for(j=0;parts[i].text[j];++j){
             unsigned c=(unsigned char)parts[i].text[j];
             if(c=='\n'){if(++lines>PS_PROMPT_LINES)return -1;}
@@ -1030,6 +1053,9 @@ static void render(ps_session *s) {
 #endif
     if (!s->board || !(s->io.flags & PS_INTERACTIVE))
         return;
+#if PS_CONTROL_CHOICE_POPUP
+    if(s->control_view&&s->editing&&s->choice_popup)control_choice_valid(s);
+#endif
     s->dirty = 0;
 #if PS_DASHBOARD
     if(s->control_view&&s->dashboard&&!table_prompt(s)&&w>=42&&h>=14){dashboard_render(s);return;}
@@ -1301,6 +1327,10 @@ static void render(ps_session *s) {
         s,
 #if PS_PANEL_KEYS
         s->control_view&&s->panel_chrome&&s->panel_chrome->navigation&&!s->editing?s->panel_chrome->navigation:
+#endif
+#if PS_CONTROL_CHOICE_POPUP
+        s->control_view && s->editing && s->choice_popup ? "Tab next   Shift+Tab previous"
+        :
 #endif
         s->control_view && s->editing ? "Draft   Esc cancel"
         : s->editing ? ((s->io.flags & PS_UNICODE) ? "←/→ cursor  Home/End  ^U clear"
@@ -2208,6 +2238,8 @@ static void escape_key(ps_session *s) {
         key = PS_KEY_F4;
     else if (equal(p, "[18~"))
         key = PS_KEY_F7;
+    else if (equal(p, "[17~"))
+        key = PS_KEY_F6;
     else if (equal(p, "[1;5D"))
         key = PS_KEY_WORDLEFT;
     else if (equal(p, "[1;5C"))

@@ -234,6 +234,24 @@ enum { PS_PANEL_TABS, PS_PANEL_GRID };
    Returns 0 for unsupported layout, active editing, or a disabled dashboard. */
 PS_API int ps_panel_set_layout(ps_session *,unsigned layout);
 PS_API void ps_panel_refresh(ps_session *); /* after provider events, redraw on tick */
+#ifndef PS_CONTROL_CHOICE_POPUP
+#define PS_CONTROL_CHOICE_POPUP 1
+#endif
+#ifndef PS_PANEL_PRESENTATION
+#define PS_PANEL_PRESENTATION 1
+#endif
+/* Borrowed display-only metadata. Stable control IDs and choice indices never
+   change. Callbacks return printable borrowed strings, or NULL for fallback. */
+typedef const char *(*ps_panel_name_fn)(void *,unsigned id);
+typedef const char *(*ps_panel_choice_fn)(void *,unsigned id,unsigned index);
+typedef struct {
+    ps_panel_name_fn label,key;
+    ps_panel_choice_fn choice;
+    void *context;
+} ps_panel_presentation;
+PS_API void ps_panel_set_presentation(ps_session *,const ps_panel_presentation *);
+/* Returns zero when disabled or editing. Labels are the default. */
+PS_API int ps_panel_set_key_names(ps_session *,int enabled);
 typedef struct {
     const char *title;
     unsigned minimum, maximum, weight; /* maximum=0 means flexible; weight 0..16 */
@@ -328,7 +346,13 @@ enum {
     PS_NO_COMPLETION_MENU = 8192 /* Print-only candidates instead of a live selection. */
 };
 enum { PS_STYLE_DEFAULT, PS_STYLE_PROMPT, PS_STYLE_SUCCESS, PS_STYLE_WARNING, PS_STYLE_ERROR,
-       PS_STYLE_GREEN, PS_STYLE_MUTED, PS_STYLE_COMMAND, PS_STYLE_BLUE };
+       PS_STYLE_GREEN, PS_STYLE_MUTED, PS_STYLE_COMMAND, PS_STYLE_BLUE, PS_STYLE_ACCENT };
+#ifndef PS_SEMANTIC_ACCENT
+#define PS_SEMANTIC_ACCENT 1
+#endif
+/* Opt-in OSC semantic foreground. role_mask uses 1u << PS_INK_*; zero maps
+   only explicit PS_INK_ACCENT / PS_STYLE_ACCENT. Ordinary cyan is independent. */
+PS_API void ps_set_semantic_accent(ps_session *,int enabled,unsigned role_mask);
 enum {
     PS_KEY_UP = 256,
     PS_KEY_DOWN,
@@ -347,6 +371,7 @@ enum {
     PS_KEY_WORDLEFT,
     PS_KEY_WORDRIGHT,
     PS_KEY_F7 = 282,
+    PS_KEY_F6 = 283,
     PS_KEY_UNDO = 280, PS_KEY_REDO,
     PS_KEY_KILLWORD = 272
 };

@@ -9,6 +9,8 @@ unsigned ps_replay_svg(char *);
 const char *ps_replay_cell(unsigned,unsigned);
 unsigned ps_replay_row(void);
 unsigned ps_replay_column(void);
+void ps_replay_set_accent(unsigned);
+unsigned ps_replay_foreground(unsigned,unsigned);
 enum { TEST_COLUMNS=100,TEST_ROWS=34,SVG_BYTES=1000000 };
 static settings_demo model;
 static char svg[SVG_BYTES];
@@ -47,11 +49,19 @@ int main(int argc,char **argv){
     assert(ps_settings_get(&model.registry,"api.port",&value)==0&&value.natural==9000);
     assert(ps_execute(session,"config api.port 8000")==0);
     ps_replay_reset();assert(ps_execute(session,"configure")==0);ps_tick(session,time_now+=100);
-    assert(visible("api.base_url")&&visible("8000"));
+    assert(visible(PS_PANEL_PRESENTATION?"Base URL":"Base Url")&&visible("8000"));
+    assert(model.editor.panel.status&&!model.editor.panel.status[0]);
 #if PS_CONTROL_SECTION_ROWS
     assert(visible("API")&&visible("APPLICATION"));
 #endif
     capture(argc>1?argv[1]:0);
+#if PS_PANEL_PRESENTATION && PS_PANEL_KEYS
+    {const char *p="\033[17~";while(*p)ps_feed(session,p++,1);ps_tick(session,time_now+=100);}
+    assert(visible("api.base_url"));
+    {unsigned y,x,key_color;locate("api.base_url",&y,&x);key_color=ps_replay_foreground(y,x);
+        capture(argc>3?argv[3]:0);key(PS_KEY_F6);assert(visible("Base URL"));locate("Base URL",&y,&x);
+        assert(key_color!=ps_replay_foreground(y,x));}
+#endif
     /* Enter must not shift the value or its cursor into extra cell padding. */
     {unsigned y,x;locate(model.items[0].text,&y,&x);key(13);
         assert(text_at(y,x,model.items[0].text));
@@ -82,6 +92,62 @@ int main(int argc,char **argv){
     edit(1,"8080");assert(model.items[1].value.natural==8080);
     assert(ps_panel_select(session,2));key(' ');assert(!model.items[2].value.natural);
     assert(ps_panel_select(session,3));key(PS_KEY_RIGHT);assert(model.items[3].value.natural==1);
+#if PS_CONTROL_CHOICE_POPUP
+    assert(ps_panel_select(session,11));ps_tick(session,time_now+=100);
+    {unsigned value_y,value_x,option_y,option_x;
+        locate(PS_PANEL_PRESENTATION?"Default":"default",&value_y,&value_x);key(13);
+        locate(PS_PANEL_PRESENTATION?"One Dark":"onedark",&option_y,&option_x);
+        assert(option_x==value_x+6&&option_y<value_y); /* value-anchored drop-up */
+    }
+    assert(visible(PS_PANEL_PRESENTATION?"One Dark":"onedark")&&visible(PS_PANEL_PRESENTATION?"Default":"default"));
+    assert(!ps_panel_set_key_names(session,1));
+    key(PS_KEY_UP);assert(model.items[11].value.natural==0); /* rollover is a draft */
+    capture(argc>4?argv[4]:0);key(27);assert(model.items[11].value.natural==0);
+    key(PS_KEY_F2);key(PS_KEY_END);key(13);assert(model.items[11].value.natural==4);
+    assert(ps_settings_get(&model.registry,"terminal.palette",&value)==PS_SETTING_OK&&value.natural==4);
+    assert(ps_settings_set(&model.registry,"terminal.palette","One Dark")==PS_SETTING_INVALID);
+    assert(ps_settings_set(&model.registry,"terminal.palette","default")==PS_SETTING_OK);
+    key(13);key(PS_KEY_DOWN);
+    assert(ps_settings_set(&model.registry,"terminal.palette","red")==PS_SETTING_OK);
+    key(13);assert(model.items[11].value.natural==3);assert(visible("State changed"));
+#if PS_MOUSE
+    assert(ps_panel_select(session,11));key(13);
+    {unsigned y,x;char sequence[48];int n;
+        locate(PS_PANEL_PRESENTATION?"One Dark":"onedark",&y,&x);
+        n=snprintf(sequence,sizeof sequence,"\033[<0;%u;%uM",x+1,y+1);
+        assert(n>0);ps_feed(session,sequence,(unsigned)n);ps_tick(session,time_now+=100);
+        assert(model.items[11].value.natural==4);
+    }
+#endif
+    /* Descriptor shape changes invalidate the adapter rather than indexing an old list. */
+    assert(ps_panel_select(session,11));key(13);model.items[11].descriptor.choice_count=2;
+    key(13);assert(visible("State changed"));model.items[11].descriptor.choice_count=5;
+    assert(ps_settings_set(&model.registry,"terminal.palette","default")==PS_SETTING_OK);
+    /* Long lists page, scroll and wrap without changing the saved value. */
+    {static const char *const choices[]={"00","01","02","03","04","05","06","07","08","09","10","11","12","13","14","15"};
+        const char *const *old=model.controls[11].choices;
+        model.controls[11].choices=model.items[11].descriptor.choices=choices;
+        model.controls[11].choice_count=model.items[11].descriptor.choice_count=PS_COUNT_OF(choices);
+        ps_resize(session,48,18);key(13);key(PS_KEY_END);assert(visible("15"));
+        key(PS_KEY_PAGEDOWN);key(PS_KEY_HOME);
+#if PS_MOUSE
+        {const char wheel[]="\033[<64;30;10M";ps_feed(session,wheel,sizeof wheel-1);ps_tick(session,time_now+=100);}
+#else
+        key(PS_KEY_UP);
+#endif
+        key(13);assert(model.items[11].value.natural==15);
+        key(13);ps_resize(session,3,3);key(PS_KEY_DOWN);key(27);
+        model.controls[11].choices=model.items[11].descriptor.choices=old;
+        model.controls[11].choice_count=model.items[11].descriptor.choice_count=5;
+        assert(ps_settings_set(&model.registry,"terminal.palette","default")==PS_SETTING_OK);
+        ps_resize(session,TEST_COLUMNS,TEST_ROWS);
+    }
+#endif
+    assert(ps_panel_select(session,0));key(PS_KEY_HOME);
+    ps_set_semantic_accent(session,1,1u<<PS_INK_HEADING);ps_panel_refresh(session);ps_tick(session,time_now+=100);
+    ps_replay_set_accent(0x79d99d);capture(argc>5?argv[5]:0);
+    ps_replay_set_accent(0xe589ed);capture(argc>6?argv[6]:0);
+    ps_set_semantic_accent(session,0,0);ps_panel_refresh(session);ps_tick(session,time_now+=100);
     edit(7,"-42");assert(model.items[7].value.integer==-42);
     edit(8,"4294967295");assert(model.items[8].value.natural==0xffffffffu);
     assert(ps_panel_select(session,0));key(PS_KEY_F2);key(21);type("http://discarded");key(27);
