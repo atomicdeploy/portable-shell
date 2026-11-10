@@ -39,6 +39,68 @@ A worker thread, interrupt, socket or DMA callback must hand events to the owner
 
 ## Async output and backpressure
 
+### Prompt-safe responses
+
+Deliver an entire response in one call from the owning event loop:
+
+```c
+const char response[] = "Connected\nProfile loaded\n";
+ps_message_block(shell, PS_STYLE_SUCCESS, response, sizeof response - 1);
+
+const ps_report_row state[] = {
+    {"Playback", 0, 0, PS_REPORT_SECTION},
+    {"State", 0, "● Playing", PS_REPORT_SUCCESS},
+    {"Volume", 0, "72%", PS_REPORT_NUMBER},
+    {"Connection", 0, 0, PS_REPORT_SECTION | PS_REPORT_DIVIDER},
+    {"Controller", 0, "● Online", PS_REPORT_SUCCESS}
+};
+ps_message_report(shell, state, PS_COUNT_OF(state), PS_REPORT_COLUMNS);
+```
+
+`ps_message_block` reads at most the supplied byte count (NUL may end it sooner),
+preserves LF/CRLF, strips terminal escape sequences and control bytes, and wraps
+printable UTF-8 to the viewport. It appends a final newline when needed. It returns
+the consumed byte count, including when the response becomes a contextual notice.
+Strings and arrays remain borrowed only for the call. Empty/invalid input returns
+zero without disturbing the display.
+
+`ps_message_report` suspends the whole prompt once, prints the shared report, then
+redraws once. `PS_REPORT_COLUMNS` aligns the starts of values; existing dotted or
+space leaders remain selectable. `SECTION`/`GAP` group rows, `DIVIDER` adds a Unicode
+rule (ASCII fallback), and `NUMBER`, `SUCCESS`, `WARNING`, `ERROR`, `INACTIVE` select
+value roles. Consumers supply any status symbols as ordinary text. Report strings
+must be printable (LF/tab are allowed); invalid control sequences reject the call.
+`PS_REPORT=0` makes both report APIs return zero without output.
+
+Both message APIs preserve unfinished input, cursor position, history/completion
+state and the caller's last command status, including success and error values.
+`ps_message` now shares the multiline block implementation. `ps_print_report`
+remains the direct writer for command callbacks that already own their output.
+Do not send each logical line through a separate `ps_message` call when one
+response is intended; each call is a separate event and redraw transaction.
+
+While a table, editor, menu, file picker or form is active, messages become one
+short notice through that view's renderer. A report uses its first nonempty value
+row as `label: value`, falling back to a heading; its return value is zero because
+no report rows were printed. Existing editor save/validation errors retain priority.
+The editable draft and alternate-screen lifecycle are preserved. No hidden report
+queue is created: retain/replay events in the consumer if needed later.
+
+Live `ps_set_prompt_parts` updates also erase the old complete prompt before
+replacement, including header/completion rows. Long prompt headers remain clipped
+to the viewport and long input uses the existing horizontal window, avoiding
+untracked terminal autowrap. The bounded block/report output wraps independently.
+
+![Asynchronous report and unfinished multiline prompt](../../previews/prompt-async-report.png)
+
+This image is emitted-output replay with fixture state. `message_checks` exercises
+two-line prompt replacement, narrow viewport/input scrolling, bounded unterminated
+text, escape stripping, one redraw, aligned values, status preservation, and
+table/text-editor drafts. Synchronized output groups the erase, response and prompt
+into one frame when enabled; `PS_SYNC_OUTPUT=0` retains the same content/cursor behavior.
+
+### Transport queue
+
 ps_byte_queue is a caller-owned bounded FIFO:
 
 1. Initialize storage with ps_byte_queue_init.
