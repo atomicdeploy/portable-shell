@@ -94,7 +94,14 @@ Saves compare disk bytes against the last load/save and refuse external changes.
 They write an exclusively created sibling staging file, flush it, recheck the
 original and replace it. Save failures leave the draft available. Windows uses
 the original DACL for staging and `ReplaceFileW` for replacement; POSIX preserves
-owner, group and permission bits. POSIX extended ACLs/xattrs are not copied.
+owner, group and permission bits using metadata from the opened original file.
+POSIX saves hold the parent directory open and use descriptor-relative operations.
+The directory must belong to the current user and have no group/other write
+permission; otherwise saving is refused with the draft preserved. This prevents
+other users swapping destination entries between validation and replacement.
+For shared directories, use a private working copy or a consumer-owned save callback.
+The final check also rejects replacement by a different inode even with identical
+bytes. POSIX extended ACLs/xattrs are not copied.
 This is optimistic conflict detection, not a cross-process lock: another writer
 can still race the final check. Crash recovery and directory-fsync durability are
 not guaranteed. A leftover `.portable-shell.tmp` blocks another save rather than

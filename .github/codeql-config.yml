@@ -1,0 +1,5 @@
+name: PortableShell security analysis
+# Keep all default queries and add the extended security suite. No source paths
+# or security queries are excluded; C/C++ coverage comes from the traced builds.
+queries:
+  - uses: security-extended
