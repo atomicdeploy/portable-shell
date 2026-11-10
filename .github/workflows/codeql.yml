@@ -68,12 +68,6 @@ jobs:
         with:
           category: /language:${{ matrix.language }}/os:${{ matrix.os }}
           wait-for-processing: true
-      - name: 🧪 Check analyzed native build
-        id: test
-        if: matrix.mode == 'manual'
-        # Analyze finalizes compiler tracing before these runtime tests launch
-        # child processes. The Windows tracer otherwise changes launch errors.
-        run: ctest --test-dir build-codeql --output-on-failure --parallel 3 --timeout 120
       - name: 📊 Analysis summary
         if: always()
         env:

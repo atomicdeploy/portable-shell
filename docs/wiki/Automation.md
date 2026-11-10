@@ -22,10 +22,12 @@ CodeQL advanced setup manually builds C/C++ on Linux, Windows and macOS, includi
 tests that instantiate the shared full/reduced C++ headers. The scan build enables
 the optional execution, settings, remote-provider and original-API adapters so
 their guarded code is analyzed too. A second traced build covers the optional
-libc backend; ordinary consumer build defaults stay unchanged. Native tests run
-after analysis finalizes compiler tracing, so Windows process-launch assertions
-observe native behavior instead of the tracer's interception. A separate Actions
-scan checks workflow security.
+libc backend; ordinary consumer build defaults stay unchanged. The full native
+test suite runs in the existing Build and verify jobs, on clean runners without
+CodeQL's launcher instrumentation. This matters for Windows missing-executable
+exit-code and pipeline assertions, whose results differ in the CodeQL job even
+after finalization. CodeQL still compiles all test targets, including those process
+adapters. A separate Actions scan checks workflow security.
 
 `.github/codeql-config.yml` adds `security-extended` to the default queries,
 without source-path or query exclusions. The workflow has stable per-language/OS
