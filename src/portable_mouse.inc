@@ -17,7 +17,7 @@ static void table_mouse(ps_session *s,const ps_mouse_event *e) {
     if(e->release){s->mouse_drag=0;return;}
     if(x>s->io.columns||y>s->io.rows||b&~127U)return;
     if(b&28U)return; /* Let terminal selection/modifier gestures remain non-mutating. */
-#if PS_CONTROL_CHOICE_POPUP
+#if PS_CONTROL_CHOICE_POPUP && PS_MOUSE
     if(s->control_view&&s->editing&&s->choice_popup){control_choice_mouse(s,e);return;}
 #endif
     if(b&64U){

@@ -6,6 +6,14 @@ fixture data and pinned Agave typography with antialiasing. They are not mockups
 or proof of connected hardware. CI rebuilds every image from current source and
 rejects stale or missing files.
 
+**Asynchronous report — one response, one prompt redraw**
+
+![Prompt-safe asynchronous report](../../previews/prompt-async-report.png)
+
+The shared report aligns values and preserves the unfinished command and cursor
+under a multiline prompt. [API and event-loop integration](Async.md#prompt-safe-responses).
+This is fixture state rendered from actual C byte output.
+
 **Prompt completion — highlighted selection and rollover**
 
 ![Tab completion selection](../../previews/completion-menu.png)

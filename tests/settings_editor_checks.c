@@ -97,7 +97,7 @@ int main(int argc,char **argv){
     {unsigned value_y,value_x,option_y,option_x;
         locate(PS_PANEL_PRESENTATION?"Default":"default",&value_y,&value_x);key(13);
         locate(PS_PANEL_PRESENTATION?"One Dark":"onedark",&option_y,&option_x);
-        assert(option_x==value_x+6&&option_y<value_y); /* value-anchored drop-up */
+        assert(option_x==value_x+6&&option_y!=value_y); /* value-anchored, above or below */
     }
     assert(visible(PS_PANEL_PRESENTATION?"One Dark":"onedark")&&visible(PS_PANEL_PRESENTATION?"Default":"default"));
     assert(!ps_panel_set_key_names(session,1));

@@ -416,7 +416,7 @@ PS_API int ps_unregister(ps_session *s, const char *name);
 PS_API unsigned ps_command_count(const ps_session *s);
 PS_API const ps_command *ps_command_at(const ps_session *s, unsigned index);
 PS_API int ps_register_raw(ps_session *s, const ps_command *metadata, ps_raw_command_fn run);
-/* Text is copied, max 63 UTF-8 bytes, no control characters. NULL restores default. */
+/* Same copied text/line validation as ps_set_prompt_parts. NULL restores default. */
 PS_API int ps_set_prompt(ps_session *s, const char *text, unsigned style);
 /* Copied prompt: 255 bytes, 16 colored parts, four lines. Newlines are allowed;
  * other controls/escape sequences are rejected. Zero parts restores the default.
@@ -428,6 +428,11 @@ PS_API int ps_get_uppercase_echo(const ps_session *s);
 /* Safe external event output; preserves pending input/cursor. In the board it
    becomes the contextual notice. Call from the owning loop, not from write(). */
 PS_API void ps_message(ps_session *s, unsigned style, const char *text);
+/* One asynchronous response: consumes at most bytes, preserves LF/CRLF, strips
+   terminal controls, wraps to the viewport, and redraws the prompt once. No
+   allocation/retention; call on the owning loop. Returns bytes consumed (also
+   when reduced to a canvas notice), or 0 for invalid input/empty output. */
+PS_API unsigned ps_message_block(ps_session *,unsigned style,const char *text,unsigned bytes);
 PS_API void ps_clear(ps_session *s);
 PS_API void ps_request_exit(ps_session *s);
 PS_API int ps_bind(ps_session *s, unsigned key, ps_key_fn callback, void *context);
@@ -440,14 +445,20 @@ PS_API void ps_ring_bell(ps_session *s);
 #ifndef PS_REPORT
 #define PS_REPORT 1
 #endif
-enum { PS_REPORT_SECTION=1, PS_REPORT_GAP=2, PS_REPORT_NUMBER=4 };
-enum { PS_REPORT_DOTS=0, PS_REPORT_SPACES=1, PS_REPORT_DENSE=2 };
+enum { PS_REPORT_SECTION=1, PS_REPORT_GAP=2, PS_REPORT_NUMBER=4,
+       PS_REPORT_DIVIDER=8, PS_REPORT_SUCCESS=16, PS_REPORT_WARNING=32,
+       PS_REPORT_ERROR=64, PS_REPORT_INACTIVE=128 };
+enum { PS_REPORT_DOTS=0, PS_REPORT_SPACES=1, PS_REPORT_DENSE=2, PS_REPORT_COLUMNS=4 };
 /* Borrowed printable strings, consumed synchronously; NULL means empty.
    A section row can also supply a right-hand column heading. */
 typedef struct { const char *label, *annotation, *value; unsigned flags; } ps_report_row;
 /* Returns rows rendered, or 0 for invalid input / PS_REPORT=0. Width follows
    terminal columns; long content wraps without truncation. No session storage. */
 PS_API unsigned ps_print_report(ps_session *,const ps_report_row *,unsigned count,unsigned style);
+/* Prompt-safe report: suspend once, print all rows, redraw once. Canvas modes
+   receive the first value row as a "label: value" notice (or a label). Returns rows
+   rendered, or 0 for a notice/invalid input/PS_REPORT=0; never changes status. */
+PS_API unsigned ps_message_report(ps_session *,const ps_report_row *,unsigned count,unsigned style);
 #ifndef PS_FORM
 #define PS_FORM 1
 #endif
