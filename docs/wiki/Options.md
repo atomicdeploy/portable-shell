@@ -17,6 +17,11 @@ palettes keep their existing IDs; `DeviceView::Default` selects the default poli
 
 ## Presentation
 
+Frame geometry and palette are independent. Select rounded (default), square,
+heavy outer/light inner, heavy or double with `ps_set_border_style` or
+`DeviceView::setBorderStyle`. Optional C table-dialog title bars and framed buttons
+use `ps_set_dialog_style`. [Examples, build flags and previews](Frame-styles.md).
+
 ### Repainting
 
 Interactive frames use synchronized output (`CSI ? 2026 h/l`) by default, so

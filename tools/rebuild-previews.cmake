@@ -94,6 +94,7 @@ list(APPEND frames settings-editor settings-editor-inline settings-editor-keys s
 list(APPEND frames settings-accent-green settings-accent-magenta)
 list(APPEND frames completion-menu)
 list(APPEND frames action-buttons action-buttons-mono)
+list(APPEND frames frame-rounded frame-single frame-mixed frame-heavy frame-double frame-dialog-before frame-dialog-after frame-ascii)
 set(arguments)
 set(managed)
 foreach(frame IN LISTS frames)
@@ -113,6 +114,7 @@ execute_process(COMMAND "${BUILD_DIR}/native/bin/settings_editor_checks${exe}" "
 execute_process(COMMAND "${BUILD_DIR}/native/bin/completion_checks${exe}" "${generated}/completion-menu.svg" COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${BUILD_DIR}/native/bin/action_button_checks${exe}"
   "${generated}/action-buttons.svg" "${generated}/action-buttons-mono.svg" COMMAND_ERROR_IS_FATAL ANY)
+execute_process(COMMAND "${BUILD_DIR}/native/bin/border_checks${exe}" "${generated}" COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${BUILD_DIR}/native/bin/service_console_checks${exe}" "${generated}/service-console" COMMAND_ERROR_IS_FATAL ANY)
 configure_file("${generated}/service-console/main.svg" "${generated}/service-main.svg" COPYONLY)
 configure_file("${generated}/service-console/configuration.svg" "${generated}/service-settings.svg" COPYONLY)

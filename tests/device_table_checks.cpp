@@ -34,6 +34,15 @@ int main(){
     std::string output;auto write=[&](const uint8_t *p,size_t n){output.append((const char*)p,n);};
     auto feed=[&](const char *keys){bool emitted=false;while(*keys)emitted=v.feed(uint8_t(*keys++),s,a)||emitted;return emitted;};
     v.begin();v.render(s,write);
+    for(unsigned style=0;style<PS_BORDER_STYLE_COUNT;++style){
+        if(!ps_border_style_valid(style))continue;
+        assert(v.setBorderStyle(style));output.clear();v.render(s,write,true);
+        widths(output,s.columns-1);
+        assert(output.find(ps_border_glyph(style,true,PS_BORDER_TOP_LEFT))!=std::string::npos);
+        assert(output.find(ps_border_glyph(style,true,PS_BORDER_BOTTOM_RIGHT))!=std::string::npos);
+    }
+    assert(!v.setBorderStyle(PS_BORDER_STYLE_COUNT));
+    assert(v.setBorderStyle(PS_BORDER_ROUNDED));output.clear();v.render(s,write,true);
     if(PS_SYNC_OUTPUT){assert(output.find("\x1b[?2026h")!=std::string::npos);
     assert(output.compare(output.size()-8,8,"\x1b[?2026l")==0);}
     v.setSynchronizedOutput(false);output.clear();v.render(s,write,true);

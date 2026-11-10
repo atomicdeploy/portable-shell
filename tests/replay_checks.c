@@ -14,6 +14,13 @@ int main(void) {
     assert(strstr(svg,">X</text>"));
     assert(strstr(svg,"v -7 q 0 -6 6 -6"));
     assert(strstr(svg,"v 26"));
+    /* Additional frame glyphs must span their terminal cells, independent of
+       font ascent/line spacing, including mixed-weight and double junctions. */
+    {const unsigned char frames[]="\033[H┌┐└┘┏┓┗┛┃┠┨┯┷┣┫┳┻╋╔╗╚╝║═╠╣╦╩╬";
+        ps_replay_reset();ps_replay_feed(frames,sizeof frames-1);n=ps_replay_svg(svg);svg[n]=0;
+        assert(strstr(svg,"stroke-width=\"3\""));
+        assert(!strstr(svg,"<text "));
+    }
     ps_replay_reset();n=ps_replay_svg(svg);svg[n]=0;
     assert(!strstr(svg,">X</text>"));
     /* A colored title cell must not recolor the entire canvas. SGR 39/49

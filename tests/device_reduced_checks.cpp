@@ -13,6 +13,12 @@ int main(){
     auto render=[&](){out.clear();v.render(s,[&](const uint8_t *p,size_t n){out.append((const char*)p,n);},true);};
     auto feed=[&](const char *p){bool sent=false;while(*p)sent=v.feed(uint8_t(*p++),s,a)||sent;return sent;};
     render();
+    for(unsigned style=0;style<PS_BORDER_STYLE_COUNT;++style){
+        if(!ps_border_style_valid(style))continue;
+        assert(v.setBorderStyle(style));render();
+        assert(out.find(ps_border_glyph(style,true,PS_BORDER_TOP_LEFT))!=std::string::npos);
+    }
+    assert(v.setBorderStyle(PS_BORDER_ROUNDED));render();
     assert(out.find("Value")!=std::string::npos);
 #if PS_DEVICE_VIEW_SECTIONS
     assert(out.find("OUTPUTS")!=std::string::npos);

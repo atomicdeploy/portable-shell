@@ -38,7 +38,7 @@ install(FILES include/portable_shell.h include/portable_shell_device.h include/p
   include/portable_util.h include/portable_terminal.h include/portable_editor.h
   include/portable_segments.h include/portable_meter.h include/portable_monitor.h include/portable_rich.h include/portable_undo.h include/portable_screen.h include/portable_async.h include/portable_settings.h include/portable_table_policy.h include/portable_osc.h include/portable_command_line.h include/portable_parse.h include/portable_probe.h
   include/portable_settings_editor.h include/portable_shell_editor.hpp include/portable_device_view.hpp
-  include/portable_device_table.hpp include/portable_style.h include/portable_semantic.h
+  include/portable_device_table.hpp include/portable_style.h include/portable_semantic.h include/portable_border.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 if(PORTABLE_SHELL_BUILD_LEGACY)
   add_library(portable_shell_legacy STATIC compat/legacy.c host/legacy_io.c)
@@ -560,6 +560,12 @@ if(PORTABLE_SHELL_BUILD_TESTS)
   endif()
   include(tools/action-button-target.cmake)
   add_test(NAME action_button_checks COMMAND action_button_checks)
+  include(tools/border-target.cmake)
+  add_test(NAME border_checks COMMAND border_checks)
+  ps_border_check_target(border_min_checks PS_BORDER_STYLES=0 PS_DIALOG_STYLES=0)
+  add_test(NAME border_min_checks COMMAND border_min_checks)
+  ps_border_check_target(border_nomouse_checks PS_MOUSE=0 PS_BORDER_DEFAULT=PS_BORDER_HEAVY_FRAME)
+  add_test(NAME border_nomouse_checks COMMAND border_nomouse_checks)
   add_executable(table_policy_checks tests/table_policy_checks.c)
   target_link_libraries(table_policy_checks PRIVATE portable_shell_workbench)
   if(PORTABLE_SHELL_ASCII_ONLY)

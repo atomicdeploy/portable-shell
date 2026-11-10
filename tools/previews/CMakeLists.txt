@@ -7,6 +7,7 @@ include("${root}/tools/settings-editor-target.cmake")
 include("${root}/tools/message-target.cmake")
 include("${root}/tools/completion-target.cmake")
 include("${root}/tools/action-button-target.cmake")
+include("${root}/tools/border-target.cmake")
 add_executable(terminal_animation "${root}/tools/terminal_animation.c")
 add_executable(animation_demo "${root}/tests/animation_demo.c" "${root}/src/portable_shell.c")
 add_executable(workspace_preview "${root}/tests/export_previews.c" "${root}/tests/render.c"

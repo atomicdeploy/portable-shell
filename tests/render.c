@@ -1,4 +1,5 @@
 #include "../include/portable_semantic.h"
+#include "../include/portable_border.h"
 #ifdef PS_RICH_REPLAY
 #include "portable_rich.h"
 #endif
@@ -305,6 +306,51 @@ static void hex(unsigned n) {
     b[6] = 0;
     add(b);
 }
+static void frame_segment(unsigned color,unsigned weight,unsigned x1,unsigned y1,unsigned x2,unsigned y2){
+    add("<path fill=\"none\" stroke=\"#");hex(color);
+    add(weight==3?"\" stroke-width=\"3\" d=\"M ":"\" stroke-width=\"1.25\" d=\"M ");
+    number(x1);add(" ");number(y1);add(" L ");number(x2);add(" ");number(y2);add("\"/>");
+}
+static int frame_cell_path(Cell *cell,unsigned x,unsigned y){
+    enum { LEFT=1, RIGHT=2, UP=4, DOWN=8, CELL_WIDTH=12, CELL_HEIGHT=26, DOUBLE_OFFSET=2 };
+    static const unsigned ports[]={RIGHT|DOWN,LEFT|RIGHT,LEFT|RIGHT|DOWN,LEFT|DOWN,
+        UP|DOWN,UP|DOWN,UP|DOWN|RIGHT,LEFT|RIGHT,LEFT|RIGHT|UP|DOWN,UP|DOWN|LEFT,
+        RIGHT|UP,LEFT|RIGHT,LEFT|RIGHT|UP,LEFT|UP,LEFT|RIGHT|UP,LEFT|RIGHT|DOWN};
+    unsigned style,part,i,mask,horizontal,vertical,cx=x+CELL_WIDTH/2,cy=y+CELL_HEIGHT/2;
+    for(style=PS_BORDER_SINGLE;style<PS_BORDER_STYLE_COUNT;++style){
+        for(part=0;part<PS_BORDER_PART_COUNT;++part){const char *glyph=ps_border_glyph(style,1,part);
+            for(i=0;glyph[i]&&glyph[i]==cell->text[i];++i){}
+            if(!glyph[i]&&!cell->text[i])break;
+        }
+        if(part==PS_BORDER_PART_COUNT)continue;
+        mask=ports[part];horizontal=vertical=1;
+        if(style==PS_BORDER_DOUBLE){
+            unsigned near_x=cx-DOUBLE_OFFSET,far_x=cx+DOUBLE_OFFSET,near_y=cy-DOUBLE_OFFSET,far_y=cy+DOUBLE_OFFSET;
+            /* Paired ports meet around an open center. Corners and T/cross joins
+               retain continuous inner/outer strokes rather than crossing lanes. */
+            if(mask&LEFT){frame_segment(cell->fg,1,x,near_y,near_x,near_y);frame_segment(cell->fg,1,x,far_y,near_x,far_y);}
+            if(mask&RIGHT){frame_segment(cell->fg,1,far_x,near_y,x+CELL_WIDTH,near_y);frame_segment(cell->fg,1,far_x,far_y,x+CELL_WIDTH,far_y);}
+            if(mask&UP){frame_segment(cell->fg,1,near_x,y,near_x,near_y);frame_segment(cell->fg,1,far_x,y,far_x,near_y);}
+            if(mask&DOWN){frame_segment(cell->fg,1,near_x,far_y,near_x,y+CELL_HEIGHT);frame_segment(cell->fg,1,far_x,far_y,far_x,y+CELL_HEIGHT);}
+            if((mask&(LEFT|RIGHT))&&!(mask&UP))frame_segment(cell->fg,1,near_x,near_y,far_x,near_y);
+            if((mask&(LEFT|RIGHT))&&!(mask&DOWN))frame_segment(cell->fg,1,near_x,far_y,far_x,far_y);
+            if((mask&(UP|DOWN))&&!(mask&LEFT))frame_segment(cell->fg,1,near_x,near_y,near_x,far_y);
+            if((mask&(UP|DOWN))&&!(mask&RIGHT))frame_segment(cell->fg,1,far_x,near_y,far_x,far_y);
+            return 1;
+        }
+        if(style==PS_BORDER_HEAVY)horizontal=vertical=3;
+        if(style==PS_BORDER_HEAVY_FRAME){
+            if(part<=PS_BORDER_TOP_RIGHT||part==PS_BORDER_BOTTOM_LEFT||part==PS_BORDER_BOTTOM||part==PS_BORDER_BOTTOM_JOIN||part==PS_BORDER_BOTTOM_RIGHT)horizontal=3;
+            if(part==PS_BORDER_TOP_LEFT||part==PS_BORDER_TOP_RIGHT||part==PS_BORDER_OUTER_VERTICAL||part==PS_BORDER_MIDDLE_LEFT||part==PS_BORDER_MIDDLE_RIGHT||part==PS_BORDER_BOTTOM_LEFT||part==PS_BORDER_BOTTOM_RIGHT)vertical=3;
+        }
+        if(mask&LEFT)frame_segment(cell->fg,horizontal,x,cy,cx,cy);
+        if(mask&RIGHT)frame_segment(cell->fg,horizontal,cx,cy,x+CELL_WIDTH,cy);
+        if(mask&UP)frame_segment(cell->fg,vertical,cx,y,cx,cy);
+        if(mask&DOWN)frame_segment(cell->fg,vertical,cx,cy,cx,y+CELL_HEIGHT);
+        return 1;
+    }
+    return 0;
+}
 /* Terminal emulators commonly draw box cells themselves to keep strokes joined
    at arbitrary line heights. Mirror that cell behavior in the replay utility. */
 static int cell_path(Cell *v, unsigned x, unsigned y) {
@@ -323,7 +369,7 @@ static int cell_path(Cell *v, unsigned x, unsigned y) {
     if ((unsigned char)v->text[1] == 0x95 ? (c < 0xad || c > 0xb0)
                                           : (c != 0x80 && c != 0x81 && c != 0x82 && c != 0x9c &&
                                              c != 0xa4 && c != 0xac && c != 0xb4 && c != 0xbc))
-        return 0;
+        return frame_cell_path(v,x,y);
     add("<path fill=\"none\" stroke=\"#");
     hex(v->fg);
     add(c == 0x81 ? "\" stroke-width=\"3\" d=\"M " : "\" stroke-width=\"1.25\" d=\"M ");

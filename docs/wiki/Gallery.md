@@ -6,6 +6,20 @@ fixture data and pinned Agave typography with antialiasing. They are not mockups
 or proof of connected hardware. CI rebuilds every image from current source and
 rejects stale or missing files.
 
+**Frame styles — stable cell geometry and functional dialog controls**
+
+| Rounded default | Heavy frame with light dividers |
+| --- | --- |
+| ![Rounded table](../../previews/frame-rounded.png) | ![Heavy outer frame](../../previews/frame-mixed.png) |
+
+| Dialog before | Optional title bar and framed buttons |
+| --- | --- |
+| ![Original dialog](../../previews/frame-dialog-before.png) | ![Framed dialog](../../previews/frame-dialog-after.png) |
+
+Square, heavy and double frames are available too. [All styles, API examples,
+feature flags and ASCII fallback](Frame-styles.md). The new dialog controls are
+keyboard/mouse operable; frame styling preserves table cell positions.
+
 **Asynchronous report — one response, one prompt redraw**
 
 ![Prompt-safe asynchronous report](../../previews/prompt-async-report.png)
