@@ -1,12 +1,35 @@
 # Applying shared changes to consumers
 
 The full C session and the shared event editor are different integration paths.
-Updating a source pin is not evidence that a call site uses a new feature. Compare
+Updating dependency sources is not evidence that a call site uses a new feature. Compare
 the consumed file set, sync exact Git blobs, verify hashes, then exercise the actual
 consumer dispatcher, transport and rendering path. Source updates cannot change
 already compiled or running firmware; rebuild and use the consumer's authorized
 update mechanism. Never remove feature flags or replace application handlers with
 the desktop demonstration workspace.
+
+## Follow upstream during development
+
+Consumers should follow the canonical
+[PortableShell main branch](https://github.com/atomicdeploy/portable-shell/tree/main)
+during active development and refresh shared source at integration checkpoints.
+Discourage unnecessary, long-lived revision pins that leave fixes and improvements
+unused. A commit supplied in a handoff identifies an implementation checkpoint;
+it is not an instruction to freeze the dependency there.
+
+Keep the resolved commit and consumed-file hashes as build receipts, and retain
+release locks when reproducibility requires them. If a fixed revision is needed
+for compatibility or qualification, document the concrete reason and the condition
+or process for refreshing it. Review upstream changes, preserve consumer/local
+edits, rebuild with consistent explicit feature flags, and test the actual dispatch,
+editing and transport paths before accepting an update.
+
+Submodules and package lockfiles may still record an exact revision. Configure a
+reviewed update path so those records advance regularly instead of becoming an
+indefinite freeze. Vendored source should likewise have a repeatable sync process
+and recorded upstream identity. Updating sources does not replace the existing
+authorized deployment and runtime acceptance process for installed software or
+firmware.
 
 ## Full-session completion
 
@@ -60,5 +83,6 @@ I/O, PTY/resize and disconnect handling with the same dispatcher. A Telnet liste
 is not SSH. Report build-disabled/unsupported transport accurately rather than
 silently enabling an alternate protocol.
 
-Keep consumer source locks and review ledgers; do not create divergent copies of
-shared headers. Consumers own their application commands and deployment validation.
+Keep resolved-source receipts and review ledgers, with a clear refresh path for
+any necessary release locks. Avoid divergent copies of shared headers. Consumers
+own their application commands and deployment validation.

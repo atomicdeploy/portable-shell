@@ -125,6 +125,10 @@ Start from the [runnable command/settings consumer](examples/consumer_commands.c
 The [embedding guide](docs/wiki/Embedding.md) and
 [command registration guide](docs/wiki/Commands.md) explain the APIs and ownership rules.
 
+During development, follow canonical upstream and refresh at integration checkpoints
+instead of keeping an unnecessary long-lived revision pin. Record exact revisions
+for reproducible releases. [Consumer update policy](docs/wiki/Integration.md#follow-upstream-during-development).
+
 ### Select features explicitly
 
 Consumers select features and capacities instead of relying on a device/product
