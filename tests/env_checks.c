@@ -1,5 +1,8 @@
 #ifndef _WIN32
 #define _POSIX_C_SOURCE 200809L
+#ifdef __APPLE__
+#define _DARWIN_C_SOURCE 1
+#endif
 #endif
 #include "../host/env_manager.h"
 #include "portable_util.h"
