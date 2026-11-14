@@ -562,6 +562,29 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
         before = probe.writes;
         ps_key(s, 13);
         CHECK(probe.writes == before, "label cannot be edited");
+        {
+            unsigned id = 99;
+            static const ps_menu_item items[] = {{"Settings", 0, 0, 0, 0}};
+            static const ps_menu menu = {"Dialog background", items, 1};
+            ps_key(s, 27);
+            ps_menu_set_style(s, PS_MENU_TABLE);
+            ps_resize(s, 100, 30);
+            CHECK(ps_menu_open(s, &menu), "settings dialog background opens");
+            clear();
+            CHECK(ps_panel_open_dialog(s, 0, 2), "content-sized dialog opens");
+            CHECK(has(t.output, "Dialog background") && has(t.output, "Esc Close") &&
+                  !has(t.output, "F2"), "dialog keeps menu visible and uses its own footer");
+            ps_key(s, PS_KEY_DOWN);
+            CHECK(ps_panel_selection(s, &id) && id == 2, "down moves one two-column row");
+            ps_resize(s, 28, 9);
+            ps_key(s, PS_KEY_DOWN);
+            CHECK(ps_panel_selection(s, &id) && id == 3, "narrow dialog reflows to one column");
+            ps_key(s, 27);
+            CHECK(!ps_panel_active(s) && ps_menu_active(s), "Escape restores background menu");
+            ps_menu_close(s);
+            ps_resize(s, 100, 30);
+            CHECK(ps_panel_open(s, 1), "ordinary panel can reopen after a dialog");
+        }
 #if PS_MOUSE
         ps_key(s,27);
         ps_set_table_style(s,PS_TABLE_DEFAULT|PS_TABLE_CATEGORY_COLUMN);
