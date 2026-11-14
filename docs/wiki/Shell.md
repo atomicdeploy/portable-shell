@@ -213,6 +213,15 @@ Actual-output Agave previews:
 [choices](https://github.com/atomicdeploy/portable-shell/blob/main/previews/form-choice.png),
 [steps](https://github.com/atomicdeploy/portable-shell/blob/main/previews/form-steps.png).
 
+## Centered settings dialog
+
+Use `ps_panel_open_dialog(session, page, columns)` for a content-sized dialog
+centered in the terminal. Request one to four settings per row. The dialog
+uses fewer columns on narrow terminals and scrolls on short terminals.
+A framed menu stays visible behind it and regains focus on Escape.
+Arrow keys and Tab move between controls. Enter edits text and numbers in
+place, toggles booleans, or advances a choice.
+
 ## Multi-panel dashboard
 
 The control provider can be presented as simultaneous panels instead of tabs:

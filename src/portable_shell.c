@@ -223,6 +223,7 @@ struct ps_session {
     ps_panel local_panel;
 #endif
     unsigned control_view, dialog, dialog_focus;
+    unsigned panel_dialog_columns;
     unsigned control_header, control_edit_row;
     ps_byte control_closed[PS_CONTROL_SECTION_ROWS ? 8 : 1][PS_CONTROL_SECTION_ROWS ? 16 : 1];
     ps_u32 draft_revision;
@@ -1067,6 +1068,17 @@ static void table_open(ps_session *s, unsigned tab) {
     s->dirty = 1;
 }
 static void table_close(ps_session *s) {
+    unsigned restore_menu = s->panel_dialog_columns && s->menu_depth;
+    unsigned keep_screen = restore_menu && s->menu_screen;
+    s->panel_dialog_columns = 0;
+    s->mouse_drag = 0;
+    if (keep_screen) {
+        s->editing = s->dialog = s->control_view = s->board = 0;
+        s->notice[0] = 0;
+        s->canvas_kind = 0;
+        ps_menu_refresh(s);
+        return;
+    }
     if(PS_MOUSE)ansi(s,"\033[?1002l\033[?1006l");
     s->mouse_drag=0;
     s->editing = 0;
@@ -1074,7 +1086,10 @@ static void table_close(ps_session *s) {
     s->board = 0;
     s->filter[0] = 0;
     ansi(s, "\033[r\033[0m\033[?25h\033[?1049l");
-    prompt(s);
+    if (restore_menu) {
+        s->notice[0] = 0;
+        ps_menu_refresh(s);
+    } else prompt(s);
 }
 static void edit_insert(char *, unsigned *, unsigned *, unsigned, unsigned);
 static void edit_delete(char *, unsigned *, unsigned *, int);
@@ -1086,6 +1101,7 @@ static void enter_edit(ps_session *, unsigned, const char *);
 static void edit_insert(char *, unsigned *, unsigned *, unsigned, unsigned);
 static void edit_delete(char *, unsigned *, unsigned *, int);
 #include "portable_controls.inc"
+#include "portable_panel_dialog.inc"
 static unsigned table_gutter(ps_session *s) {
     unsigned total,focus;unsigned short items[512];
     if(s->io.columns<64||(s->table_style&PS_TABLE_COMPACT_SCROLLBAR))return 0;
@@ -1117,6 +1133,7 @@ static void render(ps_session *s) {
     if(s->control_view&&s->editing&&s->choice_popup)control_choice_valid(s);
 #endif
     s->dirty = 0;
+    if (s->panel_dialog_columns) { panel_dialog_draw(s); return; }
 #if PS_DASHBOARD
     if(s->control_view&&s->dashboard&&!table_prompt(s)&&w>=42&&h>=14){dashboard_render(s);return;}
 #endif
@@ -1896,6 +1913,7 @@ static void shell_key(ps_session *s, unsigned key) {
         }
         history_dialog_draw(s);return;
     }
+    if(s->panel_dialog_columns){panel_dialog_key(s,key);return;}
     if(s->menu_depth){menu_key(s,key);return;}
     if(table_prompt(s) && key==PS_KEY_F4 && !s->editing) {
         s->table_prompt_focus=!s->table_prompt_focus;s->dirty=1;render(s);return;
@@ -2264,6 +2282,10 @@ static void escape_key(ps_session *s) {
     if(p[0]=='['&&p[1]=='<'){
         ps_mouse_event event;
         if(PS_MOUSE&&ps_mouse_parse(p+1,&event)){
+#if PS_MOUSE
+            if(s->panel_dialog_columns)panel_dialog_mouse(s,&event);
+            else
+#endif
             if(s->file_count||s->menu_depth||ps_form_active(s))workspace_mouse(s,&event);else table_mouse(s,&event);
         }
         return;
@@ -2501,6 +2523,7 @@ PS_API void ps_resize(ps_session *s, unsigned columns, unsigned rows) {
     if(ps_hex_editor_active(s)){hex_render(s);return;}
     if(s->document_open){document_render(s);return;}
     if(s->file_count){file_render(s);return;}
+    if(s->panel_dialog_columns){render(s);return;}
     if(s->menu_depth){ps_menu_refresh(s);return;}
     if (s->board) {
         render(s);
@@ -2526,6 +2549,8 @@ PS_API void ps_close(ps_session *s) {
     ps_form_close(s);
     ps_file_picker_close(s);
     if(s->document_open)document_close(s);
+    if(s->panel_dialog_columns && s->menu_screen) s->board = 0;
+    s->panel_dialog_columns = 0;
     ps_menu_close(s);
     if(PS_MOUSE && s->board)ansi(s,"\033[?1002l\033[?1006l");
     if (s->board) {
