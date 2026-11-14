@@ -1,6 +1,7 @@
 /* Freestanding tests: the runner provides only a byte sink. */
 #include "portable_shell.h"
 #include "portable_shell_device.h"
+#include "portable_style.h"
 int portable_runtime_checks(void);
 int portable_memory_checks(void);
 int portable_terminal_checks(void);
@@ -574,6 +575,13 @@ int portable_shell_checks(ps_write_fn report, void *ctx) {
             CHECK(ps_panel_open_dialog(s, 0, 2), "content-sized dialog opens");
             CHECK(has(t.output, "Dialog background") && has(t.output, "Esc Close") &&
                   !has(t.output, "F2"), "dialog keeps menu visible and uses its own footer");
+#if PS_STYLE_THEMES && !defined(PS_ASCII_ONLY)
+            CHECK(has(t.output, ps_style_surface(PS_THEME_DEFAULT, 0, 2)) &&
+                  !has(t.output, "\033[36m"),
+                  "dialog uses table semantic colors and selection surface");
+#endif
+            CHECK(has(t.output, "┼") || has(t.output, "+"),
+                  "dialog draws joined interior borders");
             ps_key(s, PS_KEY_DOWN);
             CHECK(ps_panel_selection(s, &id) && id == 2, "down moves one two-column row");
             ps_resize(s, 28, 9);
